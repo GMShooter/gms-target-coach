@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Percent, Target, TrendingRight, Trophy } from 'lucide-react';
+import { Percent, Target, TrendingUp, Trophy } from 'lucide-react';
 
 interface Metrics {
   accuracy: string;
@@ -32,7 +32,7 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ metrics 
     {
       label: 'Directional Trend',
       value: metrics.directionalTrend,
-      icon: TrendingRight,
+      icon: TrendingUp,
       color: 'text-orange-400',
       bgColor: 'bg-orange-900/20'
     },
