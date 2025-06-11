@@ -1,73 +1,71 @@
-# Welcome to your Lovable project
 
-## Project info
+# GMShooter - AI-Powered Shooting Performance Analyzer
 
-**URL**: https://lovable.dev/projects/187d34ca-504d-43de-a33b-31d33e6273c8
+GMShooter is a virtual shooting coach that transforms amateur shooters into precision marksmen. It uses AI-powered video analysis to provide real-time, data-driven feedback on shooting performance.
 
-## How can I edit this code?
+**Main Analysis Dashboard:**
+![Main Analysis Dashboard showing target visualization and session metrics](https://github.com/user-attachments/assets/3a544660-0c15-4eb8-82d5-375a1c13e520)
 
-There are several ways of editing your application.
+**Detailed Shot-by-Shot Table:**
+![image](https://github.com/user-attachments/assets/c75d04c1-a75c-41b9-b394-088ed4b2611d)
 
-**Use Lovable**
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/187d34ca-504d-43de-a33b-31d33e6273c8) and start prompting.
+**AI Coach's Recommendations:**
+![image](https://github.com/user-attachments/assets/ea54d469-276f-49dc-9def-4dddd92672ce)
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🎯 Core Value Proposition
 
-**Use your preferred IDE**
+This application serves as a SaaS platform to democratize professional shooting instruction through cutting-edge AI technology. It provides shooters with instant, actionable insights that would otherwise require a personal coach, helping them identify and correct fundamental issues to improve accuracy and consistency.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+**Target Market:** Competitive shooters, law enforcement training facilities, and commercial shooting ranges.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## ✨ Key Features
 
-Follow these steps:
+*   **AI Video Analysis:** Upload `.mp4` videos of shooting sessions for instant, automated analysis.
+*   **Precision Shot Detection:** The AI identifies each bullet impact with high accuracy, determines its score based on a standard 10-ring target, and notes its position.
+*   **Interactive Target Visualization:** An animated circular target graph displays the last 10 shots in sequence, with color-coding for score and a pulse effect on the most recent shot.
+*   **Professional Performance Metrics:** Tracks key metrics used by coaches, including **Accuracy %**, **Group Size (mm)**, **Total Score**, and **Directional Trend**.
+*   **Expert Coaching Feedback:** Generates personalized coaching advice and identifies patterns (e.g., trigger jerk, flinching) based on the shot data.
+*   **Secure Data Storage:** All session and shot data is securely stored, allowing users to track their progress over time.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🛠️ Technology Stack
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+*   **Frontend:** React, TypeScript, Vite, Tailwind CSS, Shadcn/UI
+*   **Backend:** Supabase (PostgreSQL Database, Edge Functions, Storage, Auth)
+*   **AI Engine:** Google Gemini Pro Vision API
 
-# Step 3: Install the necessary dependencies.
-npm i
+<details>
+<summary><strong>Technical Implementation Highlights</strong></summary>
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+-   **Database Schema:** Created `sessions` and `shots` tables in Supabase with appropriate Row Level Security (RLS) policies.
+-   **Edge Function (`analyze-video`):** A serverless function handles video processing by calling the Gemini API to analyze shot patterns and returns structured JSON data.
+-   **Storage:** A dedicated Supabase Storage bucket is configured with security policies to handle user video uploads.
+-   **Real Data Integration:** All frontend components are now fully dynamic, fetching and displaying real data from Supabase instead of mock data.
+-   **Dynamic UI & Animations:** The UI features loading skeletons, animated shot markers appearing sequentially on the target, and numbers that count up for a polished user experience.
 
-**Edit a file directly in GitHub**
+</details>
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🚀 Getting Started
 
-**Use GitHub Codespaces**
+1.  **Clone the repository:**
+    ```sh
+    git clone https://github.com/your-username/GMShooter.git
+    cd GMShooter
+    ```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+2.  **Install dependencies:**
+    ```sh
+    npm install
+    ```
 
-## What technologies are used for this project?
+3.  **Set up Environment Variables:**
+    Create a `.env.local` file in the root directory and add your Supabase project URL and anon key.
+    ```
+    VITE_SUPABASE_URL=YOUR_SUPABASE_URL
+    VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+    ```
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/187d34ca-504d-43de-a33b-31d33e6273c8) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+4.  **Run the development server:**
+    ```sh
+    npm run dev
+    ```
