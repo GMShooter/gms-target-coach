@@ -1,27 +1,43 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface Shot {
-  id: number;
-  x: number;
-  y: number;
+  id: string;
+  shot_number: number;
   score: number;
-  timestamp?: number;
+  x_coordinate: number;
+  y_coordinate: number;
+  direction: string;
+  comment: string;
 }
 
 interface TargetVisualizationProps {
   shots: Shot[];
+  loading?: boolean;
 }
 
-export const TargetVisualization: React.FC<TargetVisualizationProps> = ({ shots }) => {
+export const TargetVisualization: React.FC<TargetVisualizationProps> = ({ shots, loading = false }) => {
+  const [animatedShots, setAnimatedShots] = useState<Shot[]>([]);
   const targetSize = 350;
   const center = targetSize / 2;
   const scale = 3.5; // Scale factor for shot positions
   
-  // Sort shots by timestamp (most recent last) and take only last 10
-  const last10Shots = shots
-    .sort((a, b) => (a.timestamp || a.id) - (b.timestamp || b.id))
-    .slice(-10);
+  // Animate shots appearing one by one
+  useEffect(() => {
+    if (loading || shots.length === 0) {
+      setAnimatedShots([]);
+      return;
+    }
+
+    setAnimatedShots([]);
+    const sortedShots = [...shots].sort((a, b) => a.shot_number - b.shot_number);
+    
+    sortedShots.forEach((shot, index) => {
+      setTimeout(() => {
+        setAnimatedShots(prev => [...prev, shot]);
+      }, index * 150); // 150ms delay between each shot
+    });
+  }, [shots, loading]);
 
   const getScoreColor = (score: number) => {
     if (score >= 10) return '#22c55e';
@@ -30,20 +46,50 @@ export const TargetVisualization: React.FC<TargetVisualizationProps> = ({ shots 
     return '#ef4444';
   };
 
-  const getShotOpacity = (index: number, total: number) => {
-    // Most recent shots are more opaque
-    return 0.4 + (index / total) * 0.6;
-  };
-
-  const getRingScore = (distance: number) => {
-    // Calculate ring based on distance from center (in target units)
-    if (distance <= 12.5) return 10;
-    if (distance <= 25) return 9;
-    if (distance <= 37.5) return 8;
-    if (distance <= 50) return 7;
-    if (distance <= 62.5) return 6;
-    return 5;
-  };
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center">
+        <div className="relative">
+          <svg width={targetSize} height={targetSize} className="border border-slate-600 rounded-lg bg-slate-900">
+            {/* Target Rings */}
+            {[1, 2, 3, 4, 5].map((ring) => (
+              <circle
+                key={ring}
+                cx={center}
+                cy={center}
+                r={ring * 25}
+                fill="none"
+                stroke="#475569"
+                strokeWidth="1.5"
+                opacity={0.6}
+              />
+            ))}
+            
+            {/* Loading animation in center */}
+            <circle
+              cx={center}
+              cy={center}
+              r="10"
+              fill="none"
+              stroke="#ef4444"
+              strokeWidth="2"
+              opacity="0.6"
+            >
+              <animate
+                attributeName="r"
+                values="10;20;10"
+                dur="1.5s"
+                repeatCount="indefinite"
+              />
+            </circle>
+          </svg>
+        </div>
+        <div className="mt-4 text-center text-slate-400">
+          Loading shot analysis...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center">
@@ -119,16 +165,15 @@ export const TargetVisualization: React.FC<TargetVisualizationProps> = ({ shots 
             opacity={0.8}
           />
           
-          {/* Shot Holes - Last 10 shots */}
-          {last10Shots.map((shot, index) => {
-            const shotX = center + shot.x * scale;
-            const shotY = center + shot.y * scale;
-            const opacity = getShotOpacity(index, last10Shots.length);
-            const isLatest = index === last10Shots.length - 1;
+          {/* Animated Shot Holes */}
+          {animatedShots.map((shot, index) => {
+            const shotX = center + shot.x_coordinate * scale;
+            const shotY = center + shot.y_coordinate * scale;
+            const isLatest = index === animatedShots.length - 1;
             
             return (
               <g key={shot.id}>
-                {/* Shot hole */}
+                {/* Shot hole with pop-in animation */}
                 <circle
                   cx={shotX}
                   cy={shotY}
@@ -136,7 +181,7 @@ export const TargetVisualization: React.FC<TargetVisualizationProps> = ({ shots 
                   fill={getScoreColor(shot.score)}
                   stroke={isLatest ? "#fff" : "#000"}
                   strokeWidth={isLatest ? "2" : "1"}
-                  opacity={opacity}
+                  className="animate-scale-in"
                 />
                 
                 {/* Shot number */}
@@ -147,9 +192,9 @@ export const TargetVisualization: React.FC<TargetVisualizationProps> = ({ shots 
                   fontWeight="bold"
                   fill={isLatest ? "#fff" : "#000"}
                   textAnchor="middle"
-                  opacity={opacity}
+                  className="animate-fade-in"
                 >
-                  {shot.id}
+                  {shot.shot_number}
                 </text>
                 
                 {/* Highlight latest shot */}
@@ -185,10 +230,10 @@ export const TargetVisualization: React.FC<TargetVisualizationProps> = ({ shots 
         {/* Shot sequence indicator */}
         <div className="absolute -bottom-8 left-0 right-0 text-center">
           <div className="text-xs text-slate-400">
-            Showing last {last10Shots.length} shots
-            {last10Shots.length > 0 && (
+            Showing {animatedShots.length} of {shots.length} shots
+            {animatedShots.length > 0 && (
               <span className="ml-2 text-red-400">
-                • Latest: #{last10Shots[last10Shots.length - 1]?.id}
+                • Latest: #{animatedShots[animatedShots.length - 1]?.shot_number}
               </span>
             )}
           </div>
@@ -218,7 +263,7 @@ export const TargetVisualization: React.FC<TargetVisualizationProps> = ({ shots 
         
         <div className="mt-3 text-center">
           <p className="text-slate-500">
-            Standard 10-ring target • Shots fade with age • Latest shot pulses red
+            Standard 10-ring target • Shots animate in sequence • Latest shot pulses red
           </p>
         </div>
       </div>

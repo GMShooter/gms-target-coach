@@ -1,20 +1,24 @@
 
 import React, { useCallback } from 'react';
 import { Upload, Video, FileVideo } from 'lucide-react';
+import { useVideoAnalysis } from '@/hooks/useVideoAnalysis';
 
 interface VideoUploadProps {
   onVideoUpload: (file: File) => void;
+  onAnalysisComplete: (sessionId: string) => void;
 }
 
-export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload }) => {
+export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnalysisComplete }) => {
+  const { analyzeVideo, isAnalyzing, error } = useVideoAnalysis();
+
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
     const videoFile = files.find(file => file.type.startsWith('video/'));
     if (videoFile) {
-      onVideoUpload(videoFile);
+      handleVideoFile(videoFile);
     }
-  }, [onVideoUpload]);
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -23,12 +27,43 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload }) => {
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('video/')) {
-      onVideoUpload(file);
+      handleVideoFile(file);
     }
   };
 
+  const handleVideoFile = async (file: File) => {
+    onVideoUpload(file);
+    const sessionId = await analyzeVideo(file);
+    if (sessionId) {
+      onAnalysisComplete(sessionId);
+    }
+  };
+
+  if (isAnalyzing) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-12 text-center">
+          <div className="animate-spin w-16 h-16 border-4 border-red-400 border-t-transparent rounded-full mx-auto mb-6"></div>
+          <h3 className="text-2xl font-bold mb-4">Analyzing Your Shooting Performance</h3>
+          <div className="space-y-2 text-slate-400">
+            <p>🎯 Detecting bullet impacts...</p>
+            <p>📊 Calculating performance metrics...</p>
+            <p>🎓 Generating coaching feedback...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
+      {error && (
+        <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
+          <h4 className="font-semibold text-red-400 mb-1">Analysis Error</h4>
+          <p className="text-slate-300">{error}</p>
+        </div>
+      )}
+      
       <div
         className="border-2 border-dashed border-slate-600 rounded-lg p-12 text-center hover:border-red-400 transition-colors cursor-pointer bg-slate-800/20 backdrop-blur-sm"
         onDrop={handleDrop}

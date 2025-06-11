@@ -9,7 +9,80 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      sessions: {
+        Row: {
+          accuracy_percentage: number | null
+          created_at: string
+          directional_trend: string | null
+          group_size_mm: number | null
+          id: string
+          total_score: number | null
+          user_id: string | null
+          video_url: string | null
+        }
+        Insert: {
+          accuracy_percentage?: number | null
+          created_at?: string
+          directional_trend?: string | null
+          group_size_mm?: number | null
+          id?: string
+          total_score?: number | null
+          user_id?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          accuracy_percentage?: number | null
+          created_at?: string
+          directional_trend?: string | null
+          group_size_mm?: number | null
+          id?: string
+          total_score?: number | null
+          user_id?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      shots: {
+        Row: {
+          comment: string | null
+          direction: string
+          id: string
+          score: number
+          session_id: string
+          shot_number: number
+          x_coordinate: number
+          y_coordinate: number
+        }
+        Insert: {
+          comment?: string | null
+          direction: string
+          id?: string
+          score: number
+          session_id: string
+          shot_number: number
+          x_coordinate: number
+          y_coordinate: number
+        }
+        Update: {
+          comment?: string | null
+          direction?: string
+          id?: string
+          score?: number
+          session_id?: string
+          shot_number?: number
+          x_coordinate?: number
+          y_coordinate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shots_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
