@@ -19,9 +19,9 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    const { videoUrl, userId } = await req.json()
+    const { videoUrl, userId, drillMode = false } = await req.json()
 
-    // Call Gemini API for video analysis
+    // Call Gemini API for video analysis with enhanced timing instructions
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     
     const geminiResponse = await fetch(
@@ -34,9 +34,11 @@ serve(async (req) => {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `You are GMShooter, a professional shooting coach analyzing target shooting performance. 
+              text: `You are GMShooter, a professional shooting coach analyzing target shooting performance with precise timing capabilities.
 
-Analyze this shooting video and detect all bullet impacts on the target. For each shot detected, provide the exact coordinates relative to the target center (0,0) and score based on standard 10-ring target scoring.
+Analyze this shooting video and detect all bullet impacts on the target. The target is lit from the front, and bullet impacts will appear as dark, roughly circular holes on a lighter background. Identify each new hole as it appears.
+
+For each shot detected, provide the exact coordinates relative to the target center (0,0), score based on standard 10-ring target scoring, AND the precise timestamp when the shot impact appears in the video.
 
 Return ONLY a JSON array with this exact format:
 [
@@ -45,10 +47,16 @@ Return ONLY a JSON array with this exact format:
     "score": 9,
     "x_coordinate": -15.2,
     "y_coordinate": 5.8,
+    "timestamp": 2.45,
     "direction": "Too left",
     "comment": "Trigger jerk detected"
   }
 ]
+
+IMPORTANT TIMING REQUIREMENTS:
+- timestamp: The exact time in seconds from the start of the video when this shot impact appears
+- Be extremely precise with timing - accuracy to 0.1 seconds is critical for training analysis
+- If this is drill mode, timing measurements are used for competitive training
 
 Coordinate system: Center of target is (0,0). Positive X is right, negative X is left. Positive Y is up, negative Y is down. Units are in millimeters from center.
 
@@ -71,8 +79,8 @@ Provide coaching comments based on shot patterns and impact locations.`
     if (!geminiResponse.ok) {
       console.error('Gemini API error:', await geminiResponse.text())
       // Fallback to mock data for demo
-      const mockShots = generateMockShots()
-      return await processShotsData(supabaseClient, mockShots, userId, videoUrl)
+      const mockShots = generateMockShots(drillMode)
+      return await processShotsData(supabaseClient, mockShots, userId, videoUrl, drillMode)
     }
 
     const geminiData = await geminiResponse.json()
@@ -80,14 +88,14 @@ Provide coaching comments based on shot patterns and impact locations.`
     
     if (!content) {
       // Fallback to mock data
-      const mockShots = generateMockShots()
-      return await processShotsData(supabaseClient, mockShots, userId, videoUrl)
+      const mockShots = generateMockShots(drillMode)
+      return await processShotsData(supabaseClient, mockShots, userId, videoUrl, drillMode)
     }
 
     // Parse JSON from Gemini response
     const shots = JSON.parse(content.replace(/```json\n?|\n?```/g, ''))
     
-    return await processShotsData(supabaseClient, shots, userId, videoUrl)
+    return await processShotsData(supabaseClient, shots, userId, videoUrl, drillMode)
 
   } catch (error) {
     console.error('Error:', error)
@@ -101,10 +109,9 @@ Provide coaching comments based on shot patterns and impact locations.`
   }
 })
 
-async function processShotsData(supabaseClient: any, shots: any[], userId: string | null, videoUrl: string) {
+async function processShotsData(supabaseClient: any, shots: any[], userId: string | null, videoUrl: string, drillMode: boolean) {
   // Calculate session metrics
   const totalScore = shots.reduce((sum, shot) => sum + shot.score, 0)
-  const maxScore = shots.length * 10
   const accuracyPercentage = Math.round((shots.filter(shot => shot.score >= 9).length / shots.length) * 100)
   
   // Calculate group size (maximum distance between any two shots)
@@ -123,6 +130,25 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
   const leftShots = shots.filter(shot => shot.direction.includes('left')).length
   const directionalTrend = `${Math.round((leftShots / shots.length) * 100)}% left of center`
 
+  // Calculate timing metrics
+  let timeToFirstShot = null
+  let splitTimes = []
+  let averageSplitTime = null
+  
+  if (shots.length > 0 && shots[0].timestamp !== undefined) {
+    timeToFirstShot = shots[0].timestamp
+    
+    // Calculate split times between consecutive shots
+    for (let i = 1; i < shots.length; i++) {
+      const splitTime = shots[i].timestamp - shots[i-1].timestamp
+      splitTimes.push(splitTime)
+    }
+    
+    if (splitTimes.length > 0) {
+      averageSplitTime = splitTimes.reduce((sum, time) => sum + time, 0) / splitTimes.length
+    }
+  }
+
   // Create session record
   const { data: session, error: sessionError } = await supabaseClient
     .from('sessions')
@@ -132,7 +158,11 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
       total_score: totalScore,
       group_size_mm: Math.round(groupSize),
       accuracy_percentage: accuracyPercentage,
-      directional_trend: directionalTrend
+      directional_trend: directionalTrend,
+      drill_mode: drillMode,
+      time_to_first_shot: timeToFirstShot,
+      average_split_time: averageSplitTime,
+      split_times: splitTimes.length > 0 ? splitTimes : null
     })
     .select()
     .single()
@@ -149,7 +179,8 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     x_coordinate: shot.x_coordinate,
     y_coordinate: shot.y_coordinate,
     direction: shot.direction,
-    comment: shot.comment || ''
+    comment: shot.comment || '',
+    shot_timestamp: shot.timestamp || null
   }))
 
   const { error: shotsError } = await supabaseClient
@@ -169,8 +200,8 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
   )
 }
 
-function generateMockShots() {
-  return [
+function generateMockShots(drillMode: boolean = false) {
+  const baseShots = [
     { shot_number: 1, score: 9, x_coordinate: -15, y_coordinate: 5, direction: "Too left", comment: "Trigger jerk detected" },
     { shot_number: 2, score: 10, x_coordinate: 2, y_coordinate: -1, direction: "Centered", comment: "Excellent shot" },
     { shot_number: 3, score: 8, x_coordinate: 3, y_coordinate: -25, direction: "Too low", comment: "Possible flinch" },
@@ -182,4 +213,19 @@ function generateMockShots() {
     { shot_number: 9, score: 8, x_coordinate: 22, y_coordinate: 8, direction: "Too right", comment: "Overcorrection" },
     { shot_number: 10, score: 9, x_coordinate: 3, y_coordinate: -4, direction: "Centered", comment: "Good recovery" }
   ]
+
+  // Add realistic timing data
+  if (drillMode) {
+    let currentTime = 1.2 // Time to first shot (1.2 seconds)
+    baseShots[0].timestamp = currentTime
+    
+    for (let i = 1; i < baseShots.length; i++) {
+      // Realistic split times between 0.8 and 2.5 seconds
+      const splitTime = 0.8 + Math.random() * 1.7
+      currentTime += splitTime
+      baseShots[i].timestamp = parseFloat(currentTime.toFixed(2))
+    }
+  }
+
+  return baseShots
 }

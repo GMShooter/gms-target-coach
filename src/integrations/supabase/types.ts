@@ -12,30 +12,42 @@ export type Database = {
       sessions: {
         Row: {
           accuracy_percentage: number | null
+          average_split_time: number | null
           created_at: string
           directional_trend: string | null
+          drill_mode: boolean | null
           group_size_mm: number | null
           id: string
+          split_times: Json | null
+          time_to_first_shot: number | null
           total_score: number | null
           user_id: string | null
           video_url: string | null
         }
         Insert: {
           accuracy_percentage?: number | null
+          average_split_time?: number | null
           created_at?: string
           directional_trend?: string | null
+          drill_mode?: boolean | null
           group_size_mm?: number | null
           id?: string
+          split_times?: Json | null
+          time_to_first_shot?: number | null
           total_score?: number | null
           user_id?: string | null
           video_url?: string | null
         }
         Update: {
           accuracy_percentage?: number | null
+          average_split_time?: number | null
           created_at?: string
           directional_trend?: string | null
+          drill_mode?: boolean | null
           group_size_mm?: number | null
           id?: string
+          split_times?: Json | null
+          time_to_first_shot?: number | null
           total_score?: number | null
           user_id?: string | null
           video_url?: string | null
@@ -50,6 +62,7 @@ export type Database = {
           score: number
           session_id: string
           shot_number: number
+          shot_timestamp: number | null
           x_coordinate: number
           y_coordinate: number
         }
@@ -60,6 +73,7 @@ export type Database = {
           score: number
           session_id: string
           shot_number: number
+          shot_timestamp?: number | null
           x_coordinate: number
           y_coordinate: number
         }
@@ -70,6 +84,7 @@ export type Database = {
           score?: number
           session_id?: string
           shot_number?: number
+          shot_timestamp?: number | null
           x_coordinate?: number
           y_coordinate?: number
         }

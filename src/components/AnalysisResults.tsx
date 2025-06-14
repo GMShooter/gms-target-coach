@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Target, TrendingUp, RotateCcw, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Target, TrendingUp, RotateCcw, AlertTriangle, CheckCircle, XCircle, Timer } from 'lucide-react';
 import { ShotTable } from './ShotTable';
 import { TargetVisualization } from './TargetVisualization';
 import { PerformanceMetrics } from './PerformanceMetrics';
@@ -56,10 +56,34 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ sessionId, onN
       strengths.push("Consistent high scores");
     }
     
+    // Add timing-specific feedback for drill mode
+    if (data.session.drill_mode && data.session.time_to_first_shot) {
+      if (data.session.time_to_first_shot <= 1.5) {
+        strengths.push("Excellent draw speed and reaction time");
+      } else if (data.session.time_to_first_shot <= 2.0) {
+        strengths.push("Good reaction time");
+      }
+      
+      if (data.session.average_split_time && data.session.average_split_time <= 1.2) {
+        strengths.push("Fast shot-to-shot timing");
+      }
+    }
+    
     if (leftShots > shots.length * 0.4) improvements.push("Trigger control (leftward bias)");
     if (rightShots > shots.length * 0.4) improvements.push("Grip consistency (rightward bias)");
     if (lowShots > shots.length * 0.3) improvements.push("Follow-through technique");
     if (data.session.group_size_mm > 50) improvements.push("Shot consistency and fundamentals");
+    
+    // Add timing-specific improvements for drill mode
+    if (data.session.drill_mode && data.session.time_to_first_shot) {
+      if (data.session.time_to_first_shot > 2.5) {
+        improvements.push("Draw speed and reaction time");
+      }
+      
+      if (data.session.average_split_time && data.session.average_split_time > 2.0) {
+        improvements.push("Shot-to-shot transition speed");
+      }
+    }
     
     if (strengths.length === 0) strengths.push("Room for improvement in all areas");
     if (improvements.length === 0) improvements.push("Maintain current excellent form");
@@ -75,14 +99,28 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ sessionId, onN
   };
 
   const coaching = generateCoachingFeedback();
+  const isDrillMode = data?.session?.drill_mode || false;
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold mb-2">Shooting Analysis Results</h2>
-          <p className="text-slate-400">Professional coaching feedback and performance metrics</p>
+          <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
+            Shooting Analysis Results
+            {isDrillMode && (
+              <span className="text-lg bg-purple-900/30 text-purple-400 px-3 py-1 rounded-full border border-purple-700/50 flex items-center gap-2">
+                <Timer className="w-4 h-4" />
+                Drill Mode
+              </span>
+            )}
+          </h2>
+          <p className="text-slate-400">
+            {isDrillMode 
+              ? "Professional timing analysis with precision shot tracking"
+              : "Professional coaching feedback and performance metrics"
+            }
+          </p>
         </div>
         <button
           onClick={onNewAnalysis}
@@ -120,8 +158,14 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ sessionId, onN
 
       {/* Shot Table */}
       <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-6">
-        <h3 className="text-xl font-semibold mb-4">Detailed Shot Analysis</h3>
-        <ShotTable shots={data?.shots || []} loading={loading} />
+        <h3 className="text-xl font-semibold mb-4">
+          {isDrillMode ? "Shot-by-Shot Timing Analysis" : "Detailed Shot Analysis"}
+        </h3>
+        <ShotTable 
+          shots={data?.shots || []} 
+          loading={loading} 
+          drillMode={isDrillMode}
+        />
       </div>
 
       {/* Coaching Summary */}

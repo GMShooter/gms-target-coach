@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Percent, Target, TrendingUp, Trophy } from 'lucide-react';
+import { Percent, Target, TrendingUp, Trophy, Timer, Zap } from 'lucide-react';
 import { AnimatedCounter } from './AnimatedCounter';
 import { Skeleton } from './ui/skeleton';
 
@@ -9,6 +9,9 @@ interface Metrics {
   group_size_mm: number;
   directional_trend: string;
   total_score: number;
+  drill_mode?: boolean;
+  time_to_first_shot?: number;
+  average_split_time?: number;
 }
 
 interface PerformanceMetricsProps {
@@ -25,7 +28,7 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({
   if (loading || !metrics) {
     return (
       <div className="space-y-4">
-        {[1, 2, 3, 4].map((i) => (
+        {[1, 2, 3, 4, 5, 6].map((i) => (
           <div key={i} className="bg-slate-800/30 rounded-lg p-4 border border-slate-600/30">
             <div className="flex items-center gap-3">
               <Skeleton className="w-10 h-10 rounded-lg" />
@@ -42,7 +45,7 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({
 
   const maxScore = totalShots * 10;
   
-  const metricItems = [
+  const basicMetrics = [
     {
       label: 'Accuracy',
       value: metrics.accuracy_percentage,
@@ -69,6 +72,34 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({
     }
   ];
 
+  // Add timing metrics if in drill mode
+  const timingMetrics = [];
+  if (metrics.drill_mode) {
+    if (metrics.time_to_first_shot !== null && metrics.time_to_first_shot !== undefined) {
+      timingMetrics.push({
+        label: 'Time to First Shot',
+        value: metrics.time_to_first_shot,
+        suffix: 's',
+        icon: Zap,
+        color: 'text-purple-400',
+        bgColor: 'bg-purple-900/20'
+      });
+    }
+    
+    if (metrics.average_split_time !== null && metrics.average_split_time !== undefined) {
+      timingMetrics.push({
+        label: 'Average Split',
+        value: metrics.average_split_time,
+        suffix: 's',
+        icon: Timer,
+        color: 'text-cyan-400',
+        bgColor: 'bg-cyan-900/20'
+      });
+    }
+  }
+
+  const allMetrics = [...basicMetrics, ...timingMetrics];
+
   const getPerformanceGrade = () => {
     const percentage = (metrics.total_score / maxScore) * 100;
     if (percentage >= 95) return { grade: 'A+', description: 'Outstanding shooting performance!' };
@@ -83,7 +114,7 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({
 
   return (
     <div className="space-y-4">
-      {metricItems.map((item, index) => (
+      {allMetrics.map((item, index) => (
         <div key={index} className={`${item.bgColor} rounded-lg p-4 border border-slate-600/30 animate-fade-in`}
              style={{ animationDelay: `${index * 100}ms` }}>
           <div className="flex items-center justify-between">
@@ -98,7 +129,7 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({
                     end={item.value} 
                     duration={1200} 
                     suffix={item.suffix}
-                    decimals={item.label === 'Group Size' ? 0 : 0}
+                    decimals={item.label.includes('Time') || item.label.includes('Split') ? 2 : 0}
                   />
                 </p>
               </div>
@@ -109,7 +140,7 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({
 
       {/* Directional Trend */}
       <div className="bg-orange-900/20 rounded-lg p-4 border border-slate-600/30 animate-fade-in"
-           style={{ animationDelay: '300ms' }}>
+           style={{ animationDelay: `${allMetrics.length * 100}ms` }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-orange-900/20 rounded-lg flex items-center justify-center">
             <TrendingUp className="w-5 h-5 text-orange-400" />
@@ -123,7 +154,7 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({
       
       {/* Performance Grade */}
       <div className="mt-6 p-4 bg-slate-700/30 rounded-lg border border-slate-600/30 animate-fade-in"
-           style={{ animationDelay: '400ms' }}>
+           style={{ animationDelay: `${(allMetrics.length + 1) * 100}ms` }}>
         <h4 className="font-semibold mb-2">Performance Grade</h4>
         <div className="flex items-center gap-4">
           <div className="text-3xl font-bold text-yellow-400">{grade.grade}</div>
@@ -132,6 +163,17 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Timing Analysis Note for Drill Mode */}
+      {metrics.drill_mode && (
+        <div className="mt-4 p-4 bg-blue-900/20 rounded-lg border border-blue-700/30">
+          <h4 className="font-semibold mb-2 text-blue-400">📊 Timing Analysis Note</h4>
+          <p className="text-sm text-slate-300">
+            Timing is based on shots that hit the target. The system cannot currently detect or time shots that miss the paper. 
+            For best results, ensure all shots are on target.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

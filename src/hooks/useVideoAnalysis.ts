@@ -6,7 +6,7 @@ export const useVideoAnalysis = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const analyzeVideo = async (file: File): Promise<string | null> => {
+  const analyzeVideo = async (file: File, isDrillMode: boolean = false): Promise<string | null> => {
     setIsAnalyzing(true);
     setError(null);
 
@@ -34,7 +34,8 @@ export const useVideoAnalysis = () => {
         .invoke('analyze-video', {
           body: {
             videoUrl: publicUrl,
-            userId: user?.id || null
+            userId: user?.id || null,
+            drillMode: isDrillMode
           }
         });
 
