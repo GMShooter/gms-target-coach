@@ -24,8 +24,18 @@ serve(async (req) => {
     // Check if Gemini API key is configured
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     if (!geminiApiKey) {
-      throw new Error('GEMINI_API_KEY is not configured. Please add your Gemini API key to Supabase Edge Function secrets.')
+      return new Response(
+        JSON.stringify({ 
+          error: 'Gemini API key is not configured. Please contact the administrator to set up the GEMINI_API_KEY.' 
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
+
+    console.log('Starting video analysis for:', videoUrl)
 
     // Call Gemini API for video analysis
     const geminiResponse = await fetch(
@@ -81,16 +91,64 @@ Provide coaching comments based on shot patterns and impact locations.`
     )
 
     if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text()
-      console.error('Gemini API error:', errorText)
-      throw new Error(`Gemini API failed: ${errorText}`)
+      const errorData = await geminiResponse.json()
+      console.error('Gemini API error:', errorData)
+      
+      // Handle specific error types
+      if (geminiResponse.status === 429) {
+        const retryAfter = errorData.error?.details?.find(d => d['@type']?.includes('RetryInfo'))?.retryDelay || '60s'
+        return new Response(
+          JSON.stringify({ 
+            error: `Gemini API quota exceeded. The free tier has daily/minute limits. Please wait ${retryAfter} before trying again, or upgrade to a paid plan for higher limits.`,
+            errorType: 'QUOTA_EXCEEDED',
+            retryAfter
+          }),
+          { 
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+      
+      if (geminiResponse.status === 400) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Video format not supported or video too large. Please ensure your video is in MP4 format and under 500MB.',
+            errorType: 'INVALID_VIDEO'
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          error: `Gemini API error: ${errorData.error?.message || 'Unknown error'}`,
+          errorType: 'API_ERROR'
+        }),
+        { 
+          status: geminiResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
     const geminiData = await geminiResponse.json()
     const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
     
     if (!content) {
-      throw new Error('No content received from Gemini API. The video may not contain detectable shots or the API failed to analyze it.')
+      return new Response(
+        JSON.stringify({ 
+          error: 'No analysis results received from Gemini API. The video may not contain detectable shots or the AI failed to analyze it.',
+          errorType: 'NO_CONTENT'
+        }),
+        { 
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
     // Parse JSON from Gemini response
@@ -99,19 +157,41 @@ Provide coaching comments based on shot patterns and impact locations.`
       shots = JSON.parse(content.replace(/```json\n?|\n?```/g, ''))
     } catch (parseError) {
       console.error('Failed to parse Gemini response:', content)
-      throw new Error('Invalid response format from Gemini API. Unable to parse shot data.')
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid response format from Gemini API. The AI response could not be parsed.',
+          errorType: 'PARSE_ERROR'
+        }),
+        { 
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
     if (!Array.isArray(shots) || shots.length === 0) {
-      throw new Error('No shots detected in the video. Please ensure the video shows clear bullet impacts on the target.')
+      return new Response(
+        JSON.stringify({ 
+          error: 'No shots detected in the video. Please ensure the video shows clear bullet impacts on the target with good lighting and camera positioning.',
+          errorType: 'NO_SHOTS_DETECTED'
+        }),
+        { 
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
     
+    console.log(`Successfully analyzed ${shots.length} shots`)
     return await processShotsData(supabaseClient, shots, userId, videoUrl, drillMode)
 
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Unexpected error:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: `Unexpected error: ${error.message}`,
+        errorType: 'UNEXPECTED_ERROR'
+      }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -179,7 +259,17 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     .single()
 
   if (sessionError) {
-    throw new Error(`Session creation failed: ${sessionError.message}`)
+    console.error('Session creation error:', sessionError)
+    return new Response(
+      JSON.stringify({ 
+        error: `Failed to save session data: ${sessionError.message}`,
+        errorType: 'DATABASE_ERROR'
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
   }
 
   // Create shot records
@@ -199,7 +289,17 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     .insert(shotInserts)
 
   if (shotsError) {
-    throw new Error(`Shots creation failed: ${shotsError.message}`)
+    console.error('Shots creation error:', shotsError)
+    return new Response(
+      JSON.stringify({ 
+        error: `Failed to save shot data: ${shotsError.message}`,
+        errorType: 'DATABASE_ERROR'
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
   }
 
   return new Response(
