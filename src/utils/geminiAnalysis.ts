@@ -101,34 +101,13 @@ export const batchShotsForAnalysis = (
 };
 
 /**
- * Mock Gemini API call for development
- * In production, this would call the actual Gemini 2.5 Flash API
+ * Real Gemini API call for production use
+ * Requires GEMINI_API_KEY to be configured in Supabase Edge Function secrets
  */
 export const analyzeShots = async (
   request: ShotAnalysisRequest
 ): Promise<GeminiAnalysisResponse> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
-  
-  // Mock response - in production this would parse actual Gemini response
-  const mockShot: Shot = {
-    id: Date.now(),
-    x: (Math.random() - 0.5) * 60,
-    y: (Math.random() - 0.5) * 60,
-    score: Math.floor(Math.random() * 4) + 7,
-    ring: String(Math.floor(Math.random() * 4) + 7),
-    direction: ['Centered', 'Too left', 'Too right', 'Too high', 'Too low'][
-      Math.floor(Math.random() * 5)
-    ],
-    comment: 'AI-detected shot',
-    timestamp: Date.now()
-  };
-  
-  return {
-    shots: [mockShot],
-    confidence: 0.85 + Math.random() * 0.15,
-    processingTime: 200 + Math.random() * 300
-  };
+  throw new Error('Direct Gemini API calls should be made through the Edge Function for security. Use the video upload feature instead.');
 };
 
 /**

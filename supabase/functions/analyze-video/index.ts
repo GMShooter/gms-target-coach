@@ -21,9 +21,13 @@ serve(async (req) => {
 
     const { videoUrl, userId, drillMode = false } = await req.json()
 
-    // Call Gemini API for video analysis with enhanced timing instructions
+    // Check if Gemini API key is configured
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
-    
+    if (!geminiApiKey) {
+      throw new Error('GEMINI_API_KEY is not configured. Please add your Gemini API key to Supabase Edge Function secrets.')
+    }
+
+    // Call Gemini API for video analysis
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`,
       {
@@ -77,23 +81,30 @@ Provide coaching comments based on shot patterns and impact locations.`
     )
 
     if (!geminiResponse.ok) {
-      console.error('Gemini API error:', await geminiResponse.text())
-      // Fallback to mock data for demo
-      const mockShots = generateMockShots(drillMode)
-      return await processShotsData(supabaseClient, mockShots, userId, videoUrl, drillMode)
+      const errorText = await geminiResponse.text()
+      console.error('Gemini API error:', errorText)
+      throw new Error(`Gemini API failed: ${errorText}`)
     }
 
     const geminiData = await geminiResponse.json()
     const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
     
     if (!content) {
-      // Fallback to mock data
-      const mockShots = generateMockShots(drillMode)
-      return await processShotsData(supabaseClient, mockShots, userId, videoUrl, drillMode)
+      throw new Error('No content received from Gemini API. The video may not contain detectable shots or the API failed to analyze it.')
     }
 
     // Parse JSON from Gemini response
-    const shots = JSON.parse(content.replace(/```json\n?|\n?```/g, ''))
+    let shots
+    try {
+      shots = JSON.parse(content.replace(/```json\n?|\n?```/g, ''))
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', content)
+      throw new Error('Invalid response format from Gemini API. Unable to parse shot data.')
+    }
+
+    if (!Array.isArray(shots) || shots.length === 0) {
+      throw new Error('No shots detected in the video. Please ensure the video shows clear bullet impacts on the target.')
+    }
     
     return await processShotsData(supabaseClient, shots, userId, videoUrl, drillMode)
 
@@ -198,34 +209,4 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     }
   )
-}
-
-function generateMockShots(drillMode: boolean = false) {
-  const baseShots = [
-    { shot_number: 1, score: 9, x_coordinate: -15, y_coordinate: 5, direction: "Too left", comment: "Trigger jerk detected" },
-    { shot_number: 2, score: 10, x_coordinate: 2, y_coordinate: -1, direction: "Centered", comment: "Excellent shot" },
-    { shot_number: 3, score: 8, x_coordinate: 3, y_coordinate: -25, direction: "Too low", comment: "Possible flinch" },
-    { shot_number: 4, score: 9, x_coordinate: -12, y_coordinate: 8, direction: "Too left", comment: "Consistent left pattern" },
-    { shot_number: 5, score: 10, x_coordinate: 1, y_coordinate: 3, direction: "Centered", comment: "Good control" },
-    { shot_number: 6, score: 7, x_coordinate: -28, y_coordinate: -5, direction: "Too left", comment: "Grip pressure issue" },
-    { shot_number: 7, score: 9, x_coordinate: -18, y_coordinate: 2, direction: "Too left", comment: "Trigger control needed" },
-    { shot_number: 8, score: 10, x_coordinate: 0, y_coordinate: -2, direction: "Centered", comment: "Perfect execution" },
-    { shot_number: 9, score: 8, x_coordinate: 22, y_coordinate: 8, direction: "Too right", comment: "Overcorrection" },
-    { shot_number: 10, score: 9, x_coordinate: 3, y_coordinate: -4, direction: "Centered", comment: "Good recovery" }
-  ]
-
-  // Add realistic timing data
-  if (drillMode) {
-    let currentTime = 1.2 // Time to first shot (1.2 seconds)
-    baseShots[0].timestamp = currentTime
-    
-    for (let i = 1; i < baseShots.length; i++) {
-      // Realistic split times between 0.8 and 2.5 seconds
-      const splitTime = 0.8 + Math.random() * 1.7
-      currentTime += splitTime
-      baseShots[i].timestamp = parseFloat(currentTime.toFixed(2))
-    }
-  }
-
-  return baseShots
 }
