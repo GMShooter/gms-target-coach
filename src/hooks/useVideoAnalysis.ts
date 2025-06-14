@@ -12,6 +12,8 @@ export const useVideoAnalysis = () => {
     setError(null);
 
     try {
+      console.log('Starting video upload and analysis...');
+      
       // Upload video to Supabase storage
       const fileName = `${Date.now()}-${file.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -19,16 +21,23 @@ export const useVideoAnalysis = () => {
         .upload(fileName, file);
 
       if (uploadError) {
+        console.error('Upload error:', uploadError);
         throw new Error(`Upload failed: ${uploadError.message}`);
       }
+
+      console.log('Video uploaded successfully:', uploadData.path);
 
       // Get public URL for the video
       const { data: { publicUrl } } = supabase.storage
         .from('videos')
         .getPublicUrl(uploadData.path);
 
+      console.log('Public URL generated:', publicUrl);
+
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
+
+      console.log('Calling edge function for analysis...');
 
       // Call the Edge Function for analysis
       const { data: analysisData, error: analysisError } = await supabase.functions
@@ -41,21 +50,19 @@ export const useVideoAnalysis = () => {
         });
 
       if (analysisError) {
-        console.error('Edge Function error:', analysisError);
+        console.error('Edge Function error details:', analysisError);
         
-        // Try to get the actual error message from the response
+        // The analysisError from Supabase functions contains the actual error response
         let errorMessage = 'Analysis failed';
         let errorType = 'UNKNOWN_ERROR';
         
-        if (analysisError.message) {
-          // Parse the error message if it contains JSON
-          try {
-            const errorData = JSON.parse(analysisError.message);
-            errorMessage = errorData.error || errorMessage;
-            errorType = errorData.errorType || errorType;
-          } catch (parseError) {
-            errorMessage = analysisError.message;
-          }
+        // analysisError might have the actual response data we sent from the edge function
+        if (analysisData && typeof analysisData === 'object') {
+          errorMessage = analysisData.error || errorMessage;
+          errorType = analysisData.errorType || errorType;
+          console.log('Error data from edge function:', analysisData);
+        } else if (analysisError.message) {
+          errorMessage = analysisError.message;
         }
         
         // Handle specific error types with user-friendly messages
@@ -86,8 +93,24 @@ export const useVideoAnalysis = () => {
           throw new Error('Invalid video format. Please use MP4 and ensure file is under 500MB.');
         }
 
+        if (errorType === 'API_KEY_MISSING') {
+          toast({
+            title: "Configuration Error",
+            description: "Gemini API key is not configured. Please contact support.",
+            variant: "destructive",
+          });
+          throw new Error('API configuration error. Please contact support.');
+        }
+
         throw new Error(errorMessage);
       }
+
+      if (!analysisData || !analysisData.sessionId) {
+        console.error('No session ID in response:', analysisData);
+        throw new Error('Invalid response from analysis service');
+      }
+
+      console.log('Analysis completed successfully, session ID:', analysisData.sessionId);
 
       toast({
         title: "Analysis Complete",

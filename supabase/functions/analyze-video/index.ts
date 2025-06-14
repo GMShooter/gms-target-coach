@@ -24,9 +24,11 @@ serve(async (req) => {
     // Check if Gemini API key is configured
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     if (!geminiApiKey) {
+      console.error('Gemini API key not configured')
       return new Response(
         JSON.stringify({ 
-          error: 'Gemini API key is not configured. Please contact the administrator to set up the GEMINI_API_KEY.' 
+          error: 'Gemini API key is not configured. Please contact the administrator to set up the GEMINI_API_KEY.',
+          errorType: 'API_KEY_MISSING'
         }),
         { 
           status: 500,
@@ -36,6 +38,7 @@ serve(async (req) => {
     }
 
     console.log('Starting video analysis for:', videoUrl)
+    console.log('Using Gemini API key (first 10 chars):', geminiApiKey.substring(0, 10) + '...')
 
     // Call Gemini API for video analysis
     const geminiResponse = await fetch(
@@ -90,18 +93,32 @@ Provide coaching comments based on shot patterns and impact locations.`
       }
     )
 
+    console.log('Gemini API response status:', geminiResponse.status)
+
     if (!geminiResponse.ok) {
-      const errorData = await geminiResponse.json()
-      console.error('Gemini API error:', errorData)
+      const errorText = await geminiResponse.text()
+      console.error('Gemini API error response:', errorText)
+      
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch (parseError) {
+        console.error('Failed to parse Gemini error response:', parseError)
+        errorData = { error: { message: errorText } }
+      }
+      
+      console.error('Parsed Gemini API error:', errorData)
       
       // Handle specific error types
       if (geminiResponse.status === 429) {
         const retryAfter = errorData.error?.details?.find(d => d['@type']?.includes('RetryInfo'))?.retryDelay || '60s'
+        console.error('Quota exceeded, retry after:', retryAfter)
         return new Response(
           JSON.stringify({ 
             error: `Gemini API quota exceeded. The free tier has daily/minute limits. Please wait ${retryAfter} before trying again, or upgrade to a paid plan for higher limits.`,
             errorType: 'QUOTA_EXCEEDED',
-            retryAfter
+            retryAfter,
+            details: errorData
           }),
           { 
             status: 429,
@@ -111,10 +128,12 @@ Provide coaching comments based on shot patterns and impact locations.`
       }
       
       if (geminiResponse.status === 400) {
+        console.error('Bad request to Gemini API')
         return new Response(
           JSON.stringify({ 
             error: 'Video format not supported or video too large. Please ensure your video is in MP4 format and under 500MB.',
-            errorType: 'INVALID_VIDEO'
+            errorType: 'INVALID_VIDEO',
+            details: errorData
           }),
           { 
             status: 400,
@@ -123,10 +142,13 @@ Provide coaching comments based on shot patterns and impact locations.`
         )
       }
 
+      console.error('Other Gemini API error, status:', geminiResponse.status)
       return new Response(
         JSON.stringify({ 
           error: `Gemini API error: ${errorData.error?.message || 'Unknown error'}`,
-          errorType: 'API_ERROR'
+          errorType: 'API_ERROR',
+          status: geminiResponse.status,
+          details: errorData
         }),
         { 
           status: geminiResponse.status,
@@ -136,9 +158,11 @@ Provide coaching comments based on shot patterns and impact locations.`
     }
 
     const geminiData = await geminiResponse.json()
+    console.log('Gemini API success response received')
     const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
     
     if (!content) {
+      console.error('No content in Gemini response')
       return new Response(
         JSON.stringify({ 
           error: 'No analysis results received from Gemini API. The video may not contain detectable shots or the AI failed to analyze it.',
@@ -170,6 +194,7 @@ Provide coaching comments based on shot patterns and impact locations.`
     }
 
     if (!Array.isArray(shots) || shots.length === 0) {
+      console.error('No shots detected in analysis')
       return new Response(
         JSON.stringify({ 
           error: 'No shots detected in the video. Please ensure the video shows clear bullet impacts on the target with good lighting and camera positioning.',
@@ -186,11 +211,12 @@ Provide coaching comments based on shot patterns and impact locations.`
     return await processShotsData(supabaseClient, shots, userId, videoUrl, drillMode)
 
   } catch (error) {
-    console.error('Unexpected error:', error)
+    console.error('Unexpected error in edge function:', error)
     return new Response(
       JSON.stringify({ 
         error: `Unexpected error: ${error.message}`,
-        errorType: 'UNEXPECTED_ERROR'
+        errorType: 'UNEXPECTED_ERROR',
+        stack: error.stack
       }),
       { 
         status: 500,
