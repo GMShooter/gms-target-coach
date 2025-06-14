@@ -10,6 +10,7 @@ interface Shot {
   y_coordinate: number;
   direction: string;
   comment: string;
+  shot_timestamp?: number;
 }
 
 interface Session {
@@ -19,6 +20,10 @@ interface Session {
   group_size_mm: number;
   accuracy_percentage: number;
   directional_trend: string;
+  drill_mode?: boolean;
+  time_to_first_shot?: number;
+  average_split_time?: number;
+  split_times?: any;
 }
 
 interface SessionData {
