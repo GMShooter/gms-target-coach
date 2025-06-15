@@ -19,7 +19,42 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    const { frames, userId, drillMode = false } = await req.json()
+    // Better request body parsing with error handling
+    let requestBody;
+    try {
+      const bodyText = await req.text();
+      console.log('Raw request body length:', bodyText.length);
+      
+      if (!bodyText || bodyText.trim() === '') {
+        console.error('Empty request body received');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Empty request body. Please provide frames and analysis parameters.',
+            errorType: 'INVALID_REQUEST'
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      requestBody = JSON.parse(bodyText);
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid JSON in request body. Please check your request format.',
+          errorType: 'INVALID_JSON'
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const { frames, userId, drillMode = false } = requestBody;
 
     // Check if Gemini API key is configured
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
@@ -38,9 +73,10 @@ serve(async (req) => {
     }
 
     if (!frames || !Array.isArray(frames) || frames.length === 0) {
+      console.error('Invalid frames data:', { framesExists: !!frames, isArray: Array.isArray(frames), length: frames?.length });
       return new Response(
         JSON.stringify({ 
-          error: 'No frames provided for analysis',
+          error: 'No frames provided for analysis. Please upload a valid video.',
           errorType: 'NO_FRAMES'
         }),
         { 
@@ -52,13 +88,13 @@ serve(async (req) => {
 
     console.log(`Starting expert frame analysis for ${frames.length} frames using Gemini 2.5 Flash`)
     
-    // Use Gemini 2.5 Flash for better analysis
+    // Use Gemini 2.5 Flash for analysis
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`
     console.log('Using Gemini 2.5 Flash for expert-level analysis')
 
     const allShots = []
     let chunkIndex = 0
-    const chunkSize = 3 // Reduced chunk size for faster processing
+    const chunkSize = 3 // Process 3 frames at a time for faster processing
 
     // Process frames in smaller chunks for better performance
     for (let i = 0; i < frames.length; i += chunkSize) {
@@ -68,34 +104,32 @@ serve(async (req) => {
 
       // Prepare the request body for frame sequence analysis
       const parts = [{
-        text: `EXPERT SHOOTING ANALYSIS TASK:
+        text: `EXPERT SHOOTING ANALYSIS - RESPOND WITH JSON ONLY:
 
-You are analyzing frames ${chunkIndex * chunkSize - chunkSize + 1} to ${chunkIndex * chunkSize} from a shooting video.
+You are analyzing frame chunk ${chunkIndex} from a shooting video.
 
-CRITICAL: Respond ONLY with a valid JSON array. No introduction text, no explanations outside the JSON.
+CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, just JSON.
 
-Look for NEW bullet impacts (bright flashes, new holes) that appear in this frame sequence.
+Detect NEW bullet impacts (bright flashes, new holes) in this sequence.
 
-For each NEW impact detected, return EXACTLY this JSON format:
+For each NEW impact, return exactly:
 [
   {
-    "shot_number": ${Math.floor(i/chunkSize) + 1},
+    "shot_number": ${chunkIndex},
     "score": 9,
     "x_coordinate": -15.2,
     "y_coordinate": 5.8,
     "timestamp": ${frameChunk[0].timestamp},
     "direction": "High Left",
-    "comment": "Classic heeling pattern - anticipating recoil causes upward push"
+    "comment": "Classic heeling pattern - anticipating recoil"
   }
 ]
 
-DIRECTION OPTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "High", "Low", "Left", "Right"
+DIRECTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "High", "Low", "Left", "Right"
+COORDINATES: Center=(0,0), Right=+X, Up=+Y, millimeters
+EMPTY: Return [] if no new impacts
 
-COORDINATE SYSTEM: Center = (0,0), Right = positive X, Up = positive Y, measurements in millimeters
-
-Return empty array [] if no new impacts detected in this sequence.
-
-RESPOND WITH VALID JSON ONLY:`
+JSON ONLY:`
       }]
 
       // Add all frames in the chunk
@@ -114,7 +148,7 @@ RESPOND WITH VALID JSON ONLY:`
         }],
         generationConfig: {
           temperature: 0.1,
-          maxOutputTokens: 1000
+          maxOutputTokens: 800
         }
       }
 
@@ -152,13 +186,13 @@ RESPOND WITH VALID JSON ONLY:`
             // Clean up the response - remove any markdown formatting
             content = content.replace(/```json\n?|\n?```/g, '').trim()
             
-            // If content starts with non-JSON text, try to extract JSON
+            // Remove any text before the JSON array
             const jsonMatch = content.match(/\[[\s\S]*\]/)
             if (jsonMatch) {
               content = jsonMatch[0]
             }
             
-            console.log(`Chunk ${chunkIndex} - Raw response:`, content.substring(0, 200))
+            console.log(`Chunk ${chunkIndex} - Cleaned response:`, content.substring(0, 200))
             
             const chunkShots = JSON.parse(content)
             if (Array.isArray(chunkShots) && chunkShots.length > 0) {
@@ -174,7 +208,7 @@ RESPOND WITH VALID JSON ONLY:`
         }
 
         // Reduced delay between chunks
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 300))
 
       } catch (error) {
         console.error(`Chunk ${chunkIndex} - Request error:`, error)

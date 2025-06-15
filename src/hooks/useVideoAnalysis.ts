@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -31,6 +32,15 @@ export const useVideoAnalysis = () => {
 
       console.log('Calling expert analysis edge function...');
 
+      // Prepare the request payload
+      const requestPayload = {
+        frames: frames,
+        userId: user?.id || null,
+        drillMode: isDrillMode
+      };
+
+      console.log('Request payload prepared:', { frameCount: frames.length, userId: user?.id, drillMode: isDrillMode });
+
       // Call the Edge Function with timeout handling
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
@@ -38,14 +48,11 @@ export const useVideoAnalysis = () => {
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions
           .invoke('analyze-video', {
-            body: {
-              frames: frames,
-              userId: user?.id || null,
-              drillMode: isDrillMode
-            },
+            body: requestPayload,
             headers: {
               'Content-Type': 'application/json'
-            }
+            },
+            signal: controller.signal
           });
 
         clearTimeout(timeoutId);
@@ -97,6 +104,15 @@ export const useVideoAnalysis = () => {
                 variant: "destructive",
               });
               throw new Error('Expert analysis API configuration error.');
+            }
+
+            if (errorType === 'INVALID_REQUEST' || errorType === 'INVALID_JSON') {
+              toast({
+                title: "Request Error",
+                description: "There was an issue with the analysis request. Please try again.",
+                variant: "destructive",
+              });
+              throw new Error('Analysis request error. Please try again.');
             }
 
             throw new Error(errorMessage);
