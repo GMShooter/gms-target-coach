@@ -1,6 +1,6 @@
 
 import React, { useCallback, useState } from 'react';
-import { Upload, Video, FileVideo } from 'lucide-react';
+import { Upload, Video, FileVideo, Zap } from 'lucide-react';
 import { useVideoAnalysis } from '@/hooks/useVideoAnalysis';
 import { DrillMode } from './DrillMode';
 
@@ -44,12 +44,12 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
 
   const handleDrillStart = () => {
     setIsRecording(true);
-    console.log('Drill started - recording should begin now');
+    console.log('Expert drill mode started - recording for professional timing analysis');
   };
 
   const handleDrillStop = () => {
     setIsRecording(false);
-    console.log('Drill stopped - processing video');
+    console.log('Expert drill mode stopped - processing for professional analysis');
   };
 
   if (isAnalyzing) {
@@ -57,16 +57,21 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
       <div className="max-w-2xl mx-auto">
         <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-12 text-center">
           <div className="animate-spin w-16 h-16 border-4 border-red-400 border-t-transparent rounded-full mx-auto mb-6"></div>
-          <h3 className="text-2xl font-bold mb-4">Analyzing Your Shooting Performance</h3>
+          <h3 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2">
+            <Zap className="w-6 h-6 text-yellow-400" />
+            Expert Marksmanship Analysis
+          </h3>
           <div className="space-y-2 text-slate-400">
             <p className="text-lg font-semibold text-red-400">{analysisProgress}</p>
-            <p>🎯 Extracting frames at 2 FPS...</p>
-            <p>⏱️ Analyzing each frame for bullet impacts...</p>
-            <p>📊 Computing performance metrics...</p>
-            <p>🎓 Generating coaching feedback...</p>
+            <p>🎯 Enhanced frame extraction at 10 FPS...</p>
+            <p>🔍 Sequential frame analysis with Gemini 2.5 Flash...</p>
+            <p>📊 Professional ballistics and pattern recognition...</p>
+            <p>🎓 Expert coaching feedback generation...</p>
+            <p>⚡ Advanced trigger control diagnostics...</p>
           </div>
           <div className="mt-4 text-sm text-slate-500">
-            <p>Processing video frame-by-frame for maximum accuracy</p>
+            <p>Professional-grade analysis using state-of-the-art AI models</p>
+            <p>Processing frame sequences for comprehensive impact detection</p>
           </div>
         </div>
       </div>
@@ -95,13 +100,13 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
               : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
           }`}
         >
-          Drill Mode
+          Expert Drill Mode
         </button>
       </div>
 
       {error && (
         <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
-          <h4 className="font-semibold text-red-400 mb-1">Analysis Error</h4>
+          <h4 className="font-semibold text-red-400 mb-1">Expert Analysis Error</h4>
           <p className="text-slate-300">{error}</p>
         </div>
       )}
@@ -125,9 +130,12 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
                 <Video className="w-8 h-8 text-red-400" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold mb-2">Upload Target Video</h3>
+                <h3 className="text-xl font-semibold mb-2 flex items-center justify-center gap-2">
+                  <Zap className="w-5 h-5 text-yellow-400" />
+                  Expert Video Analysis
+                </h3>
                 <p className="text-slate-400 mb-4">
-                  Drag and drop your target camera video here, or click to browse
+                  Upload your target video for professional marksmanship analysis
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                   <FileVideo className="w-4 h-4" />
@@ -147,15 +155,16 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-6">
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <Upload className="w-4 h-4 text-red-400" />
-              Video Requirements & Analysis Details
+              Expert Analysis System & Requirements
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
-              <li>• Camera must be mounted behind or to the side of the target</li>
-              <li>• Target should be clearly visible and well-lit</li>
-              <li>• Video quality: minimum 720p recommended</li>
-              <li>• File size: up to 500MB supported</li>
-              <li>• <strong className="text-red-400">Analysis: 2 FPS frame extraction</strong> (10 second video = 20 frame analyses)</li>
-              <li>• Each frame is analyzed individually for maximum accuracy</li>
+              <li>• <strong className="text-yellow-400">Gemini 2.5 Flash:</strong> Professional-grade AI model for ballistics analysis</li>
+              <li>• <strong className="text-green-400">10 FPS Analysis:</strong> Comprehensive frame extraction (10s video = 100 frames)</li>
+              <li>• <strong className="text-blue-400">Sequential Processing:</strong> 4-5 frame chunks for change detection</li>
+              <li>• Target must be clearly visible with good contrast and lighting</li>
+              <li>• Camera positioned behind or to the side of target</li>
+              <li>• Minimum 720p video quality, up to 500MB file size</li>
+              <li>• <strong className="text-red-400">Expert Coaching:</strong> Advanced trigger control and pattern diagnostics</li>
             </ul>
           </div>
         </>

@@ -7,7 +7,7 @@ export interface ExtractedFrame {
 
 export const extractFramesAtFPS = async (
   videoFile: File, 
-  targetFPS: number = 2
+  targetFPS: number = 10 // Increased to 8-12 FPS range for better detection
 ): Promise<ExtractedFrame[]> => {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
@@ -23,20 +23,22 @@ export const extractFramesAtFPS = async (
     let frameNumber = 0;
 
     video.onloadedmetadata = () => {
-      canvas.width = Math.min(video.videoWidth, 1024); // Limit size for API efficiency
-      canvas.height = Math.min(video.videoHeight, 768);
+      // Optimize canvas size for API efficiency while maintaining detail
+      canvas.width = Math.min(video.videoWidth, 1280);
+      canvas.height = Math.min(video.videoHeight, 960);
       
       const duration = video.duration;
       const frameInterval = 1 / targetFPS; // seconds between frames
       const totalFrames = Math.floor(duration * targetFPS);
       
-      console.log(`Extracting ${totalFrames} frames at ${targetFPS} FPS from ${duration}s video`);
+      console.log(`Expert analysis: Extracting ${totalFrames} frames at ${targetFPS} FPS from ${duration}s video`);
+      console.log(`Frame interval: ${frameInterval}s for comprehensive impact detection`);
       
       let currentTime = 0;
       
       const extractNextFrame = () => {
         if (currentTime >= duration) {
-          console.log(`Extracted ${frames.length} frames total`);
+          console.log(`Frame extraction complete: ${frames.length} frames ready for expert analysis`);
           resolve(frames);
           return;
         }
@@ -44,21 +46,21 @@ export const extractFramesAtFPS = async (
         video.currentTime = currentTime;
         
         video.onseeked = () => {
-          // Draw the current frame to canvas
+          // Draw the current frame to canvas with high quality
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           
-          // Convert to base64
-          const imageData = canvas.toDataURL('image/jpeg', 0.8);
+          // Convert to base64 with high quality for expert analysis
+          const imageData = canvas.toDataURL('image/jpeg', 0.9);
           
           frames.push({
             imageData,
-            timestamp: currentTime,
+            timestamp: parseFloat(currentTime.toFixed(3)), // Precise timestamp
             frameNumber: frameNumber++
           });
           
           // Move to next frame
           currentTime += frameInterval;
-          setTimeout(extractNextFrame, 100); // Small delay to ensure seeking completes
+          setTimeout(extractNextFrame, 50); // Faster processing for higher FPS
         };
       };
       
@@ -66,7 +68,7 @@ export const extractFramesAtFPS = async (
     };
     
     video.onerror = () => {
-      reject(new Error('Failed to load video'));
+      reject(new Error('Failed to load video for expert analysis'));
     };
     
     video.src = URL.createObjectURL(videoFile);

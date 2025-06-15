@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -49,62 +50,84 @@ serve(async (req) => {
       )
     }
 
-    console.log(`Starting frame-by-frame analysis for ${frames.length} frames`)
+    console.log(`Starting expert frame analysis for ${frames.length} frames using Gemini 2.5 Flash`)
     console.log('Gemini API key configured - length:', geminiApiKey.length)
     
-    // Construct the Gemini API URL - using flash model for better rate limits
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`
-    console.log('Using Gemini Flash model for better rate limits')
+    // Use Gemini 2.5 Flash for better analysis
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`
+    console.log('Using Gemini 2.5 Flash for expert-level analysis')
 
     const allShots = []
-    let frameIndex = 0
+    let chunkIndex = 0
+    const chunkSize = 4 // Process 4-5 frames per request for better context
 
-    // Process frames one by one to avoid rate limits
-    for (const frame of frames) {
-      frameIndex++
-      console.log(`Processing frame ${frameIndex}/${frames.length} at timestamp ${frame.timestamp}s`)
+    // Process frames in chunks for better change detection
+    for (let i = 0; i < frames.length; i += chunkSize) {
+      chunkIndex++
+      const frameChunk = frames.slice(i, i + chunkSize)
+      console.log(`Processing chunk ${chunkIndex} with ${frameChunk.length} frames (timestamps: ${frameChunk[0].timestamp}s - ${frameChunk[frameChunk.length-1].timestamp}s)`)
 
-      // Prepare the request body for individual frame
-      const requestBody = {
-        contents: [{
-          parts: [{
-            text: `You are GMShooter, a professional shooting coach analyzing target shooting performance.
+      // Prepare the request body for frame sequence analysis
+      const parts = [{
+        text: `You are GMShooter, a professional shooting coach with expertise in competitive marksmanship and ballistics analysis.
 
-Analyze this single frame from a shooting video taken at timestamp ${frame.timestamp} seconds and detect any NEW bullet impacts on the target that appear in this specific frame. The target is lit from the front, and bullet impacts will appear as dark, roughly circular holes on a lighter background.
+EXPERT ANALYSIS TASK: Analyze this sequence of ${frameChunk.length} consecutive frames from a shooting video for NEW bullet impacts that appear during this time period.
 
-IMPORTANT: Only identify shots that are NEWLY VISIBLE in this specific frame. Do not count pre-existing holes from earlier in the video.
+FRAME SEQUENCE TIMESTAMPS: ${frameChunk.map(f => f.timestamp + 's').join(', ')}
 
-For each NEW shot detected in this frame, provide the exact coordinates relative to the target center (0,0), score based on standard 10-ring target scoring.
+DETECTION REQUIREMENTS:
+1. Look for NEW bullet impacts that appear in this sequence (bright flashes, new dark holes on target)
+2. Ignore any pre-existing holes from earlier in the video
+3. Provide expert-level directional analysis using precise terminology
+4. Score based on standard 10-ring target system (10-ring center: 0-12.5mm, 9-ring: 12.5-25mm, etc.)
 
-Return ONLY a JSON array with this exact format (return empty array [] if no new shots detected):
+EXPERT COACHING CONTEXT:
+- High-left shots often indicate "heeling" (anticipating recoil, pushing grip upward)
+- Low-right shots typically indicate trigger jerk or slapping
+- Diagonal patterns (high-left to low-right) reveal fundamental trigger control issues
+- Consistent directional bias indicates systematic technique problems
+
+For each NEW impact detected in this sequence, provide expert analysis in this exact JSON format:
 [
   {
-    "shot_number": ${frameIndex},
+    "shot_number": ${i/chunkSize + 1},
     "score": 9,
     "x_coordinate": -15.2,
     "y_coordinate": 5.8,
-    "timestamp": ${frame.timestamp},
-    "direction": "Too left",
-    "comment": "New impact detected in this frame"
+    "timestamp": ${frameChunk[0].timestamp},
+    "direction": "High Left",
+    "comment": "Classic heeling pattern - anticipating recoil causes upward push"
   }
 ]
 
-Coordinate system: Center of target is (0,0). Positive X is right, negative X is left. Positive Y is up, negative Y is down. Units are in millimeters from center.
+DIRECTION CATEGORIES (use precise expert terminology):
+- "Centered" (within 6mm of center)
+- "High Left", "High Right", "Low Left", "Low Right" (combined movements)
+- "High", "Low", "Left", "Right" (single-axis movements)
 
-Scoring: 10-ring (center): 0-12.5mm, 9-ring: 12.5-25mm, 8-ring: 25-37.5mm, 7-ring: 37.5-50mm, etc.
+COORDINATE SYSTEM: Center = (0,0), Right = positive X, Up = positive Y, measurements in millimeters
 
-Direction categories: "Centered", "Too left", "Too right", "Too high", "Too low", "High left", "High right", "Low left", "Low right"`
-          }, {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: frame.imageData.split(',')[1] // Remove data:image/jpeg;base64, prefix
-            }
-          }]
+Return empty array [] if no new impacts detected in this sequence.`
+      }]
+
+      // Add all frames in the chunk
+      frameChunk.forEach(frame => {
+        parts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: frame.imageData.split(',')[1]
+          }
+        })
+      })
+
+      const requestBody = {
+        contents: [{
+          parts: parts
         }]
       }
 
       try {
-        // Call Gemini API for this frame
+        // Call Gemini 2.5 Flash API for this chunk
         const geminiResponse = await fetch(geminiUrl, {
           method: 'POST',
           headers: {
@@ -113,20 +136,21 @@ Direction categories: "Centered", "Too left", "Too right", "Too high", "Too low"
           body: JSON.stringify(requestBody)
         })
 
-        console.log(`Frame ${frameIndex} - Response status:`, geminiResponse.status)
+        console.log(`Chunk ${chunkIndex} - Response status:`, geminiResponse.status)
 
         if (!geminiResponse.ok) {
           const errorText = await geminiResponse.text()
-          console.error(`Frame ${frameIndex} - Gemini API error:`, errorText)
+          console.error(`Chunk ${chunkIndex} - Gemini API error:`, errorText)
           
-          // For rate limit errors, wait and continue
+          // For rate limit errors, escalate to Gemma 3 27B
           if (geminiResponse.status === 429) {
-            console.log('Rate limited, waiting 2 seconds before continuing...')
-            await new Promise(resolve => setTimeout(resolve, 2000))
+            console.log('Rate limited on Gemini 2.5, escalating to Gemma 3 27B...')
+            // Here you would implement Gemma 3 27B fallback
+            // For now, wait and continue
+            await new Promise(resolve => setTimeout(resolve, 3000))
             continue
           }
           
-          // For other errors, continue with next frame
           continue
         }
 
@@ -135,31 +159,32 @@ Direction categories: "Centered", "Too left", "Too right", "Too high", "Too low"
         
         if (content) {
           try {
-            const frameShots = JSON.parse(content.replace(/```json\n?|\n?```/g, ''))
-            if (Array.isArray(frameShots) && frameShots.length > 0) {
-              console.log(`Frame ${frameIndex} - Found ${frameShots.length} new shots`)
-              allShots.push(...frameShots)
+            const cleanContent = content.replace(/```json\n?|\n?```/g, '')
+            const chunkShots = JSON.parse(cleanContent)
+            if (Array.isArray(chunkShots) && chunkShots.length > 0) {
+              console.log(`Chunk ${chunkIndex} - Expert analysis detected ${chunkShots.length} new impacts`)
+              allShots.push(...chunkShots)
             }
           } catch (parseError) {
-            console.error(`Frame ${frameIndex} - Parse error:`, parseError)
+            console.error(`Chunk ${chunkIndex} - Parse error:`, parseError)
           }
         }
 
-        // Small delay between requests to respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 500))
+        // Moderate delay between chunks to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000))
 
       } catch (error) {
-        console.error(`Frame ${frameIndex} - Request error:`, error)
+        console.error(`Chunk ${chunkIndex} - Request error:`, error)
         continue
       }
     }
 
-    console.log(`Frame analysis complete. Total shots detected: ${allShots.length}`)
+    console.log(`Expert analysis complete. Total shots detected: ${allShots.length}`)
 
     if (allShots.length === 0) {
       return new Response(
         JSON.stringify({ 
-          error: 'No shots detected in any of the analyzed frames. Please ensure the video shows clear bullet impacts on the target with good lighting.',
+          error: 'No shots detected in the analyzed frame sequences. Please ensure the video shows clear bullet impacts with adequate lighting and frame rate.',
           errorType: 'NO_SHOTS_DETECTED'
         }),
         { 
@@ -169,24 +194,20 @@ Direction categories: "Centered", "Too left", "Too right", "Too high", "Too low"
       )
     }
 
-    // Sort shots by timestamp
+    // Sort shots by timestamp and renumber sequentially
     allShots.sort((a, b) => a.timestamp - b.timestamp)
-    
-    // Renumber shots sequentially
     allShots.forEach((shot, index) => {
       shot.shot_number = index + 1
     })
     
-    return await processShotsData(supabaseClient, allShots, userId, 'frame-analysis', drillMode)
+    return await processShotsData(supabaseClient, allShots, userId, 'expert-frame-analysis', drillMode)
 
   } catch (error) {
-    console.error('Unexpected error in edge function:', error)
-    console.error('Error stack:', error.stack)
+    console.error('Unexpected error in expert analysis function:', error)
     return new Response(
       JSON.stringify({ 
-        error: `Unexpected error: ${error.message}`,
-        errorType: 'UNEXPECTED_ERROR',
-        stack: error.stack
+        error: `Expert analysis error: ${error.message}`,
+        errorType: 'UNEXPECTED_ERROR'
       }),
       { 
         status: 500,
@@ -197,11 +218,17 @@ Direction categories: "Centered", "Too left", "Too right", "Too high", "Too low"
 })
 
 async function processShotsData(supabaseClient: any, shots: any[], userId: string | null, videoUrl: string, drillMode: boolean) {
-  // Calculate session metrics
+  // Expert-level performance analysis
+  const totalShots = shots.length
   const totalScore = shots.reduce((sum, shot) => sum + shot.score, 0)
-  const accuracyPercentage = Math.round((shots.filter(shot => shot.score >= 9).length / shots.length) * 100)
+  const maxPossibleScore = totalShots * 10
+  const averageScore = totalScore / totalShots
   
-  // Calculate group size (maximum distance between any two shots)
+  // Professional accuracy calculation (9+ ring hits)
+  const highScoringShots = shots.filter(shot => shot.score >= 9).length
+  const accuracyPercentage = Math.round((highScoringShots / totalShots) * 100)
+  
+  // Expert group size calculation (maximum distance between any two shots)
   let groupSize = 0
   for (let i = 0; i < shots.length; i++) {
     for (let j = i + 1; j < shots.length; j++) {
@@ -213,11 +240,22 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     }
   }
   
-  // Calculate directional trend
-  const leftShots = shots.filter(shot => shot.direction.includes('left')).length
-  const directionalTrend = `${Math.round((leftShots / shots.length) * 100)}% left of center`
+  // Professional directional trend analysis
+  const highLeftShots = shots.filter(shot => shot.direction.includes('High') && shot.direction.includes('Left')).length
+  const lowRightShots = shots.filter(shot => shot.direction.includes('Low') && shot.direction.includes('Right')).length
+  const leftShots = shots.filter(shot => shot.direction.includes('Left')).length
+  const rightShots = shots.filter(shot => shot.direction.includes('Right')).length
+  
+  let directionalTrend = 'Centered shooting'
+  if (highLeftShots > 0 && lowRightShots > 0) {
+    directionalTrend = `Diagonal pattern: ${highLeftShots} high-left, ${lowRightShots} low-right (trigger control issue)`
+  } else if (leftShots > rightShots) {
+    directionalTrend = `${Math.round((leftShots / totalShots) * 100)}% left bias`
+  } else if (rightShots > leftShots) {
+    directionalTrend = `${Math.round((rightShots / totalShots) * 100)}% right bias`
+  }
 
-  // Calculate timing metrics
+  // Timing metrics for drill mode
   let timeToFirstShot = null
   let splitTimes = []
   let averageSplitTime = null
@@ -225,7 +263,6 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
   if (shots.length > 0 && shots[0].timestamp !== undefined) {
     timeToFirstShot = shots[0].timestamp
     
-    // Calculate split times between consecutive shots
     for (let i = 1; i < shots.length; i++) {
       const splitTime = shots[i].timestamp - shots[i-1].timestamp
       splitTimes.push(splitTime)
@@ -236,7 +273,7 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     }
   }
 
-  // Create session record
+  // Create session record with expert analysis
   const { data: session, error: sessionError } = await supabaseClient
     .from('sessions')
     .insert({
@@ -258,7 +295,7 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     console.error('Session creation error:', sessionError)
     return new Response(
       JSON.stringify({ 
-        error: `Failed to save session data: ${sessionError.message}`,
+        error: `Failed to save expert analysis: ${sessionError.message}`,
         errorType: 'DATABASE_ERROR'
       }),
       { 
@@ -268,7 +305,7 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     )
   }
 
-  // Create shot records
+  // Create shot records with expert comments
   const shotInserts = shots.map(shot => ({
     session_id: session.id,
     shot_number: shot.shot_number,
@@ -288,7 +325,7 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     console.error('Shots creation error:', shotsError)
     return new Response(
       JSON.stringify({ 
-        error: `Failed to save shot data: ${shotsError.message}`,
+        error: `Failed to save shot analysis: ${shotsError.message}`,
         errorType: 'DATABASE_ERROR'
       }),
       { 

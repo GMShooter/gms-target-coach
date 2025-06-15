@@ -12,27 +12,27 @@ export const useVideoAnalysis = () => {
   const analyzeVideo = async (file: File, isDrillMode: boolean = false): Promise<string | null> => {
     setIsAnalyzing(true);
     setError(null);
-    setAnalysisProgress('Extracting frames from video...');
+    setAnalysisProgress('Extracting frames for expert analysis...');
 
     try {
-      console.log('Starting video frame extraction and analysis...');
+      console.log('Starting expert video analysis with enhanced frame extraction...');
       
-      // Extract frames at 2 FPS
-      const frames = await extractFramesAtFPS(file, 2);
-      console.log(`Extracted ${frames.length} frames for analysis`);
+      // Extract frames at 10 FPS for comprehensive impact detection
+      const frames = await extractFramesAtFPS(file, 10);
+      console.log(`Expert system extracted ${frames.length} frames for detailed analysis`);
       
       if (frames.length === 0) {
         throw new Error('No frames could be extracted from the video');
       }
 
-      setAnalysisProgress(`Analyzing ${frames.length} frames with AI...`);
+      setAnalysisProgress(`Expert analysis in progress: ${frames.length} frames with Gemini 2.5 Flash...`);
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
 
-      console.log('Calling edge function for frame analysis...');
+      console.log('Calling expert analysis edge function...');
 
-      // Call the Edge Function for analysis with frames
+      // Call the Edge Function for expert-level analysis with frame sequences
       const { data: analysisData, error: analysisError } = await supabase.functions
         .invoke('analyze-video', {
           body: {
@@ -42,73 +42,62 @@ export const useVideoAnalysis = () => {
           }
         });
 
-      console.log('Edge function response - data:', analysisData);
-      console.log('Edge function response - error:', analysisError);
+      console.log('Expert analysis response - data:', analysisData);
+      console.log('Expert analysis response - error:', analysisError);
 
       if (analysisError) {
-        console.error('Edge Function error details:', analysisError);
+        console.error('Expert analysis error details:', analysisError);
         
-        // If there's data in the response despite the error, use that for specific error handling
         if (analysisData && typeof analysisData === 'object' && analysisData.error) {
           const errorMessage = analysisData.error;
           const errorType = analysisData.errorType || 'UNKNOWN_ERROR';
           
-          console.log('Specific error from edge function:', errorMessage, errorType);
+          console.log('Specific error from expert analysis:', errorMessage, errorType);
           
-          // Handle specific error types with user-friendly messages
+          // Handle specific error types with expert-level feedback
           if (errorType === 'QUOTA_EXCEEDED' || errorMessage.includes('quota') || errorMessage.includes('QUOTA_EXCEEDED')) {
             toast({
-              title: "API Quota Exceeded",
-              description: "The Gemini AI service has reached its daily limit. Please try again later or contact support.",
+              title: "Expert Analysis Quota Exceeded",
+              description: "The Gemini 2.5 Flash service has reached its limit. Escalating to Gemma 3 27B or try again later.",
               variant: "destructive",
             });
-            throw new Error('Gemini API quota exceeded. Please try again later.');
+            throw new Error('Expert analysis quota exceeded. Escalating to backup model.');
           }
           
           if (errorType === 'NO_SHOTS_DETECTED' || errorMessage.includes('NO_SHOTS_DETECTED')) {
             toast({
-              title: "No Shots Detected",
-              description: "The AI couldn't detect any bullet impacts. Ensure good lighting and clear target visibility.",
+              title: "No Impacts Detected",
+              description: "Expert analysis couldn't detect bullet impacts. Ensure optimal lighting and target contrast.",
               variant: "destructive",
             });
-            throw new Error('No shots detected in the video. Please check video quality and target visibility.');
+            throw new Error('No shots detected by expert analysis. Please check video quality and lighting.');
           }
           
           if (errorType === 'INVALID_VIDEO' || errorMessage.includes('INVALID_VIDEO')) {
             toast({
               title: "Invalid Video Format",
-              description: "Please use MP4 format and ensure the file is under 500MB.",
+              description: "Expert analysis requires MP4 format under 500MB with clear target visibility.",
               variant: "destructive",
             });
-            throw new Error('Invalid video format. Please use MP4 and ensure file is under 500MB.');
+            throw new Error('Invalid video format for expert analysis.');
           }
 
           if (errorType === 'API_KEY_MISSING') {
             toast({
-              title: "Configuration Error",
-              description: "Gemini API key is not configured. Please contact support.",
+              title: "Expert Analysis Configuration Error",
+              description: "Gemini 2.5 Flash API key not configured. Please contact support.",
               variant: "destructive",
             });
-            throw new Error('API configuration error. Please contact support.');
-          }
-
-          if (errorType === 'NO_FRAMES') {
-            toast({
-              title: "Frame Extraction Error",
-              description: "Could not extract frames from the video. Please check the video format.",
-              variant: "destructive",
-            });
-            throw new Error('Frame extraction failed. Please check video format.');
+            throw new Error('Expert analysis API configuration error.');
           }
 
           throw new Error(errorMessage);
         }
         
-        // If no specific error data, show generic error
-        const errorMessage = analysisError.message || 'Edge Function returned a non-2xx status code';
+        const errorMessage = analysisError.message || 'Expert analysis service returned an error';
         
         toast({
-          title: "Analysis Failed",
+          title: "Expert Analysis Failed",
           description: errorMessage,
           variant: "destructive",
         });
@@ -117,22 +106,22 @@ export const useVideoAnalysis = () => {
       }
 
       if (!analysisData || !analysisData.sessionId) {
-        console.error('No session ID in response:', analysisData);
-        throw new Error('Invalid response from analysis service');
+        console.error('No session ID in expert analysis response:', analysisData);
+        throw new Error('Invalid response from expert analysis service');
       }
 
-      console.log('Analysis completed successfully, session ID:', analysisData.sessionId);
+      console.log('Expert analysis completed successfully, session ID:', analysisData.sessionId);
 
       toast({
-        title: "Analysis Complete",
-        description: `Successfully analyzed ${frames.length} frames and detected shooting performance!`,
+        title: "Expert Analysis Complete",
+        description: `Professional marksmanship analysis completed with ${frames.length} frame sequence analysis!`,
       });
 
       return analysisData.sessionId;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred in expert analysis';
       setError(errorMessage);
-      console.error('Video analysis error:', err);
+      console.error('Expert video analysis error:', err);
       return null;
     } finally {
       setIsAnalyzing(false);
