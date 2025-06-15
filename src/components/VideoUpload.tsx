@@ -63,14 +63,14 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           </h3>
           <div className="space-y-2 text-slate-400">
             <p className="text-lg font-semibold text-red-400">{analysisProgress}</p>
-            <p>🎯 Enhanced frame extraction at 10 FPS...</p>
+            <p>🎯 Optimized frame extraction at 8 FPS...</p>
             <p>🔍 Sequential frame analysis with Gemini 2.5 Flash...</p>
             <p>📊 Professional ballistics and pattern recognition...</p>
             <p>🎓 Expert coaching feedback generation...</p>
-            <p>⚡ Advanced trigger control diagnostics...</p>
+            <p>⚡ Enhanced performance and reliability...</p>
           </div>
           <div className="mt-4 text-sm text-slate-500">
-            <p>Professional-grade analysis using state-of-the-art AI models</p>
+            <p>Professional-grade analysis using optimized AI models</p>
             <p>Processing frame sequences for comprehensive impact detection</p>
           </div>
         </div>
@@ -159,8 +159,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
               <li>• <strong className="text-yellow-400">Gemini 2.5 Flash:</strong> Professional-grade AI model for ballistics analysis</li>
-              <li>• <strong className="text-green-400">10 FPS Analysis:</strong> Comprehensive frame extraction (10s video = 100 frames)</li>
-              <li>• <strong className="text-blue-400">Sequential Processing:</strong> 4-5 frame chunks for change detection</li>
+              <li>• <strong className="text-green-400">8 FPS Analysis:</strong> Optimized frame extraction (10s video = 80 frames)</li>
+              <li>• <strong className="text-blue-400">Sequential Processing:</strong> 3-frame chunks for reliable change detection</li>
               <li>• Target must be clearly visible with good contrast and lighting</li>
               <li>• Camera positioned behind or to the side of target</li>
               <li>• Minimum 720p video quality, up to 500MB file size</li>

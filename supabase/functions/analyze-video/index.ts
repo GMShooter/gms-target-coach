@@ -51,7 +51,6 @@ serve(async (req) => {
     }
 
     console.log(`Starting expert frame analysis for ${frames.length} frames using Gemini 2.5 Flash`)
-    console.log('Gemini API key configured - length:', geminiApiKey.length)
     
     // Use Gemini 2.5 Flash for better analysis
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`
@@ -59,9 +58,9 @@ serve(async (req) => {
 
     const allShots = []
     let chunkIndex = 0
-    const chunkSize = 4 // Process 4-5 frames per request for better context
+    const chunkSize = 3 // Reduced chunk size for faster processing
 
-    // Process frames in chunks for better change detection
+    // Process frames in smaller chunks for better performance
     for (let i = 0; i < frames.length; i += chunkSize) {
       chunkIndex++
       const frameChunk = frames.slice(i, i + chunkSize)
@@ -69,28 +68,18 @@ serve(async (req) => {
 
       // Prepare the request body for frame sequence analysis
       const parts = [{
-        text: `You are GMShooter, a professional shooting coach with expertise in competitive marksmanship and ballistics analysis.
+        text: `EXPERT SHOOTING ANALYSIS TASK:
 
-EXPERT ANALYSIS TASK: Analyze this sequence of ${frameChunk.length} consecutive frames from a shooting video for NEW bullet impacts that appear during this time period.
+You are analyzing frames ${chunkIndex * chunkSize - chunkSize + 1} to ${chunkIndex * chunkSize} from a shooting video.
 
-FRAME SEQUENCE TIMESTAMPS: ${frameChunk.map(f => f.timestamp + 's').join(', ')}
+CRITICAL: Respond ONLY with a valid JSON array. No introduction text, no explanations outside the JSON.
 
-DETECTION REQUIREMENTS:
-1. Look for NEW bullet impacts that appear in this sequence (bright flashes, new dark holes on target)
-2. Ignore any pre-existing holes from earlier in the video
-3. Provide expert-level directional analysis using precise terminology
-4. Score based on standard 10-ring target system (10-ring center: 0-12.5mm, 9-ring: 12.5-25mm, etc.)
+Look for NEW bullet impacts (bright flashes, new holes) that appear in this frame sequence.
 
-EXPERT COACHING CONTEXT:
-- High-left shots often indicate "heeling" (anticipating recoil, pushing grip upward)
-- Low-right shots typically indicate trigger jerk or slapping
-- Diagonal patterns (high-left to low-right) reveal fundamental trigger control issues
-- Consistent directional bias indicates systematic technique problems
-
-For each NEW impact detected in this sequence, provide expert analysis in this exact JSON format:
+For each NEW impact detected, return EXACTLY this JSON format:
 [
   {
-    "shot_number": ${i/chunkSize + 1},
+    "shot_number": ${Math.floor(i/chunkSize) + 1},
     "score": 9,
     "x_coordinate": -15.2,
     "y_coordinate": 5.8,
@@ -100,14 +89,13 @@ For each NEW impact detected in this sequence, provide expert analysis in this e
   }
 ]
 
-DIRECTION CATEGORIES (use precise expert terminology):
-- "Centered" (within 6mm of center)
-- "High Left", "High Right", "Low Left", "Low Right" (combined movements)
-- "High", "Low", "Left", "Right" (single-axis movements)
+DIRECTION OPTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "High", "Low", "Left", "Right"
 
 COORDINATE SYSTEM: Center = (0,0), Right = positive X, Up = positive Y, measurements in millimeters
 
-Return empty array [] if no new impacts detected in this sequence.`
+Return empty array [] if no new impacts detected in this sequence.
+
+RESPOND WITH VALID JSON ONLY:`
       }]
 
       // Add all frames in the chunk
@@ -123,7 +111,11 @@ Return empty array [] if no new impacts detected in this sequence.`
       const requestBody = {
         contents: [{
           parts: parts
-        }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 1000
+        }
       }
 
       try {
@@ -142,12 +134,10 @@ Return empty array [] if no new impacts detected in this sequence.`
           const errorText = await geminiResponse.text()
           console.error(`Chunk ${chunkIndex} - Gemini API error:`, errorText)
           
-          // For rate limit errors, escalate to Gemma 3 27B
+          // For rate limit errors, try once more with delay
           if (geminiResponse.status === 429) {
-            console.log('Rate limited on Gemini 2.5, escalating to Gemma 3 27B...')
-            // Here you would implement Gemma 3 27B fallback
-            // For now, wait and continue
-            await new Promise(resolve => setTimeout(resolve, 3000))
+            console.log('Rate limited, waiting 2 seconds...')
+            await new Promise(resolve => setTimeout(resolve, 2000))
             continue
           }
           
@@ -155,23 +145,36 @@ Return empty array [] if no new impacts detected in this sequence.`
         }
 
         const geminiData = await geminiResponse.json()
-        const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
+        let content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
         
         if (content) {
           try {
-            const cleanContent = content.replace(/```json\n?|\n?```/g, '')
-            const chunkShots = JSON.parse(cleanContent)
+            // Clean up the response - remove any markdown formatting
+            content = content.replace(/```json\n?|\n?```/g, '').trim()
+            
+            // If content starts with non-JSON text, try to extract JSON
+            const jsonMatch = content.match(/\[[\s\S]*\]/)
+            if (jsonMatch) {
+              content = jsonMatch[0]
+            }
+            
+            console.log(`Chunk ${chunkIndex} - Raw response:`, content.substring(0, 200))
+            
+            const chunkShots = JSON.parse(content)
             if (Array.isArray(chunkShots) && chunkShots.length > 0) {
               console.log(`Chunk ${chunkIndex} - Expert analysis detected ${chunkShots.length} new impacts`)
               allShots.push(...chunkShots)
+            } else {
+              console.log(`Chunk ${chunkIndex} - No impacts detected`)
             }
           } catch (parseError) {
             console.error(`Chunk ${chunkIndex} - Parse error:`, parseError)
+            console.error(`Chunk ${chunkIndex} - Raw content:`, content)
           }
         }
 
-        // Moderate delay between chunks to respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Reduced delay between chunks
+        await new Promise(resolve => setTimeout(resolve, 500))
 
       } catch (error) {
         console.error(`Chunk ${chunkIndex} - Request error:`, error)
@@ -184,7 +187,7 @@ Return empty array [] if no new impacts detected in this sequence.`
     if (allShots.length === 0) {
       return new Response(
         JSON.stringify({ 
-          error: 'No shots detected in the analyzed frame sequences. Please ensure the video shows clear bullet impacts with adequate lighting and frame rate.',
+          error: 'No shots detected in the analyzed frame sequences. Please ensure the video shows clear bullet impacts with adequate lighting.',
           errorType: 'NO_SHOTS_DETECTED'
         }),
         { 

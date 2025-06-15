@@ -7,7 +7,7 @@ export interface ExtractedFrame {
 
 export const extractFramesAtFPS = async (
   videoFile: File, 
-  targetFPS: number = 10 // Increased to 8-12 FPS range for better detection
+  targetFPS: number = 8 // Reduced to 8 FPS for better performance
 ): Promise<ExtractedFrame[]> => {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
@@ -23,12 +23,12 @@ export const extractFramesAtFPS = async (
     let frameNumber = 0;
 
     video.onloadedmetadata = () => {
-      // Optimize canvas size for API efficiency while maintaining detail
-      canvas.width = Math.min(video.videoWidth, 1280);
-      canvas.height = Math.min(video.videoHeight, 960);
+      // Optimized canvas size for faster processing
+      canvas.width = Math.min(video.videoWidth, 960);
+      canvas.height = Math.min(video.videoHeight, 720);
       
       const duration = video.duration;
-      const frameInterval = 1 / targetFPS; // seconds between frames
+      const frameInterval = 1 / targetFPS;
       const totalFrames = Math.floor(duration * targetFPS);
       
       console.log(`Expert analysis: Extracting ${totalFrames} frames at ${targetFPS} FPS from ${duration}s video`);
@@ -46,21 +46,21 @@ export const extractFramesAtFPS = async (
         video.currentTime = currentTime;
         
         video.onseeked = () => {
-          // Draw the current frame to canvas with high quality
+          // Draw the current frame to canvas
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           
-          // Convert to base64 with high quality for expert analysis
-          const imageData = canvas.toDataURL('image/jpeg', 0.9);
+          // Convert to base64 with optimized quality for faster processing
+          const imageData = canvas.toDataURL('image/jpeg', 0.8);
           
           frames.push({
             imageData,
-            timestamp: parseFloat(currentTime.toFixed(3)), // Precise timestamp
+            timestamp: parseFloat(currentTime.toFixed(3)),
             frameNumber: frameNumber++
           });
           
           // Move to next frame
           currentTime += frameInterval;
-          setTimeout(extractNextFrame, 50); // Faster processing for higher FPS
+          setTimeout(extractNextFrame, 25); // Faster frame extraction
         };
       };
       
