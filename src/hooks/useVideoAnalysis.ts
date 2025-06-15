@@ -2,48 +2,41 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { extractFramesAtFPS } from '@/utils/videoFrameExtractor';
 
 export const useVideoAnalysis = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState<string>('');
 
   const analyzeVideo = async (file: File, isDrillMode: boolean = false): Promise<string | null> => {
     setIsAnalyzing(true);
     setError(null);
+    setAnalysisProgress('Extracting frames from video...');
 
     try {
-      console.log('Starting video upload and analysis...');
+      console.log('Starting video frame extraction and analysis...');
       
-      // Upload video to Supabase storage
-      const fileName = `${Date.now()}-${file.name}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('videos')
-        .upload(fileName, file);
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw new Error(`Upload failed: ${uploadError.message}`);
+      // Extract frames at 2 FPS
+      const frames = await extractFramesAtFPS(file, 2);
+      console.log(`Extracted ${frames.length} frames for analysis`);
+      
+      if (frames.length === 0) {
+        throw new Error('No frames could be extracted from the video');
       }
 
-      console.log('Video uploaded successfully:', uploadData.path);
-
-      // Get public URL for the video
-      const { data: { publicUrl } } = supabase.storage
-        .from('videos')
-        .getPublicUrl(uploadData.path);
-
-      console.log('Public URL generated:', publicUrl);
+      setAnalysisProgress(`Analyzing ${frames.length} frames with AI...`);
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
 
-      console.log('Calling edge function for analysis...');
+      console.log('Calling edge function for frame analysis...');
 
-      // Call the Edge Function for analysis
+      // Call the Edge Function for analysis with frames
       const { data: analysisData, error: analysisError } = await supabase.functions
         .invoke('analyze-video', {
           body: {
-            videoUrl: publicUrl,
+            frames: frames,
             userId: user?.id || null,
             drillMode: isDrillMode
           }
@@ -99,6 +92,15 @@ export const useVideoAnalysis = () => {
             throw new Error('API configuration error. Please contact support.');
           }
 
+          if (errorType === 'NO_FRAMES') {
+            toast({
+              title: "Frame Extraction Error",
+              description: "Could not extract frames from the video. Please check the video format.",
+              variant: "destructive",
+            });
+            throw new Error('Frame extraction failed. Please check video format.');
+          }
+
           throw new Error(errorMessage);
         }
         
@@ -123,7 +125,7 @@ export const useVideoAnalysis = () => {
 
       toast({
         title: "Analysis Complete",
-        description: "Your shooting performance has been successfully analyzed!",
+        description: `Successfully analyzed ${frames.length} frames and detected shooting performance!`,
       });
 
       return analysisData.sessionId;
@@ -134,8 +136,9 @@ export const useVideoAnalysis = () => {
       return null;
     } finally {
       setIsAnalyzing(false);
+      setAnalysisProgress('');
     }
   };
 
-  return { analyzeVideo, isAnalyzing, error };
+  return { analyzeVideo, isAnalyzing, error, analysisProgress };
 };

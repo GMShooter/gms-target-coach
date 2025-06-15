@@ -10,7 +10,7 @@ interface VideoUploadProps {
 }
 
 export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnalysisComplete }) => {
-  const { analyzeVideo, isAnalyzing, error } = useVideoAnalysis();
+  const { analyzeVideo, isAnalyzing, error, analysisProgress } = useVideoAnalysis();
   const [mode, setMode] = useState<'upload' | 'drill'>('upload');
   const [isRecording, setIsRecording] = useState(false);
 
@@ -44,14 +44,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
 
   const handleDrillStart = () => {
     setIsRecording(true);
-    // In a real implementation, this would start video recording
-    // For now, we'll simulate it
     console.log('Drill started - recording should begin now');
   };
 
   const handleDrillStop = () => {
     setIsRecording(false);
-    // In a real implementation, this would stop recording and process the video
     console.log('Drill stopped - processing video');
   };
 
@@ -62,10 +59,14 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="animate-spin w-16 h-16 border-4 border-red-400 border-t-transparent rounded-full mx-auto mb-6"></div>
           <h3 className="text-2xl font-bold mb-4">Analyzing Your Shooting Performance</h3>
           <div className="space-y-2 text-slate-400">
-            <p>🎯 Detecting bullet impacts...</p>
-            <p>⏱️ Calculating shot timing...</p>
+            <p className="text-lg font-semibold text-red-400">{analysisProgress}</p>
+            <p>🎯 Extracting frames at 2 FPS...</p>
+            <p>⏱️ Analyzing each frame for bullet impacts...</p>
             <p>📊 Computing performance metrics...</p>
             <p>🎓 Generating coaching feedback...</p>
+          </div>
+          <div className="mt-4 text-sm text-slate-500">
+            <p>Processing video frame-by-frame for maximum accuracy</p>
           </div>
         </div>
       </div>
@@ -146,14 +147,15 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-6">
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <Upload className="w-4 h-4 text-red-400" />
-              Video Requirements
+              Video Requirements & Analysis Details
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
               <li>• Camera must be mounted behind or to the side of the target</li>
               <li>• Target should be clearly visible and well-lit</li>
               <li>• Video quality: minimum 720p recommended</li>
               <li>• File size: up to 500MB supported</li>
-              <li>• Ensure each shot impact is clearly visible</li>
+              <li>• <strong className="text-red-400">Analysis: 2 FPS frame extraction</strong> (10 second video = 20 frame analyses)</li>
+              <li>• Each frame is analyzed individually for maximum accuracy</li>
             </ul>
           </div>
         </>
