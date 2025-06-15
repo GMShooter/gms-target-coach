@@ -17,8 +17,8 @@ export const useVideoAnalysis = () => {
     try {
       console.log('Starting expert video analysis with optimized frame extraction...');
       
-      // Extract frames at 8 FPS for balanced performance and accuracy
-      const frames = await extractFramesAtFPS(file, 8);
+      // Extract frames at 10 FPS for comprehensive analysis
+      const frames = await extractFramesAtFPS(file, 10);
       console.log(`Expert system extracted ${frames.length} frames for detailed analysis`);
       
       if (frames.length === 0) {
@@ -32,7 +32,7 @@ export const useVideoAnalysis = () => {
 
       console.log('Calling expert analysis edge function...');
 
-      // Prepare the request payload
+      // Prepare the request payload with proper JSON serialization
       const requestPayload = {
         frames: frames,
         userId: user?.id || null,
@@ -42,20 +42,22 @@ export const useVideoAnalysis = () => {
       console.log('Request payload prepared:', { frameCount: frames.length, userId: user?.id, drillMode: isDrillMode });
 
       // Call the Edge Function with timeout handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Analysis timed out after 2 minutes')), 120000);
+      });
 
       try {
-        const { data: analysisData, error: analysisError } = await supabase.functions
-          .invoke('analyze-video', {
-            body: requestPayload,
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            signal: controller.signal
-          });
+        const analysisPromise = supabase.functions.invoke('analyze-video', {
+          body: requestPayload,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
 
-        clearTimeout(timeoutId);
+        const { data: analysisData, error: analysisError } = await Promise.race([
+          analysisPromise,
+          timeoutPromise
+        ]) as any;
 
         console.log('Expert analysis response - data:', analysisData);
         console.log('Expert analysis response - error:', analysisError);
@@ -143,8 +145,7 @@ export const useVideoAnalysis = () => {
 
         return analysisData.sessionId;
       } catch (fetchError) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
+        if (fetchError.message.includes('timed out')) {
           throw new Error('Expert analysis timed out. Please try with a shorter video.');
         }
         throw fetchError;
