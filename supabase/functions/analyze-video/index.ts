@@ -38,20 +38,18 @@ serve(async (req) => {
     }
 
     console.log('Starting video analysis for:', videoUrl)
-    console.log('Using Gemini API key (first 10 chars):', geminiApiKey.substring(0, 10) + '...')
+    console.log('Gemini API key configured - length:', geminiApiKey.length)
+    console.log('Gemini API key starts with:', geminiApiKey.substring(0, 20))
+    
+    // Construct the Gemini API URL
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`
+    console.log('Gemini API URL (without key):', geminiUrl.split('?key=')[0])
 
-    // Call Gemini API for video analysis
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `You are GMShooter, a professional shooting coach analyzing target shooting performance with precise timing capabilities.
+    // Prepare the request body
+    const requestBody = {
+      contents: [{
+        parts: [{
+          text: `You are GMShooter, a professional shooting coach analyzing target shooting performance with precise timing capabilities.
 
 Analyze this shooting video and detect all bullet impacts on the target. The target is lit from the front, and bullet impacts will appear as dark, roughly circular holes on a lighter background. Identify each new hole as it appears.
 
@@ -82,43 +80,65 @@ Scoring: 10-ring (center): 0-12.5mm, 9-ring: 12.5-25mm, 8-ring: 25-37.5mm, 7-rin
 Direction categories: "Centered", "Too left", "Too right", "Too high", "Too low", "High left", "High right", "Low left", "Low right"
 
 Provide coaching comments based on shot patterns and impact locations.`
-            }, {
-              fileData: {
-                mimeType: "video/mp4",
-                fileUri: videoUrl
-              }
-            }]
-          }]
-        })
-      }
-    )
+        }, {
+          fileData: {
+            mimeType: "video/mp4",
+            fileUri: videoUrl
+          }
+        }]
+      }]
+    }
+    
+    console.log('Request body prepared, making API call...')
+    console.log('Video URL being sent:', videoUrl)
 
-    console.log('Gemini API response status:', geminiResponse.status)
+    // Call Gemini API for video analysis
+    const geminiResponse = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    console.log('Gemini API response received')
+    console.log('Response status:', geminiResponse.status)
+    console.log('Response headers:', Object.fromEntries(geminiResponse.headers.entries()))
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text()
-      console.error('Gemini API error response:', errorText)
+      console.error('Gemini API error response (raw):', errorText)
       
       let errorData
       try {
         errorData = JSON.parse(errorText)
+        console.error('Parsed Gemini API error:', JSON.stringify(errorData, null, 2))
       } catch (parseError) {
         console.error('Failed to parse Gemini error response:', parseError)
+        console.error('Raw error text:', errorText)
         errorData = { error: { message: errorText } }
       }
       
-      console.error('Parsed Gemini API error:', errorData)
-      
-      // Handle specific error types
+      // Handle specific error types with detailed logging
       if (geminiResponse.status === 429) {
         const retryAfter = errorData.error?.details?.find(d => d['@type']?.includes('RetryInfo'))?.retryDelay || '60s'
-        console.error('Quota exceeded, retry after:', retryAfter)
+        console.error('429 Error details:')
+        console.error('- Status:', geminiResponse.status)
+        console.error('- Retry after:', retryAfter)
+        console.error('- Full error object:', JSON.stringify(errorData, null, 2))
+        
         return new Response(
           JSON.stringify({ 
             error: `Gemini API quota exceeded. The free tier has daily/minute limits. Please wait ${retryAfter} before trying again, or upgrade to a paid plan for higher limits.`,
             errorType: 'QUOTA_EXCEEDED',
             retryAfter,
-            details: errorData
+            details: errorData,
+            debugInfo: {
+              apiKeyLength: geminiApiKey.length,
+              apiKeyPrefix: geminiApiKey.substring(0, 20),
+              responseStatus: geminiResponse.status,
+              responseHeaders: Object.fromEntries(geminiResponse.headers.entries())
+            }
           }),
           { 
             status: 429,
@@ -128,15 +148,38 @@ Provide coaching comments based on shot patterns and impact locations.`
       }
       
       if (geminiResponse.status === 400) {
-        console.error('Bad request to Gemini API')
+        console.error('400 Error - Bad Request:', JSON.stringify(errorData, null, 2))
         return new Response(
           JSON.stringify({ 
             error: 'Video format not supported or video too large. Please ensure your video is in MP4 format and under 500MB.',
             errorType: 'INVALID_VIDEO',
-            details: errorData
+            details: errorData,
+            debugInfo: {
+              videoUrl,
+              requestBodySize: JSON.stringify(requestBody).length
+            }
           }),
           { 
             status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
+      if (geminiResponse.status === 403) {
+        console.error('403 Error - Forbidden:', JSON.stringify(errorData, null, 2))
+        return new Response(
+          JSON.stringify({ 
+            error: 'Gemini API access forbidden. Please check your API key permissions and billing status.',
+            errorType: 'API_FORBIDDEN',
+            details: errorData,
+            debugInfo: {
+              apiKeyLength: geminiApiKey.length,
+              apiKeyPrefix: geminiApiKey.substring(0, 20)
+            }
+          }),
+          { 
+            status: 403,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
@@ -148,7 +191,12 @@ Provide coaching comments based on shot patterns and impact locations.`
           error: `Gemini API error: ${errorData.error?.message || 'Unknown error'}`,
           errorType: 'API_ERROR',
           status: geminiResponse.status,
-          details: errorData
+          details: errorData,
+          debugInfo: {
+            apiKeyLength: geminiApiKey.length,
+            apiKeyPrefix: geminiApiKey.substring(0, 20),
+            responseStatus: geminiResponse.status
+          }
         }),
         { 
           status: geminiResponse.status,
@@ -159,10 +207,13 @@ Provide coaching comments based on shot patterns and impact locations.`
 
     const geminiData = await geminiResponse.json()
     console.log('Gemini API success response received')
+    console.log('Response data structure:', Object.keys(geminiData))
+    
     const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
     
     if (!content) {
       console.error('No content in Gemini response')
+      console.error('Full response:', JSON.stringify(geminiData, null, 2))
       return new Response(
         JSON.stringify({ 
           error: 'No analysis results received from Gemini API. The video may not contain detectable shots or the AI failed to analyze it.',
@@ -212,6 +263,7 @@ Provide coaching comments based on shot patterns and impact locations.`
 
   } catch (error) {
     console.error('Unexpected error in edge function:', error)
+    console.error('Error stack:', error.stack)
     return new Response(
       JSON.stringify({ 
         error: `Unexpected error: ${error.message}`,
