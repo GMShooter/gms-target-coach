@@ -49,59 +49,68 @@ export const useVideoAnalysis = () => {
           }
         });
 
+      console.log('Edge function response - data:', analysisData);
+      console.log('Edge function response - error:', analysisError);
+
       if (analysisError) {
         console.error('Edge Function error details:', analysisError);
         
-        // The analysisError from Supabase functions contains the actual error response
-        let errorMessage = 'Analysis failed';
-        let errorType = 'UNKNOWN_ERROR';
-        
-        // analysisError might have the actual response data we sent from the edge function
-        if (analysisData && typeof analysisData === 'object') {
-          errorMessage = analysisData.error || errorMessage;
-          errorType = analysisData.errorType || errorType;
-          console.log('Error data from edge function:', analysisData);
-        } else if (analysisError.message) {
-          errorMessage = analysisError.message;
-        }
-        
-        // Handle specific error types with user-friendly messages
-        if (errorType === 'QUOTA_EXCEEDED' || errorMessage.includes('quota') || errorMessage.includes('QUOTA_EXCEEDED')) {
-          toast({
-            title: "API Quota Exceeded",
-            description: "The Gemini AI service has reached its daily limit. Please try again later or contact support.",
-            variant: "destructive",
-          });
-          throw new Error('Gemini API quota exceeded. Please try again later.');
-        }
-        
-        if (errorType === 'NO_SHOTS_DETECTED' || errorMessage.includes('NO_SHOTS_DETECTED')) {
-          toast({
-            title: "No Shots Detected",
-            description: "The AI couldn't detect any bullet impacts. Ensure good lighting and clear target visibility.",
-            variant: "destructive",
-          });
-          throw new Error('No shots detected in the video. Please check video quality and target visibility.');
-        }
-        
-        if (errorType === 'INVALID_VIDEO' || errorMessage.includes('INVALID_VIDEO')) {
-          toast({
-            title: "Invalid Video Format",
-            description: "Please use MP4 format and ensure the file is under 500MB.",
-            variant: "destructive",
-          });
-          throw new Error('Invalid video format. Please use MP4 and ensure file is under 500MB.');
-        }
+        // If there's data in the response despite the error, use that for specific error handling
+        if (analysisData && typeof analysisData === 'object' && analysisData.error) {
+          const errorMessage = analysisData.error;
+          const errorType = analysisData.errorType || 'UNKNOWN_ERROR';
+          
+          console.log('Specific error from edge function:', errorMessage, errorType);
+          
+          // Handle specific error types with user-friendly messages
+          if (errorType === 'QUOTA_EXCEEDED' || errorMessage.includes('quota') || errorMessage.includes('QUOTA_EXCEEDED')) {
+            toast({
+              title: "API Quota Exceeded",
+              description: "The Gemini AI service has reached its daily limit. Please try again later or contact support.",
+              variant: "destructive",
+            });
+            throw new Error('Gemini API quota exceeded. Please try again later.');
+          }
+          
+          if (errorType === 'NO_SHOTS_DETECTED' || errorMessage.includes('NO_SHOTS_DETECTED')) {
+            toast({
+              title: "No Shots Detected",
+              description: "The AI couldn't detect any bullet impacts. Ensure good lighting and clear target visibility.",
+              variant: "destructive",
+            });
+            throw new Error('No shots detected in the video. Please check video quality and target visibility.');
+          }
+          
+          if (errorType === 'INVALID_VIDEO' || errorMessage.includes('INVALID_VIDEO')) {
+            toast({
+              title: "Invalid Video Format",
+              description: "Please use MP4 format and ensure the file is under 500MB.",
+              variant: "destructive",
+            });
+            throw new Error('Invalid video format. Please use MP4 and ensure file is under 500MB.');
+          }
 
-        if (errorType === 'API_KEY_MISSING') {
-          toast({
-            title: "Configuration Error",
-            description: "Gemini API key is not configured. Please contact support.",
-            variant: "destructive",
-          });
-          throw new Error('API configuration error. Please contact support.');
-        }
+          if (errorType === 'API_KEY_MISSING') {
+            toast({
+              title: "Configuration Error",
+              description: "Gemini API key is not configured. Please contact support.",
+              variant: "destructive",
+            });
+            throw new Error('API configuration error. Please contact support.');
+          }
 
+          throw new Error(errorMessage);
+        }
+        
+        // If no specific error data, show generic error
+        const errorMessage = analysisError.message || 'Edge Function returned a non-2xx status code';
+        
+        toast({
+          title: "Analysis Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        
         throw new Error(errorMessage);
       }
 
