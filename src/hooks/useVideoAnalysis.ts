@@ -17,33 +17,47 @@ export const useVideoAnalysis = () => {
     try {
       console.log('Starting expert video analysis with optimized frame extraction...');
       
-      // Extract frames at 10 FPS for comprehensive analysis
-      const frames = await extractFramesAtFPS(file, 10);
+      // Extract frames at 5 FPS for faster processing and smaller payloads
+      const frames = await extractFramesAtFPS(file, 5);
       console.log(`Expert system extracted ${frames.length} frames for detailed analysis`);
       
       if (frames.length === 0) {
         throw new Error('No frames could be extracted from the video');
       }
 
-      setAnalysisProgress(`Expert analysis in progress: ${frames.length} frames with Gemini 2.5 Flash...`);
+      // Limit frames to prevent payload size issues
+      const maxFrames = 50;
+      const framesToAnalyze = frames.length > maxFrames ? 
+        frames.filter((_, index) => index % Math.ceil(frames.length / maxFrames) === 0).slice(0, maxFrames) : 
+        frames;
+
+      console.log(`Optimizing for analysis: using ${framesToAnalyze.length} frames from ${frames.length} total`);
+
+      setAnalysisProgress(`Expert analysis in progress: ${framesToAnalyze.length} frames with Gemini 2.5 Flash...`);
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
 
       console.log('Calling expert analysis edge function...');
 
-      // Prepare the request payload with proper JSON serialization
+      // Prepare the request payload with optimized frame data
       const requestPayload = {
-        frames: frames,
+        frames: framesToAnalyze,
         userId: user?.id || null,
         drillMode: isDrillMode
       };
 
-      console.log('Request payload prepared:', { frameCount: frames.length, userId: user?.id, drillMode: isDrillMode });
+      const payloadSize = JSON.stringify(requestPayload).length;
+      console.log('Request payload prepared:', { 
+        frameCount: framesToAnalyze.length, 
+        userId: user?.id, 
+        drillMode: isDrillMode,
+        payloadSizeKB: Math.round(payloadSize / 1024)
+      });
 
       // Call the Edge Function with timeout handling
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Analysis timed out after 2 minutes')), 120000);
+        setTimeout(() => reject(new Error('Analysis timed out after 90 seconds')), 90000);
       });
 
       try {
@@ -140,7 +154,7 @@ export const useVideoAnalysis = () => {
 
         toast({
           title: "Expert Analysis Complete",
-          description: `Professional marksmanship analysis completed with ${frames.length} frame sequence analysis!`,
+          description: `Professional marksmanship analysis completed with ${framesToAnalyze.length} frame sequence analysis!`,
         });
 
         return analysisData.sessionId;
