@@ -23,12 +23,14 @@ export const detectShotKeyframes = async (videoFile: File): Promise<FramePair[]>
     const framePairs: FramePair[] = [];
     let previousImageData: ImageData | null = null;
     let frameNumber = 0;
-    const SAMPLE_RATE = 5; // Sample every 5th frame for change detection
-    const CHANGE_THRESHOLD = 0.02; // 2% difference threshold
+    const SAMPLE_RATE = 3; // Sample every 3rd frame for better detection
+    const CHANGE_THRESHOLD = 0.008; // Lower threshold for more sensitive detection
+    const MIN_CHANGE_INTERVAL = 0.5; // Minimum seconds between detected changes
+    let lastChangeTime = 0;
     
     video.onloadedmetadata = () => {
-      canvas.width = 640; // Standardized width for analysis
-      canvas.height = (video.videoHeight / video.videoWidth) * 640;
+      canvas.width = 320; // Smaller resolution for faster processing
+      canvas.height = (video.videoHeight / video.videoWidth) * 320;
       
       const processFrame = () => {
         if (video.currentTime >= video.duration) {
@@ -43,10 +45,13 @@ export const detectShotKeyframes = async (videoFile: File): Promise<FramePair[]>
         const currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         
         if (previousImageData && frameNumber % SAMPLE_RATE === 0) {
-          // Calculate difference between frames
-          const pixelDifference = calculatePixelDifference(previousImageData, currentImageData);
+          // Calculate difference between frames with improved algorithm
+          const pixelDifference = calculateEnhancedPixelDifference(previousImageData, currentImageData);
           
-          if (pixelDifference > CHANGE_THRESHOLD) {
+          // Check if enough time has passed since last change and if change is significant
+          if (pixelDifference > CHANGE_THRESHOLD && 
+              (video.currentTime - lastChangeTime) > MIN_CHANGE_INTERVAL) {
+            
             // Significant change detected - capture before/after pair
             const beforeCanvas = document.createElement('canvas');
             const afterCanvas = document.createElement('canvas');
@@ -63,13 +68,14 @@ export const detectShotKeyframes = async (videoFile: File): Promise<FramePair[]>
               afterCtx.putImageData(currentImageData, 0, 0);
               
               framePairs.push({
-                image1Data: beforeCanvas.toDataURL('image/jpeg', 0.8),
-                image2Data: afterCanvas.toDataURL('image/jpeg', 0.8),
+                image1Data: beforeCanvas.toDataURL('image/jpeg', 0.7),
+                image2Data: afterCanvas.toDataURL('image/jpeg', 0.7),
                 timestamp: video.currentTime,
                 frameNumber: frameNumber
               });
               
-              console.log(`Change detected at ${video.currentTime.toFixed(2)}s (frame ${frameNumber})`);
+              lastChangeTime = video.currentTime;
+              console.log(`Change detected at ${video.currentTime.toFixed(2)}s (frame ${frameNumber}) - diff: ${(pixelDifference * 100).toFixed(2)}%`);
             }
           }
         }
@@ -77,9 +83,9 @@ export const detectShotKeyframes = async (videoFile: File): Promise<FramePair[]>
         previousImageData = currentImageData;
         frameNumber++;
         
-        // Advance to next frame
-        video.currentTime += 1/30; // 30 FPS sampling
-        setTimeout(processFrame, 10);
+        // Advance to next frame (faster sampling rate)
+        video.currentTime += 1/15; // 15 FPS sampling for better coverage
+        setTimeout(processFrame, 5);
       };
       
       processFrame();
@@ -91,18 +97,33 @@ export const detectShotKeyframes = async (videoFile: File): Promise<FramePair[]>
   });
 };
 
-const calculatePixelDifference = (imageData1: ImageData, imageData2: ImageData): number => {
+const calculateEnhancedPixelDifference = (imageData1: ImageData, imageData2: ImageData): number => {
   const data1 = imageData1.data;
   const data2 = imageData2.data;
   let totalDifference = 0;
+  let significantChanges = 0;
   
-  // Sample every 4th pixel for performance (skip alpha channel)
-  for (let i = 0; i < data1.length; i += 16) {
+  // Sample every 8th pixel for performance, but with smarter difference calculation
+  for (let i = 0; i < data1.length; i += 32) {
     const r1 = data1[i], g1 = data1[i + 1], b1 = data1[i + 2];
     const r2 = data2[i], g2 = data2[i + 1], b2 = data2[i + 2];
     
-    totalDifference += Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
+    // Calculate luminance difference (more sensitive to meaningful changes)
+    const lum1 = 0.299 * r1 + 0.587 * g1 + 0.114 * b1;
+    const lum2 = 0.299 * r2 + 0.587 * g2 + 0.114 * b2;
+    const lumDiff = Math.abs(lum1 - lum2);
+    
+    totalDifference += lumDiff;
+    
+    // Count significant pixel changes (helps detect new holes)
+    if (lumDiff > 30) {
+      significantChanges++;
+    }
   }
   
-  return totalDifference / (data1.length * 255 * 0.75); // Normalize to 0-1 range
+  const avgDifference = totalDifference / (data1.length * 255 * 0.25);
+  const significantRatio = significantChanges / (data1.length * 0.25);
+  
+  // Combine average difference with significant change ratio for better detection
+  return avgDifference * 0.7 + significantRatio * 0.3;
 };

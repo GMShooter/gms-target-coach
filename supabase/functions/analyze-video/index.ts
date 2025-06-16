@@ -20,16 +20,16 @@ serve(async (req) => {
     )
 
     const requestBody = await req.json();
-    const { videoUrl, framePairs, modelChoice = 'gemini', userId, drillMode = false } = requestBody;
+    const { videoData, mimeType, framePairs, modelChoice = 'gemini', userId, drillMode = false } = requestBody;
 
     // Determine analysis mode
-    const isDirectVideo = videoUrl && modelChoice === 'gemini';
+    const isDirectVideo = videoData && modelChoice === 'gemini';
     const isFramePairs = framePairs && Array.isArray(framePairs) && modelChoice === 'gemma';
 
     if (!isDirectVideo && !isFramePairs) {
       return new Response(
         JSON.stringify({ 
-          error: 'Invalid request: provide either videoUrl (for Gemini) or framePairs (for Gemma)',
+          error: 'Invalid request: provide either videoData (for Gemini) or framePairs (for Gemma)',
           errorType: 'INVALID_REQUEST'
         }),
         { 
@@ -57,14 +57,14 @@ serve(async (req) => {
     }
 
     const apiUrl = modelChoice === 'gemini' 
-      ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`
-      : `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${apiKey}`;
+      ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`
+      : `https://generativelanguage.googleapis.com/v1beta/models/gemma-2-27b-it:generateContent?key=${apiKey}`;
 
     // Prepare request based on analysis mode
     let requestPayload: any;
 
     if (isDirectVideo) {
-      // DIRECT VIDEO ANALYSIS (Gemini)
+      // DIRECT VIDEO ANALYSIS (Gemini) - Using base64 data
       requestPayload = {
         contents: [{
           parts: [
@@ -94,9 +94,9 @@ TIMESTAMP: Exact time in seconds when the hole APPEARS
 If the video shows 8 shots, return an array with 8 objects. If 0 shots, return [].`
             },
             {
-              fileData: {
-                mimeType: 'video/mp4',
-                fileUri: videoUrl
+              inlineData: {
+                mimeType: mimeType || 'video/mp4',
+                data: videoData
               }
             }
           ]
@@ -252,7 +252,7 @@ FRAME PAIRS TO ANALYZE:`
       if (validShots.length === 0) {
         return new Response(
           JSON.stringify({ 
-            error: 'No valid shots detected',
+            error: 'No valid shots detected. Please ensure bullet impacts are clearly visible against the target.',
             errorType: 'NO_SHOTS_DETECTED'
           }),
           { 
@@ -318,7 +318,7 @@ FRAME PAIRS TO ANALYZE:`
         .from('sessions')
         .insert({
           user_id: userId,
-          video_url: isDirectVideo ? videoUrl : `${modelChoice}-frame-analysis`,
+          video_url: isDirectVideo ? `${modelChoice}-direct-analysis` : `${modelChoice}-frame-analysis`,
           total_score: totalScore,
           group_size_mm: Math.round(groupSize),
           accuracy_percentage: accuracyPercentage,

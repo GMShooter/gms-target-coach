@@ -32,34 +32,21 @@ export const useVideoAnalysis = () => {
 
       // PRIMARY STRATEGY: Direct Video Analysis (Gemini)
       if (model === 'gemini') {
-        setAnalysisProgress('📹 Uploading video for direct AI analysis...');
+        setAnalysisProgress('📹 Converting video for AI analysis...');
         
         try {
-          // Upload video to Supabase Storage
-          const fileName = `video_${Date.now()}_${file.name}`;
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('videos')
-            .upload(fileName, file, {
-              contentType: file.type,
-              upsert: false
-            });
-
-          if (uploadError) {
-            throw new Error(`Video upload failed: ${uploadError.message}`);
-          }
-
-          // Get public URL
-          const { data: { publicUrl } } = supabase.storage
-            .from('videos')
-            .getPublicUrl(fileName);
+          // Convert video to base64 for Gemini API
+          const arrayBuffer = await file.arrayBuffer();
+          const base64Video = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
           setAnalysisProgress('🤖 Gemini analyzing entire video...');
           console.log('🚀 Starting direct video analysis with Gemini...');
 
-          // Call backend with video URL
+          // Call backend with base64 video data
           const { data: result, error: analysisError } = await supabase.functions.invoke('analyze-video', {
             body: {
-              videoUrl: publicUrl,
+              videoData: base64Video,
+              mimeType: file.type,
               modelChoice: 'gemini',
               userId: user?.id || null,
               drillMode: isDrillMode
@@ -75,9 +62,6 @@ export const useVideoAnalysis = () => {
             }
           } else if (result?.sessionId) {
             sessionId = result.sessionId;
-            
-            // Clean up uploaded video
-            await supabase.storage.from('videos').remove([fileName]);
             
             const shotsCount = result.shotsCount || 0;
             toast({
@@ -102,7 +86,7 @@ export const useVideoAnalysis = () => {
         console.log(`📹 Shot detection complete: ${framePairs.length} key moments detected`);
         
         if (framePairs.length === 0) {
-          throw new Error('No significant changes detected in video. Please ensure clear bullet impacts are visible.');
+          throw new Error('No significant changes detected in video. Please ensure clear bullet impacts are visible and try adjusting camera angle or lighting.');
         }
 
         setAnalysisProgress(`⚡ Analyzing ${framePairs.length} key moments with Gemma...`);
