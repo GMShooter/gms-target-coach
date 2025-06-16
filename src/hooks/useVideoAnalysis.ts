@@ -27,9 +27,9 @@ export const useVideoAnalysis = () => {
         throw new Error('No frames could be extracted from the video');
       }
 
-      // API Orchestration
-      const { model, reason } = getModelChoice();
-      console.log('🔧 API Choice:', { model, reason, remainingRequests: getRemainingRequests() });
+      // API Orchestration with fallback handling
+      let { model, reason } = getModelChoice();
+      console.log('🔧 Initial API Choice:', { model, reason, remainingRequests: getRemainingRequests() });
 
       if (model === 'gemini') {
         recordGeminiRequest();
@@ -39,9 +39,10 @@ export const useVideoAnalysis = () => {
       const { data: { user } } = await supabase.auth.getUser();
 
       let allDetectedShots: any[] = [];
+      let switchedToGemma = false;
 
       if (model === 'gemini') {
-        // For Gemini: Use traditional frame analysis (single frames) with de-duplication
+        // For Gemini: Use traditional frame analysis (single frames) with de-duplication and fallback
         const BATCH_SIZE = 50;
         const batches = [];
         
@@ -53,41 +54,118 @@ export const useVideoAnalysis = () => {
 
         // Track unique shots to avoid duplicates
         const uniqueShotCoordinates = new Set<string>();
+        let consecutiveFailures = 0;
 
         for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
           const batch = batches[batchIndex];
-          const batchProgress = `⚡ Processing batch ${batchIndex + 1}/${batches.length} with GEMINI (${batch.length} frames)...`;
+          const batchProgress = `⚡ Processing batch ${batchIndex + 1}/${batches.length} with ${switchedToGemma ? 'GEMMA' : 'GEMINI'} (${batch.length} frames)...`;
           setAnalysisProgress(batchProgress);
           
-          console.log(`Processing GEMINI batch ${batchIndex + 1}/${batches.length}: frames ${batch[0].frameNumber}-${batch[batch.length-1].frameNumber}`);
+          console.log(`Processing ${switchedToGemma ? 'GEMMA' : 'GEMINI'} batch ${batchIndex + 1}/${batches.length}: frames ${batch[0].frameNumber}-${batch[batch.length-1].frameNumber}`);
 
-          const requestPayload = {
-            frames: batch.map(frame => ({
-              imageData: frame.imageData,
-              timestamp: frame.timestamp,
-              frameNumber: frame.frameNumber
-            })),
-            modelChoice: model,
-            userId: user?.id || null,
-            drillMode: isDrillMode,
-            batchInfo: {
-              batchIndex: batchIndex + 1,
-              totalBatches: batches.length,
-              framesInBatch: batch.length
+          let requestPayload;
+          
+          if (switchedToGemma) {
+            // Create frame pairs for Gemma
+            const batchFramePairs = createFramePairs(batch);
+            requestPayload = {
+              framePairs: batchFramePairs,
+              modelChoice: 'gemma',
+              userId: user?.id || null,
+              drillMode: isDrillMode,
+              batchInfo: {
+                batchIndex: batchIndex + 1,
+                totalBatches: batches.length,
+                pairsInBatch: batchFramePairs.length
+              }
+            };
+          } else {
+            requestPayload = {
+              frames: batch.map(frame => ({
+                imageData: frame.imageData,
+                timestamp: frame.timestamp,
+                frameNumber: frame.frameNumber
+              })),
+              modelChoice: 'gemini',
+              userId: user?.id || null,
+              drillMode: isDrillMode,
+              batchInfo: {
+                batchIndex: batchIndex + 1,
+                totalBatches: batches.length,
+                framesInBatch: batch.length
+              }
+            };
+          }
+
+          let retryCount = 0;
+          const maxRetries = 2;
+          let batchResult = null;
+
+          while (retryCount <= maxRetries && !batchResult) {
+            try {
+              const { data: result, error: batchError } = await supabase.functions.invoke('analyze-video', {
+                body: requestPayload
+              });
+
+              if (batchError) {
+                console.error(`${switchedToGemma ? 'GEMMA' : 'GEMINI'} Batch ${batchIndex + 1} error:`, batchError);
+                
+                // Check if it's a 503 overload error and we haven't switched yet
+                if (!switchedToGemma && batchError.message?.includes('503')) {
+                  console.log('🔄 Gemini overloaded, switching to Gemma for remaining batches...');
+                  switchedToGemma = true;
+                  setAnalysisProgress('🔄 Gemini overloaded - switching to Gemma...');
+                  
+                  // Recreate payload for Gemma
+                  const batchFramePairs = createFramePairs(batch);
+                  requestPayload = {
+                    framePairs: batchFramePairs,
+                    modelChoice: 'gemma',
+                    userId: user?.id || null,
+                    drillMode: isDrillMode,
+                    batchInfo: {
+                      batchIndex: batchIndex + 1,
+                      totalBatches: batches.length,
+                      pairsInBatch: batchFramePairs.length
+                    }
+                  };
+                  retryCount = 0; // Reset retry count for new model
+                  continue;
+                }
+                
+                throw batchError;
+              }
+
+              if (result && result.shots) {
+                batchResult = result;
+                consecutiveFailures = 0;
+              } else {
+                console.warn(`${switchedToGemma ? 'GEMMA' : 'GEMINI'} Batch ${batchIndex + 1} returned no content`);
+                retryCount++;
+                
+                if (retryCount <= maxRetries) {
+                  console.log(`Retrying batch ${batchIndex + 1}, attempt ${retryCount + 1}/${maxRetries + 1}`);
+                  await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                }
+              }
+            } catch (batchError) {
+              console.error(`${switchedToGemma ? 'GEMMA' : 'GEMINI'} Batch ${batchIndex + 1} processing failed:`, batchError);
+              retryCount++;
+              
+              if (retryCount <= maxRetries) {
+                console.log(`Retrying batch ${batchIndex + 1}, attempt ${retryCount + 1}/${maxRetries + 1}`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+              }
             }
-          };
+          }
 
-          try {
-            const { data: batchResult, error: batchError } = await supabase.functions.invoke('analyze-video', {
-              body: requestPayload
-            });
-
-            if (batchError) {
-              console.error(`GEMINI Batch ${batchIndex + 1} error:`, batchError);
-              continue;
-            }
-
-            if (batchResult && batchResult.shots && Array.isArray(batchResult.shots)) {
+          if (batchResult && batchResult.shots && Array.isArray(batchResult.shots)) {
+            if (switchedToGemma) {
+              // Gemma returns unique shots, add them directly
+              allDetectedShots = allDetectedShots.concat(batchResult.shots);
+              console.log(`GEMMA Batch ${batchIndex + 1} complete: ${batchResult.shots.length} shots detected`);
+            } else {
+              // Gemini returns all holes, need de-duplication
               let newShotsInBatch = 0;
               
               batchResult.shots.forEach((shot: any) => {
@@ -105,9 +183,16 @@ export const useVideoAnalysis = () => {
 
               console.log(`GEMINI Batch ${batchIndex + 1} complete: ${newShotsInBatch} NEW unique shots detected (${batchResult.shots.length} total detected, ${allDetectedShots.length} total unique)`);
             }
-          } catch (batchError) {
-            console.error(`GEMINI Batch ${batchIndex + 1} processing failed:`, batchError);
-            continue;
+          } else {
+            consecutiveFailures++;
+            console.warn(`Batch ${batchIndex + 1} failed after all retries`);
+            
+            // If we have too many consecutive failures and haven't switched to Gemma yet, try switching
+            if (consecutiveFailures >= 2 && !switchedToGemma) {
+              console.log('🔄 Multiple Gemini failures, switching to Gemma for remaining batches...');
+              switchedToGemma = true;
+              setAnalysisProgress('🔄 Switching to Gemma due to failures...');
+            }
           }
 
           if (batchIndex < batches.length - 1) {
@@ -140,8 +225,8 @@ export const useVideoAnalysis = () => {
           console.log(`Processing GEMMA batch ${batchIndex + 1}/${batches.length}: frame pairs ${batch[0].frameNumber}-${batch[batch.length-1].frameNumber}`);
 
           const requestPayload = {
-            framePairs: batch, // Send pairs instead of individual frames
-            modelChoice: model,
+            framePairs: batch,
+            modelChoice: 'gemma',
             userId: user?.id || null,
             drillMode: isDrillMode,
             batchInfo: {
@@ -179,7 +264,7 @@ export const useVideoAnalysis = () => {
       console.log(`All batches processed. Total shots detected: ${allDetectedShots.length}`);
 
       if (allDetectedShots.length === 0) {
-        throw new Error('No shots detected in any batch');
+        throw new Error('No shots detected in any batch. Please ensure the video shows clear bullet impacts on a target with good contrast.');
       }
 
       // Combine results and save to database
@@ -205,7 +290,7 @@ export const useVideoAnalysis = () => {
         splitTimes,
         userId: user?.id || null,
         drillMode: isDrillMode,
-        modelChoice: model,
+        modelChoice: switchedToGemma ? 'gemma' : model,
         totalFramesProcessed: frames.length,
         batchesProcessed: model === 'gemini' ? Math.ceil(frames.length / 50) : Math.ceil(createFramePairs(frames).length / 25)
       };
@@ -218,10 +303,10 @@ export const useVideoAnalysis = () => {
         throw new Error('Failed to save analysis session');
       }
 
-      const modelName = model === 'gemini' ? 'Gemini 2.5 Flash Preview' : 'Gemma 3 27B';
+      const finalModelName = switchedToGemma ? 'Gemma 3 27B (fallback)' : (model === 'gemini' ? 'Gemini 2.5 Flash Preview' : 'Gemma 3 27B');
       toast({
         title: "Analysis Complete!",
-        description: `${modelName} analyzed ${frames.length} frames and found ${allDetectedShots.length} shots!`,
+        description: `${finalModelName} analyzed ${frames.length} frames and found ${allDetectedShots.length} shots!`,
       });
 
       return sessionResult.sessionId;

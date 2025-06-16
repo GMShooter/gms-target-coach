@@ -146,13 +146,20 @@ FRAME PAIRS TO ANALYZE:`
         });
       });
     } else {
-      // Single frame analysis prompt for Gemini - FIXED TO FIND ALL HOLES
+      // Single frame analysis prompt for Gemini - ENHANCED WITH BETTER INSTRUCTIONS
       parts.push({
         text: `EXPERT SHOOTING ANALYSIS - GEMINI SINGLE FRAME MODE
 
 You are analyzing ${dataToAnalyze.length} frames from a shooting video. Each frame may contain bullet impacts on a target.
 
 CRITICAL: Your task is to identify ALL visible bullet impacts in each frame. Return ONLY a valid JSON array of all detected shots.
+
+IMPORTANT DETECTION GUIDELINES:
+- Look for dark circular holes in the target paper
+- Count EVERY visible bullet hole, even if small or faint
+- Include holes in all scoring rings (bullseye, inner rings, outer rings)
+- Do NOT require holes to be "clear" or "perfect" - include all visible impacts
+- Even damaged or torn areas of the target should be counted if they appear to be bullet impacts
 
 For EACH bullet impact visible in the frame, return an object in the array:
 [
@@ -171,7 +178,8 @@ DIRECTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "Hig
 COORDINATES: Center=(0,0), Right=+X, Up=+Y, in millimeters from bullseye
 SCORING: 10=bullseye, 9=inner ring, 8=next ring, etc.
 
-IMPORTANT: If a frame contains 8 visible holes, return an array with 8 objects. If a frame has 0 holes, return [].
+CRITICAL: If a frame contains 8 visible holes, return an array with 8 objects. If a frame has 0 holes, return [].
+DO NOT return empty arrays unless there are truly NO visible bullet impacts.
 
 FRAMES TO ANALYZE:`
       });
@@ -229,6 +237,19 @@ FRAMES TO ANALYZE:`
           );
         }
         
+        if (apiResponse.status === 503) {
+          return new Response(
+            JSON.stringify({ 
+              error: `${modelChoice.toUpperCase()} model overloaded. Please try again later.`,
+              errorType: 'MODEL_OVERLOADED'
+            }),
+            { 
+              status: 503,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        }
+        
         throw new Error(`${modelChoice.toUpperCase()} API error: ${errorText}`);
       }
 
@@ -249,9 +270,11 @@ FRAMES TO ANALYZE:`
         );
       }
 
-      // Clean and parse response
+      // Enhanced response cleaning and parsing
       try {
         content = content.replace(/```json\n?|\n?```/g, '').trim();
+        
+        // Remove any text before the first [ and after the last ]
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
           content = jsonMatch[0];
@@ -274,11 +297,22 @@ FRAMES TO ANALYZE:`
           );
         }
 
-        console.log(`${modelChoice.toUpperCase()} analysis complete for ${batchDesc}: ${shots.length} shots identified`);
+        // Validate shot objects
+        const validShots = shots.filter((shot: any) => {
+          return shot && 
+                 typeof shot.x_coordinate === 'number' && 
+                 typeof shot.y_coordinate === 'number' && 
+                 typeof shot.score === 'number' &&
+                 !isNaN(shot.x_coordinate) && 
+                 !isNaN(shot.y_coordinate) && 
+                 !isNaN(shot.score);
+        });
+
+        console.log(`${modelChoice.toUpperCase()} analysis complete for ${batchDesc}: ${validShots.length} valid shots identified (${shots.length} total returned)`);
 
         return new Response(
           JSON.stringify({ 
-            shots: shots,
+            shots: validShots,
             batchInfo: batchInfo
           }),
           { 
@@ -289,6 +323,7 @@ FRAMES TO ANALYZE:`
 
       } catch (parseError) {
         console.error(`Failed to parse ${modelChoice.toUpperCase()} response for ${batchDesc}:`, parseError);
+        console.error('Raw content:', content);
         return new Response(
           JSON.stringify({ 
             shots: [],
