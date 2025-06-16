@@ -1,4 +1,3 @@
-
 import React, { useCallback, useState } from 'react';
 import { Upload, Video, FileVideo, Zap, Brain, Clock, AlertTriangle, RotateCw } from 'lucide-react';
 import { useVideoAnalysis } from '@/hooks/useVideoAnalysis';
@@ -79,21 +78,21 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="animate-spin w-16 h-16 border-4 border-red-400 border-t-transparent rounded-full mx-auto mb-6"></div>
           <h3 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2">
             <Brain className="w-6 h-6 text-blue-400" />
-            ViBe-Enhanced Shot Analysis
+            Enhanced ViBe Shot Analysis
           </h3>
           <div className="space-y-2 text-slate-400">
             <p className="text-lg font-semibold text-blue-400">{analysisProgress}</p>
             <div className="grid grid-cols-1 gap-2 text-sm">
-              <p>🎯 ViBe-inspired background subtraction with ROI focus</p>
+              <p>🎯 Enhanced ViBe background subtraction with optimized ROI focus</p>
               <p>🔍 Intelligent key frame extraction (bullet impact moments only)</p>
-              <p>🤖 Dynamic AI model orchestration (Gemini ↔ Gemma)</p>
-              <p>⚡ Optimized API usage - maximum efficiency</p>
-              <p>📊 Professional ballistics analysis with split times</p>
+              <p>🤖 Enhanced AI model orchestration (Gemini 2.5 Flash ↔ Gemma 3 27B)</p>
+              <p>⚡ Optimized API usage - maximum efficiency with contextual fallback</p>
+              <p>📊 Professional ballistics analysis with enhanced split times</p>
             </div>
           </div>
           <div className="mt-6 text-sm text-slate-500 bg-slate-700/30 rounded-lg p-3">
-            <p className="font-semibold text-slate-300">Revolutionary ViBe Algorithm</p>
-            <p>Advanced computer vision detects only the exact frames where new bullet holes appear!</p>
+            <p className="font-semibold text-slate-300">Enhanced ViBe Algorithm</p>
+            <p>Advanced computer vision with improved sensitivity detects bullet holes with 70% ROI coverage!</p>
           </div>
         </div>
       </div>
@@ -126,17 +125,17 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
         </button>
       </div>
 
-      {/* API Status */}
+      {/* Enhanced API Status */}
       <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Brain className="w-4 h-4 text-blue-400" />
-            <span className="font-semibold text-blue-400">ViBe AI Analysis Status</span>
+            <span className="font-semibold text-blue-400">Enhanced ViBe AI Analysis Status</span>
           </div>
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-1">
               <Zap className="w-4 h-4 text-yellow-400" />
-              <span className="text-slate-300">Gemini: {remainingRequests}/10</span>
+              <span className="text-slate-300">Gemini 2.5: {remainingRequests}/10</span>
             </div>
             {isInCooldown && (
               <div className="flex items-center gap-1">
@@ -148,7 +147,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
         </div>
         {isInCooldown && (
           <div className="mt-2 text-sm text-orange-300 bg-orange-900/20 rounded p-2">
-            Gemini cooling down - next analysis will use Gemma for instant processing
+            Gemini cooling down - next analysis will use Gemma 3 27B for enhanced contextual processing
           </div>
         )}
       </div>
@@ -157,7 +156,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
         <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-5 h-5 text-red-400" />
-            <h4 className="font-semibold text-red-400">ViBe Analysis Error</h4>
+            <h4 className="font-semibold text-red-400">Enhanced ViBe Analysis Error</h4>
           </div>
           <p className="text-slate-300 mb-3">{error}</p>
           {fallbackAvailable && (
@@ -166,7 +165,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-white font-medium"
             >
               <RotateCw className="w-4 h-4" />
-              Detection Failed? Analyze Full Video (Slower)
+              Enhanced Detection Failed? Analyze with Contextual Frame Pairs (Slower)
             </button>
           )}
         </div>
@@ -193,10 +192,10 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
               <div>
                 <h3 className="text-xl font-semibold mb-2 flex items-center justify-center gap-2">
                   <Zap className="w-5 h-5 text-yellow-400" />
-                  ViBe-Enhanced Video Analysis
+                  Enhanced ViBe Video Analysis
                 </h3>
                 <p className="text-slate-400 mb-4">
-                  Revolutionary ViBe algorithm with ROI-based shot detection
+                  Revolutionary enhanced ViBe algorithm with 70% ROI coverage and contextual fallback
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                   <FileVideo className="w-4 h-4" />
@@ -216,18 +215,18 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-6">
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <Upload className="w-4 h-4 text-blue-400" />
-              ViBe Algorithm Features
+              Enhanced ViBe Algorithm Features
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
-              <li>• <strong className="text-blue-400">ViBe Background Subtraction:</strong> Advanced computer vision detects new bullet holes instantly</li>
-              <li>• <strong className="text-yellow-400">ROI Focus:</strong> Analyzes only the target area, ignoring background noise</li>
-              <li>• <strong className="text-green-400">Morphological Filtering:</strong> Eliminates noise, detects coherent bullet hole shapes</li>
-              <li>• <strong className="text-purple-400">Smart Fallback:</strong> Full video analysis if ViBe detection fails</li>
-              <li>• <strong className="text-red-400">API Orchestration:</strong> Gemini 2.5 Flash ↔ Gemma 3 intelligent switching</li>
+              <li>• <strong className="text-blue-400">Enhanced ViBe Background Subtraction:</strong> Advanced computer vision with improved sensitivity (5% threshold)</li>
+              <li>• <strong className="text-yellow-400">Optimized ROI Focus:</strong> 70% frame coverage analyzes target area with enhanced precision</li>
+              <li>• <strong className="text-green-400">Enhanced Morphological Filtering:</strong> 70% dark pixel ratio requirement for bullet hole detection</li>
+              <li>• <strong className="text-purple-400">Contextual Fallback:</strong> Frame pair analysis compares before/after images for context</li>
+              <li>• <strong className="text-red-400">Enhanced API Orchestration:</strong> Gemini 2.5 Flash ↔ Gemma 3 27B intelligent switching</li>
               <li>• Target must be clearly visible with good contrast and lighting</li>
               <li>• White paper target with dark background recommended</li>
               <li>• Minimum 720p video quality, optimal lighting conditions</li>
-              <li>• <strong className="text-orange-400">Professional Analysis:</strong> Split times, grouping, expert coaching</li>
+              <li>• <strong className="text-orange-400">Professional Analysis:</strong> Enhanced split times, grouping, expert coaching</li>
             </ul>
           </div>
         </>

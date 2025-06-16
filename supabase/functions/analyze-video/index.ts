@@ -29,7 +29,7 @@ serve(async (req) => {
         console.error('Empty request body received');
         return new Response(
           JSON.stringify({ 
-            error: 'Empty request body. Please provide detected shots and analysis parameters.',
+            error: 'Empty request body. Please provide detected shots or frame pairs for analysis.',
             errorType: 'INVALID_REQUEST'
           }),
           { 
@@ -41,8 +41,9 @@ serve(async (req) => {
 
       requestBody = JSON.parse(bodyText);
       console.log('Request keys:', Object.keys(requestBody));
-      console.log('Payload details:', {
+      console.log('Enhanced payload details:', {
         detectedShotsCount: requestBody.detectedShots?.length || 0,
+        framePairsCount: requestBody.framePairs?.length || 0,
         modelChoice: requestBody.modelChoice,
         fallbackMode: requestBody.fallbackMode || false,
         payloadSizeKB: Math.round(bodyText.length / 1024)
@@ -63,30 +64,47 @@ serve(async (req) => {
 
     const { 
       detectedShots, 
+      framePairs,
       modelChoice = 'gemini', 
       userId, 
       drillMode = false, 
       fallbackMode = false 
     } = requestBody;
 
-    // Validate input
-    if (!detectedShots || !Array.isArray(detectedShots) || detectedShots.length === 0) {
-      console.error('No detected shots provided');
-      return new Response(
-        JSON.stringify({ 
-          error: 'No detected shots provided for analysis.',
-          errorType: 'NO_SHOTS_PROVIDED'
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+    // Validate input based on mode
+    if (fallbackMode) {
+      if (!framePairs || !Array.isArray(framePairs) || framePairs.length === 0) {
+        console.error('No frame pairs provided for fallback mode');
+        return new Response(
+          JSON.stringify({ 
+            error: 'No frame pairs provided for enhanced fallback analysis.',
+            errorType: 'NO_FRAME_PAIRS_PROVIDED'
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+    } else {
+      if (!detectedShots || !Array.isArray(detectedShots) || detectedShots.length === 0) {
+        console.error('No detected shots provided for primary mode');
+        return new Response(
+          JSON.stringify({ 
+            error: 'No detected shots provided for enhanced analysis.',
+            errorType: 'NO_SHOTS_PROVIDED'
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
     }
 
-    console.log(`Starting ${modelChoice.toUpperCase()} analysis for ${detectedShots.length} detected shots (fallback: ${fallbackMode})`);
+    console.log(`Starting enhanced ${modelChoice.toUpperCase()} analysis for ${fallbackMode ? framePairs?.length + ' frame pairs' : detectedShots?.length + ' detected shots'} (fallback: ${fallbackMode})`);
 
-    // Configure API based on model choice
+    // Configure API based on model choice with correct model names
     let apiUrl, apiKey, headers;
     
     if (modelChoice === 'gemini') {
@@ -103,6 +121,7 @@ serve(async (req) => {
           }
         );
       }
+      // Fixed model name
       apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
       headers = { 'Content-Type': 'application/json' };
     } else {
@@ -120,17 +139,85 @@ serve(async (req) => {
           }
         );
       }
-      // Use Gemini Flash as "Gemma" for now - could be replaced with actual Gemma endpoint
-      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+      // Fixed model name for Gemma
+      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-2-27b-it:generateContent?key=${apiKey}`;
       headers = { 'Content-Type': 'application/json' };
     }
 
-    // Prepare analysis request
-    const modeDescription = fallbackMode ? 'FALLBACK FULL VIDEO ANALYSIS' : 'VIBE SHOT DETECTION';
-    const parts = [{
-      text: `EXPERT SHOOTING ANALYSIS - ${modelChoice.toUpperCase()} MODE (${modeDescription})
+    // Prepare enhanced analysis request
+    let parts = [];
+    
+    if (fallbackMode) {
+      // Enhanced fallback mode with contextual frame pairs
+      parts.push({
+        text: `EXPERT SHOOTING ANALYSIS - ${modelChoice.toUpperCase()} ENHANCED FALLBACK MODE (CONTEXTUAL FRAME ANALYSIS)
 
-You are analyzing ${detectedShots.length} ${fallbackMode ? 'SAMPLED FRAMES' : 'KEY FRAMES'} from ${fallbackMode ? 'comprehensive video sampling' : 'ViBe-based visual shot detection'}. ${fallbackMode ? 'Each frame represents a time sample from the video.' : 'Each frame shows a moment when a new bullet impact was detected by computer vision.'}
+You are analyzing ${framePairs.length} FRAME PAIRS from contextual video sampling. Each pair shows a "before" and "after" frame to help you identify NEW bullet impacts.
+
+CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, just JSON.
+
+For each pair, compare the SECOND image to the FIRST image. Look for NEW bullet holes that appear in the second image that were NOT present in the first image.
+
+For each NEW bullet impact found, return:
+[
+  {
+    "shot_number": 1,
+    "score": 9,
+    "x_coordinate": -15.2,
+    "y_coordinate": 5.8,
+    "timestamp": ${framePairs[0]?.timestamp || 0},
+    "direction": "High Left", 
+    "comment": "Clean center shot - excellent trigger control"
+  }
+]
+
+DIRECTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "High", "Low", "Left", "Right"
+COORDINATES: Center=(0,0), Right=+X, Up=+Y, in millimeters from bullseye
+SCORING: 10=bullseye, 9=inner ring, 8=next ring, etc.
+
+ENHANCED FALLBACK: Compare each image pair carefully. Only report NEW holes that appear in the second image.
+
+EMPTY: Return [] if no NEW impacts are visible in any pairs
+
+JSON ONLY:`
+      });
+
+      // Add frame pairs in chunks
+      const chunkSize = modelChoice === 'gemini' ? 8 : 10;
+      
+      framePairs.forEach((pair, index) => {
+        if (index % chunkSize === 0 && index > 0) {
+          parts.push({
+            text: `--- ENHANCED CHUNK ${Math.floor(index / chunkSize) + 1} ---`
+          });
+        }
+        
+        parts.push({
+          text: `Enhanced Pair ${index + 1} (t=${pair.timestamp}s) - BEFORE:`
+        });
+        parts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: pair.image1_base64
+          }
+        });
+        parts.push({
+          text: `Enhanced Pair ${index + 1} (t=${pair.timestamp}s) - AFTER:`
+        });
+        parts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: pair.image2_base64
+          }
+        });
+      });
+    } else {
+      // Primary mode with detected shots
+      const modeDescription = 'ENHANCED VIBE SHOT DETECTION';
+      parts.push({
+        text: `EXPERT SHOOTING ANALYSIS - ${modelChoice.toUpperCase()} MODE (${modeDescription})
+
+You are analyzing ${detectedShots.length} ENHANCED KEY FRAMES from ViBe-based visual shot detection. Each frame shows a moment when a new bullet impact was detected by enhanced computer vision.
 
 CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, just JSON.
 
@@ -151,46 +238,53 @@ DIRECTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "Hig
 COORDINATES: Center=(0,0), Right=+X, Up=+Y, in millimeters from bullseye
 SCORING: 10=bullseye, 9=inner ring, 8=next ring, etc.
 
-${fallbackMode ? 'FALLBACK MODE: Look carefully across all frames for ANY bullet impacts, as some may be from non-shot moments.' : 'VIBE MODE: These frames were pre-selected by computer vision as containing new bullet holes.'}
+ENHANCED VIBE MODE: These frames were pre-selected by enhanced computer vision as containing new bullet holes.
 
 EMPTY: Return [] if no clear impacts visible
 
 JSON ONLY:`
-    }];
+      });
 
-    // Add detected shot frames in chunks for better processing
-    const chunkSize = modelChoice === 'gemini' ? 3 : 5; // Smaller chunks for Gemini
-    
-    detectedShots.forEach((shot, index) => {
-      if (index % chunkSize === 0 && index > 0) {
-        parts.push({
-          text: `--- CHUNK ${Math.floor(index / chunkSize) + 1} ---`
-        });
-      }
+      // Add detected shot frames in chunks
+      const chunkSize = modelChoice === 'gemini' ? 5 : 8;
       
-      parts.push({
-        text: `${fallbackMode ? 'Sample' : 'Frame'} ${index + 1} (t=${shot.timestamp}s${fallbackMode ? '' : `, confidence=${(shot.confidenceScore * 100).toFixed(1)}%`}):`
-      });
-      parts.push({
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: shot.keyFrame.split(',')[1]
+      detectedShots.forEach((shot, index) => {
+        if (index % chunkSize === 0 && index > 0) {
+          parts.push({
+            text: `--- ENHANCED CHUNK ${Math.floor(index / chunkSize) + 1} ---`
+          });
         }
+        
+        parts.push({
+          text: `Enhanced Frame ${index + 1} (t=${shot.timestamp}s, confidence=${(shot.confidenceScore * 100).toFixed(1)}%):`
+        });
+        parts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: shot.keyFrame.split(',')[1]
+          }
+        });
       });
-    });
+    }
 
     const requestPayload = {
       contents: [{
         parts: parts
       }],
       generationConfig: {
-        temperature: modelChoice === 'gemini' ? 0.1 : 0.2,
-        maxOutputTokens: modelChoice === 'gemini' ? 2048 : 1024,
+        temperature: modelChoice === 'gemini' ? 0.1 : 0.15,
+        maxOutputTokens: modelChoice === 'gemini' ? 2048 : 1536,
         topP: 0.9
       }
     };
 
-    console.log(`Calling ${modelChoice.toUpperCase()} API with ${detectedShots.length} ${fallbackMode ? 'sampled frames' : 'key frames'} in ${Math.ceil(detectedShots.length / chunkSize)} chunks...`);
+    const dataCount = fallbackMode ? framePairs.length : detectedShots.length;
+    const dataType = fallbackMode ? 'frame pairs' : 'key frames';
+    const chunkCount = fallbackMode ? 
+      Math.ceil(framePairs.length / (modelChoice === 'gemini' ? 8 : 10)) :
+      Math.ceil(detectedShots.length / (modelChoice === 'gemini' ? 5 : 8));
+
+    console.log(`Calling enhanced ${modelChoice.toUpperCase()} API with ${dataCount} ${dataType} in ${chunkCount} chunks...`);
 
     try {
       const apiResponse = await fetch(apiUrl, {
@@ -199,16 +293,16 @@ JSON ONLY:`
         body: JSON.stringify(requestPayload)
       });
 
-      console.log(`${modelChoice.toUpperCase()} API response status:`, apiResponse.status);
+      console.log(`Enhanced ${modelChoice.toUpperCase()} API response status:`, apiResponse.status);
 
       if (!apiResponse.ok) {
         const errorText = await apiResponse.text();
-        console.error(`${modelChoice.toUpperCase()} API error:`, errorText);
+        console.error(`Enhanced ${modelChoice.toUpperCase()} API error:`, errorText);
         
         if (apiResponse.status === 429) {
           return new Response(
             JSON.stringify({ 
-              error: `${modelChoice.toUpperCase()} rate limit exceeded. Please try again later.`,
+              error: `Enhanced ${modelChoice.toUpperCase()} rate limit exceeded. Please try again later.`,
               errorType: 'QUOTA_EXCEEDED'
             }),
             { 
@@ -218,17 +312,17 @@ JSON ONLY:`
           );
         }
         
-        throw new Error(`${modelChoice.toUpperCase()} API error: ${errorText}`);
+        throw new Error(`Enhanced ${modelChoice.toUpperCase()} API error: ${errorText}`);
       }
 
       const responseData = await apiResponse.json();
       let content = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (!content) {
-        console.error('No content in API response');
+        console.error('No content in enhanced API response');
         return new Response(
           JSON.stringify({ 
-            error: `${modelChoice.toUpperCase()} returned no analysis content.`,
+            error: `Enhanced ${modelChoice.toUpperCase()} returned no analysis content.`,
             errorType: 'NO_CONTENT'
           }),
           { 
@@ -246,19 +340,19 @@ JSON ONLY:`
           content = jsonMatch[0];
         }
         
-        console.log(`${modelChoice.toUpperCase()} cleaned response:`, content.substring(0, 200));
+        console.log(`Enhanced ${modelChoice.toUpperCase()} cleaned response:`, content.substring(0, 200));
         
         const shots = JSON.parse(content);
         if (!Array.isArray(shots)) {
           throw new Error('Response is not an array');
         }
 
-        console.log(`${modelChoice.toUpperCase()} analysis complete: ${shots.length} shots identified`);
+        console.log(`Enhanced ${modelChoice.toUpperCase()} analysis complete: ${shots.length} shots identified`);
 
         if (shots.length === 0) {
           return new Response(
             JSON.stringify({ 
-              error: `${modelChoice.toUpperCase()} could not identify clear bullet impacts in the ${fallbackMode ? 'sampled frames' : 'detected frames'}.`,
+              error: `Enhanced ${modelChoice.toUpperCase()} could not identify clear bullet impacts in the ${fallbackMode ? 'frame pairs' : 'detected frames'}.`,
               errorType: 'NO_SHOTS_DETECTED_BY_AI'
             }),
             { 
@@ -281,22 +375,22 @@ JSON ONLY:`
           splitTimes.push(parseFloat(splitTime.toFixed(3)));
         }
         
-        console.log(`Split times calculated: ${splitTimes.join(', ')}s`);
+        console.log(`Enhanced split times calculated: ${splitTimes.join(', ')}s`);
         
         return await processShotsData(
           supabaseClient, 
           shots, 
           userId, 
-          `${modelChoice}-${fallbackMode ? 'fallback' : 'vibe'}-detection`, 
+          `enhanced-${modelChoice}-${fallbackMode ? 'contextual-fallback' : 'vibe-detection'}`, 
           drillMode,
           splitTimes
         );
 
       } catch (parseError) {
-        console.error(`Failed to parse ${modelChoice.toUpperCase()} response:`, parseError);
+        console.error(`Failed to parse enhanced ${modelChoice.toUpperCase()} response:`, parseError);
         return new Response(
           JSON.stringify({ 
-            error: `${modelChoice.toUpperCase()} returned invalid response format.`,
+            error: `Enhanced ${modelChoice.toUpperCase()} returned invalid response format.`,
             errorType: 'PARSE_ERROR'
           }),
           { 
@@ -307,10 +401,10 @@ JSON ONLY:`
       }
 
     } catch (error) {
-      console.error(`${modelChoice.toUpperCase()} API call failed:`, error);
+      console.error(`Enhanced ${modelChoice.toUpperCase()} API call failed:`, error);
       return new Response(
         JSON.stringify({ 
-          error: `${modelChoice.toUpperCase()} analysis failed: ${error.message}`,
+          error: `Enhanced ${modelChoice.toUpperCase()} analysis failed: ${error.message}`,
           errorType: 'API_ERROR'
         }),
         { 
@@ -321,10 +415,10 @@ JSON ONLY:`
     }
 
   } catch (error) {
-    console.error('Unexpected error in analysis function:', error);
+    console.error('Unexpected error in enhanced analysis function:', error);
     return new Response(
       JSON.stringify({ 
-        error: `Analysis error: ${error.message}`,
+        error: `Enhanced analysis error: ${error.message}`,
         errorType: 'UNEXPECTED_ERROR'
       }),
       { 
@@ -409,7 +503,7 @@ async function processShotsData(
     console.error('Session creation error:', sessionError)
     return new Response(
       JSON.stringify({ 
-        error: `Failed to save analysis: ${sessionError.message}`,
+        error: `Failed to save enhanced analysis: ${sessionError.message}`,
         errorType: 'DATABASE_ERROR'
       }),
       { 
@@ -438,7 +532,7 @@ async function processShotsData(
     console.error('Shots creation error:', shotsError)
     return new Response(
       JSON.stringify({ 
-        error: `Failed to save shot analysis: ${shotsError.message}`,
+        error: `Failed to save enhanced shot analysis: ${shotsError.message}`,
         errorType: 'DATABASE_ERROR'
       }),
       { 
