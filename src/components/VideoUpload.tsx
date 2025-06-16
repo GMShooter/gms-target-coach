@@ -75,9 +75,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="space-y-2 text-slate-400">
             <p className="text-lg font-semibold text-blue-400">{analysisProgress}</p>
             <div className="grid grid-cols-1 gap-2 text-sm">
-              <p>📹 Extracting frames at 10 FPS for comprehensive analysis</p>
-              <p>🤖 AI model orchestration (Gemini 2.5 Flash ↔ Gemma 3 27B)</p>
-              <p>⚡ Optimized API usage with intelligent fallback</p>
+              <p>📹 Direct video analysis with Gemini 2.5 Flash Preview</p>
+              <p>🤖 Smart fallback to frame-pair detection with Gemma 3 27B</p>
+              <p>⚡ Intelligent API management with automatic switching</p>
               <p>📊 Professional ballistics analysis with split times</p>
             </div>
           </div>
@@ -134,7 +134,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
         </div>
         {isInCooldown && (
           <div className="mt-2 text-sm text-orange-300 bg-orange-900/20 rounded p-2">
-            Gemini cooling down - next analysis will use Gemma 3 27B
+            Gemini cooling down - next analysis will use smart frame-pair detection
           </div>
         )}
       </div>
@@ -170,10 +170,10 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
               <div>
                 <h3 className="text-xl font-semibold mb-2 flex items-center justify-center gap-2">
                   <Zap className="w-5 h-5 text-yellow-400" />
-                  AI Video Analysis
+                  Smart Video Analysis
                 </h3>
                 <p className="text-slate-400 mb-4">
-                  Advanced frame analysis at 10 FPS with intelligent AI switching
+                  Direct video analysis with Gemini or intelligent frame-pair detection
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                   <FileVideo className="w-4 h-4" />
@@ -196,9 +196,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
               Analysis Features
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
-              <li>• <strong className="text-blue-400">10 FPS Frame Extraction:</strong> Comprehensive frame sampling for thorough analysis</li>
-              <li>• <strong className="text-yellow-400">Smart AI Switching:</strong> Gemini 2.5 Flash Preview ↔ Gemma 3 27B intelligent fallback</li>
-              <li>• <strong className="text-green-400">Rate Limit Management:</strong> Automatic model switching at 10 requests/minute</li>
+              <li>• <strong className="text-blue-400">Direct Video Analysis:</strong> Gemini 2.5 Flash analyzes the entire video natively</li>
+              <li>• <strong className="text-yellow-400">Smart Fallback:</strong> Frame-pair detection with change analysis for reliability</li>
+              <li>• <strong className="text-green-400">Intelligent Switching:</strong> Automatic model selection based on availability</li>
               <li>• <strong className="text-red-400">Professional Analysis:</strong> Split times, grouping, expert coaching feedback</li>
               <li>• Target must be clearly visible with good contrast and lighting</li>
               <li>• White paper target with dark background recommended</li>
