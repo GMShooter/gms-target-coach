@@ -2,67 +2,81 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { extractFramesAtFPS } from '@/utils/videoFrameExtractor';
+import { detectShotsVisually, DetectedShot } from '@/utils/visualShotDetection';
+import { useAPIOrchestration } from './useAPIOrchestration';
 
 export const useVideoAnalysis = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState<string>('');
+  const { determineModelChoice, recordGeminiRequest, getRemainingRequests, getTimeUntilReset, isInCooldown } = useAPIOrchestration();
 
   const analyzeVideo = async (file: File, isDrillMode: boolean = false): Promise<string | null> => {
     setIsAnalyzing(true);
     setError(null);
-    setAnalysisProgress('Extracting frames for expert analysis...');
 
     try {
-      console.log('Starting expert video analysis with optimized frame extraction...');
+      // Step 1: Visual Shot Detection
+      setAnalysisProgress('🔍 Performing intelligent shot detection...');
+      console.log('Starting visual shot detection with frame differencing...');
       
-      // Extract frames at 3 FPS for smaller payloads but better coverage
-      const frames = await extractFramesAtFPS(file, 3);
-      console.log(`Expert system extracted ${frames.length} frames for detailed analysis`);
+      const detectedShots = await detectShotsVisually(file, {
+        motionThreshold: 0.12, // 12% pixel change threshold
+        minTimeBetweenShots: 0.3, // minimum 300ms between shots
+        maxShots: 30
+      });
       
-      if (frames.length === 0) {
-        throw new Error('No frames could be extracted from the video');
+      console.log(`Visual detection complete: ${detectedShots.length} shots found`);
+      
+      if (detectedShots.length === 0) {
+        toast({
+          title: "No Shots Detected",
+          description: "Visual analysis couldn't detect any bullet impacts. Ensure clear target visibility and adequate lighting.",
+          variant: "destructive",
+        });
+        throw new Error('No shots detected by visual analysis. Please check video quality and target visibility.');
       }
 
-      // Further limit frames to prevent payload size issues - use only 30 frames max
-      const maxFrames = 30;
-      const framesToAnalyze = frames.length > maxFrames ? 
-        frames.filter((_, index) => index % Math.ceil(frames.length / maxFrames) === 0).slice(0, maxFrames) : 
-        frames;
+      // Step 2: API Orchestration
+      const { model, reason } = determineModelChoice();
+      setAnalysisProgress(`🤖 ${reason} - analyzing ${detectedShots.length} detected shots...`);
+      
+      console.log('API Choice:', { model, reason, remainingRequests: getRemainingRequests() });
 
-      console.log(`Optimizing for analysis: using ${framesToAnalyze.length} frames from ${frames.length} total`);
-
-      setAnalysisProgress(`Expert analysis in progress: ${framesToAnalyze.length} frames with Gemini 2.5 Flash...`);
+      if (model === 'gemini') {
+        recordGeminiRequest();
+      }
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
 
-      console.log('Calling expert analysis edge function...');
-
-      // Prepare the request payload with optimized frame data
+      // Step 3: Send only key frames to AI
       const requestPayload = {
-        frames: framesToAnalyze,
+        detectedShots: detectedShots.map(shot => ({
+          frameNumber: shot.frameNumber,
+          timestamp: shot.timestamp,
+          keyFrame: shot.keyFrame,
+          confidenceScore: shot.confidenceScore
+        })),
+        modelChoice: model,
         userId: user?.id || null,
-        drillMode: isDrillMode
+        drillMode: isDrillMode,
+        totalOriginalFrames: detectedShots.length > 0 ? detectedShots[detectedShots.length - 1].frameNumber : 0
       };
 
       const payloadSize = JSON.stringify(requestPayload).length;
-      console.log('Request payload prepared:', { 
-        frameCount: framesToAnalyze.length, 
-        userId: user?.id, 
-        drillMode: isDrillMode,
+      console.log('Optimized payload:', { 
+        keyFrames: detectedShots.length,
+        modelChoice: model,
         payloadSizeKB: Math.round(payloadSize / 1024)
       });
 
-      // Ensure we're not sending empty payload
-      if (payloadSize < 100) {
-        throw new Error('Request payload too small - frame extraction may have failed');
-      }
+      setAnalysisProgress(`⚡ Processing ${detectedShots.length} key frames with ${model.toUpperCase()}...`);
 
-      // Call the Edge Function with proper error handling
+      // Call the Edge Function
+      const timeoutDuration = model === 'gemini' ? 45000 : 30000; // Different timeouts for different models
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Analysis timed out after 60 seconds')), 60000);
+        setTimeout(() => reject(new Error(`${model.toUpperCase()} analysis timed out`)), timeoutDuration);
       });
 
       try {
@@ -73,106 +87,66 @@ export const useVideoAnalysis = () => {
         const result = await Promise.race([analysisPromise, timeoutPromise]);
         const { data: analysisData, error: analysisError } = result as any;
 
-        console.log('Expert analysis response - data:', analysisData);
-        console.log('Expert analysis response - error:', analysisError);
+        console.log(`${model.toUpperCase()} analysis response - data:`, analysisData);
+        console.log(`${model.toUpperCase()} analysis response - error:`, analysisError);
 
         if (analysisError) {
-          console.error('Expert analysis error details:', analysisError);
-          
-          // Handle specific Supabase function errors
-          if (analysisError.message && analysisError.message.includes('non-2xx status code')) {
-            throw new Error('Server error during analysis. Please try with a shorter video or better lighting.');
-          }
+          console.error(`${model.toUpperCase()} analysis error:`, analysisError);
           
           if (analysisData && typeof analysisData === 'object' && analysisData.error) {
             const errorMessage = analysisData.error;
             const errorType = analysisData.errorType || 'UNKNOWN_ERROR';
             
-            console.log('Specific error from expert analysis:', errorMessage, errorType);
-            
-            // Handle specific error types with expert-level feedback
-            if (errorType === 'QUOTA_EXCEEDED' || errorMessage.includes('quota') || errorMessage.includes('QUOTA_EXCEEDED')) {
+            if (errorType === 'QUOTA_EXCEEDED' || errorMessage.includes('quota')) {
+              const timeUntilReset = getTimeUntilReset();
               toast({
-                title: "Expert Analysis Quota Exceeded",
-                description: "The Gemini 2.5 Flash service has reached its limit. Please try again later.",
+                title: "Analysis Quota Exceeded",
+                description: `${model.toUpperCase()} service quota reached. ${timeUntilReset > 0 ? `Try again in ${timeUntilReset}s` : 'Please try again later'}`,
                 variant: "destructive",
               });
-              throw new Error('Expert analysis quota exceeded. Please try again later.');
+              throw new Error(`${model.toUpperCase()} quota exceeded. Try again later.`);
             }
             
-            if (errorType === 'NO_SHOTS_DETECTED' || errorMessage.includes('NO_SHOTS_DETECTED')) {
+            if (errorType === 'NO_SHOTS_DETECTED') {
               toast({
-                title: "No Impacts Detected",
-                description: "Expert analysis couldn't detect bullet impacts. Ensure optimal lighting and target contrast.",
+                title: "No Impacts Confirmed",
+                description: `${model.toUpperCase()} couldn't confirm bullet impacts from the detected frames.`,
                 variant: "destructive",
               });
-              throw new Error('No shots detected by expert analysis. Please check video quality and lighting.');
-            }
-            
-            if (errorType === 'INVALID_VIDEO' || errorMessage.includes('INVALID_VIDEO')) {
-              toast({
-                title: "Invalid Video Format",
-                description: "Expert analysis requires MP4 format under 500MB with clear target visibility.",
-                variant: "destructive",
-              });
-              throw new Error('Invalid video format for expert analysis.');
-            }
-
-            if (errorType === 'API_KEY_MISSING') {
-              toast({
-                title: "Expert Analysis Configuration Error",
-                description: "Gemini 2.5 Flash API key not configured. Please contact support.",
-                variant: "destructive",
-              });
-              throw new Error('Expert analysis API configuration error.');
-            }
-
-            if (errorType === 'INVALID_REQUEST' || errorType === 'INVALID_JSON') {
-              toast({
-                title: "Request Error",
-                description: "There was an issue with the analysis request. Please try again.",
-                variant: "destructive",
-              });
-              throw new Error('Analysis request error. Please try again.');
+              throw new Error(`No shots confirmed by ${model.toUpperCase()} analysis.`);
             }
 
             throw new Error(errorMessage);
           }
           
-          const errorMessage = analysisError.message || 'Expert analysis service returned an error';
-          
-          toast({
-            title: "Expert Analysis Failed",
-            description: errorMessage,
-            variant: "destructive",
-          });
-          
-          throw new Error(errorMessage);
+          throw new Error(analysisError.message || `${model.toUpperCase()} analysis service error`);
         }
 
         if (!analysisData || !analysisData.sessionId) {
-          console.error('No session ID in expert analysis response:', analysisData);
-          throw new Error('Invalid response from expert analysis service');
+          throw new Error(`Invalid response from ${model.toUpperCase()} analysis service`);
         }
 
-        console.log('Expert analysis completed successfully, session ID:', analysisData.sessionId);
+        console.log(`${model.toUpperCase()} analysis completed successfully, session ID:`, analysisData.sessionId);
 
+        const modelName = model === 'gemini' ? 'Gemini 2.5 Flash' : 'Gemma 3';
         toast({
-          title: "Expert Analysis Complete",
-          description: `Professional marksmanship analysis completed with ${framesToAnalyze.length} frame sequence analysis!`,
+          title: "Analysis Complete!",
+          description: `${modelName} successfully analyzed ${detectedShots.length} detected shots with optimized frame processing!`,
         });
 
         return analysisData.sessionId;
+
       } catch (fetchError) {
         if (fetchError.message.includes('timed out')) {
-          throw new Error('Expert analysis timed out. Please try with a shorter video.');
+          throw new Error(`${model.toUpperCase()} analysis timed out. The visual detection found ${detectedShots.length} shots - try with a shorter video segment.`);
         }
         throw fetchError;
       }
+
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred in expert analysis';
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred in video analysis';
       setError(errorMessage);
-      console.error('Expert video analysis error:', err);
+      console.error('Video analysis error:', err);
       return null;
     } finally {
       setIsAnalyzing(false);
@@ -180,5 +154,13 @@ export const useVideoAnalysis = () => {
     }
   };
 
-  return { analyzeVideo, isAnalyzing, error, analysisProgress };
+  return { 
+    analyzeVideo, 
+    isAnalyzing, 
+    error, 
+    analysisProgress,
+    getRemainingRequests,
+    getTimeUntilReset,
+    isInCooldown
+  };
 };

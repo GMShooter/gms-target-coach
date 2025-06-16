@@ -19,20 +19,18 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // Better request body parsing with detailed logging
+    // Parse request body
     let requestBody;
     try {
       const bodyText = await req.text();
-      console.log('Raw request body length:', bodyText.length);
-      console.log('First 200 chars of body:', bodyText.substring(0, 200));
+      console.log('Request body length:', bodyText.length);
       
       if (!bodyText || bodyText.trim() === '') {
-        console.error('Empty request body received - this is the main issue');
+        console.error('Empty request body received');
         return new Response(
           JSON.stringify({ 
-            error: 'Empty request body. Please provide frames and analysis parameters.',
-            errorType: 'INVALID_REQUEST',
-            debug: 'Body length was 0'
+            error: 'Empty request body. Please provide detected shots and analysis parameters.',
+            errorType: 'INVALID_REQUEST'
           }),
           { 
             status: 400,
@@ -42,14 +40,13 @@ serve(async (req) => {
       }
 
       requestBody = JSON.parse(bodyText);
-      console.log('Successfully parsed request body. Keys:', Object.keys(requestBody));
+      console.log('Request keys:', Object.keys(requestBody));
     } catch (parseError) {
       console.error('Failed to parse request body:', parseError);
       return new Response(
         JSON.stringify({ 
-          error: 'Invalid JSON in request body. Please check your request format.',
-          errorType: 'INVALID_JSON',
-          debug: parseError.message
+          error: 'Invalid JSON in request body.',
+          errorType: 'INVALID_JSON'
         }),
         { 
           status: 400,
@@ -58,30 +55,15 @@ serve(async (req) => {
       );
     }
 
-    const { frames, userId, drillMode = false } = requestBody;
+    const { detectedShots, modelChoice = 'gemini', userId, drillMode = false } = requestBody;
 
-    // Check if Gemini API key is configured
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
-    if (!geminiApiKey) {
-      console.error('Gemini API key not configured')
+    // Validate input
+    if (!detectedShots || !Array.isArray(detectedShots) || detectedShots.length === 0) {
+      console.error('No detected shots provided');
       return new Response(
         JSON.stringify({ 
-          error: 'Gemini API key is not configured. Please contact the administrator to set up the GEMINI_API_KEY.',
-          errorType: 'API_KEY_MISSING'
-        }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    }
-
-    if (!frames || !Array.isArray(frames) || frames.length === 0) {
-      console.error('Invalid frames data:', { framesExists: !!frames, isArray: Array.isArray(frames), length: frames?.length });
-      return new Response(
-        JSON.stringify({ 
-          error: 'No frames provided for analysis. Please upload a valid video.',
-          errorType: 'NO_FRAMES'
+          error: 'No detected shots provided for analysis.',
+          errorType: 'NO_SHOTS_PROVIDED'
         }),
         { 
           status: 400,
@@ -90,173 +72,228 @@ serve(async (req) => {
       )
     }
 
-    console.log(`Starting expert frame analysis for ${frames.length} frames using Gemini 2.5 Flash`)
+    console.log(`Starting ${modelChoice.toUpperCase()} analysis for ${detectedShots.length} detected shots`);
+
+    // Configure API based on model choice
+    let apiUrl, apiKey, headers;
     
-    // Use Gemini 2.5 Flash for analysis
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`
-    console.log('Using Gemini 2.5 Flash for expert-level analysis')
+    if (modelChoice === 'gemini') {
+      apiKey = Deno.env.get('GEMINI_API_KEY');
+      if (!apiKey) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Gemini API key not configured.',
+            errorType: 'API_KEY_MISSING'
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      headers = { 'Content-Type': 'application/json' };
+    } else {
+      // Gemma fallback (would need different API setup)
+      apiKey = Deno.env.get('GEMMA_API_KEY') || Deno.env.get('GEMINI_API_KEY'); // Use Gemini as fallback for now
+      if (!apiKey) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Gemma API key not configured.',
+            errorType: 'API_KEY_MISSING'
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      // For now, use Gemini with different parameters for "Gemma mode"
+      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      headers = { 'Content-Type': 'application/json' };
+    }
 
-    const allShots = []
-    let chunkIndex = 0
-    const chunkSize = 2 // Process 2 frames at a time for more reliable processing
+    // Prepare analysis request
+    const parts = [{
+      text: `EXPERT SHOOTING ANALYSIS - ${modelChoice.toUpperCase()} MODE
 
-    // Process frames in smaller chunks for better performance
-    for (let i = 0; i < frames.length; i += chunkSize) {
-      chunkIndex++
-      const frameChunk = frames.slice(i, i + chunkSize)
-      console.log(`Processing chunk ${chunkIndex} with ${frameChunk.length} frames (timestamps: ${frameChunk[0].timestamp}s - ${frameChunk[frameChunk.length-1].timestamp}s)`)
-
-      // Prepare the request body for frame sequence analysis
-      const parts = [{
-        text: `EXPERT SHOOTING ANALYSIS - RESPOND WITH JSON ONLY:
-
-You are analyzing frame chunk ${chunkIndex} from a shooting video.
+You are analyzing ${detectedShots.length} KEY FRAMES from visual shot detection. Each frame shows a moment when a new bullet impact was detected.
 
 CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, just JSON.
 
-Detect NEW bullet impacts (bright flashes, new holes) in this sequence.
-
-For each NEW impact, return exactly:
+For each frame that shows a clear bullet impact (new hole), return:
 [
   {
-    "shot_number": ${chunkIndex},
+    "shot_number": 1,
     "score": 9,
     "x_coordinate": -15.2,
     "y_coordinate": 5.8,
-    "timestamp": ${frameChunk[0].timestamp},
-    "direction": "High Left",
-    "comment": "Classic heeling pattern - anticipating recoil"
+    "timestamp": ${detectedShots[0]?.timestamp || 0},
+    "direction": "High Left", 
+    "comment": "Clean center shot - excellent trigger control"
   }
 ]
 
 DIRECTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "High", "Low", "Left", "Right"
-COORDINATES: Center=(0,0), Right=+X, Up=+Y, millimeters
-EMPTY: Return [] if no new impacts
+COORDINATES: Center=(0,0), Right=+X, Up=+Y, in millimeters from bullseye
+SCORING: 10=bullseye, 9=inner ring, 8=next ring, etc.
+
+EMPTY: Return [] if no clear impacts visible
 
 JSON ONLY:`
-      }]
+    }];
 
-      // Add all frames in the chunk
-      frameChunk.forEach(frame => {
-        parts.push({
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: frame.imageData.split(',')[1]
-          }
-        })
-      })
-
-      const requestBody = {
-        contents: [{
-          parts: parts
-        }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 500
+    // Add detected shot frames
+    detectedShots.forEach((shot, index) => {
+      parts.push({
+        text: `Frame ${index + 1} (t=${shot.timestamp}s, confidence=${(shot.confidenceScore * 100).toFixed(1)}%):`
+      });
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: shot.keyFrame.split(',')[1]
         }
+      });
+    });
+
+    const requestPayload = {
+      contents: [{
+        parts: parts
+      }],
+      generationConfig: {
+        temperature: modelChoice === 'gemini' ? 0.1 : 0.3,
+        maxOutputTokens: modelChoice === 'gemini' ? 1000 : 800
       }
+    };
 
-      try {
-        // Call Gemini 2.5 Flash API for this chunk
-        const geminiResponse = await fetch(geminiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody)
-        })
+    console.log(`Calling ${modelChoice.toUpperCase()} API with ${detectedShots.length} key frames...`);
 
-        console.log(`Chunk ${chunkIndex} - Response status:`, geminiResponse.status)
+    try {
+      const apiResponse = await fetch(apiUrl, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(requestPayload)
+      });
 
-        if (!geminiResponse.ok) {
-          const errorText = await geminiResponse.text()
-          console.error(`Chunk ${chunkIndex} - Gemini API error:`, errorText)
-          
-          // For rate limit errors, try once more with delay
-          if (geminiResponse.status === 429) {
-            console.log('Rate limited, waiting 3 seconds...')
-            await new Promise(resolve => setTimeout(resolve, 3000))
-            continue
-          }
-          
-          continue
-        }
+      console.log(`${modelChoice.toUpperCase()} API response status:`, apiResponse.status);
 
-        const geminiData = await geminiResponse.json()
-        let content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
+      if (!apiResponse.ok) {
+        const errorText = await apiResponse.text();
+        console.error(`${modelChoice.toUpperCase()} API error:`, errorText);
         
-        if (content) {
-          try {
-            // Clean up the response - remove any markdown formatting
-            content = content.replace(/```json\n?|\n?```/g, '').trim()
-            
-            // Remove any text before the JSON array
-            const jsonMatch = content.match(/\[[\s\S]*\]/)
-            if (jsonMatch) {
-              content = jsonMatch[0]
+        if (apiResponse.status === 429) {
+          return new Response(
+            JSON.stringify({ 
+              error: `${modelChoice.toUpperCase()} rate limit exceeded. Please try again later.`,
+              errorType: 'QUOTA_EXCEEDED'
+            }),
+            { 
+              status: 429,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             }
-            
-            console.log(`Chunk ${chunkIndex} - Cleaned response:`, content.substring(0, 200))
-            
-            const chunkShots = JSON.parse(content)
-            if (Array.isArray(chunkShots) && chunkShots.length > 0) {
-              console.log(`Chunk ${chunkIndex} - Expert analysis detected ${chunkShots.length} new impacts`)
-              allShots.push(...chunkShots)
-            } else {
-              console.log(`Chunk ${chunkIndex} - No impacts detected`)
-            }
-          } catch (parseError) {
-            console.error(`Chunk ${chunkIndex} - Parse error:`, parseError)
-            console.error(`Chunk ${chunkIndex} - Raw content:`, content)
+          );
+        }
+        
+        throw new Error(`${modelChoice.toUpperCase()} API error: ${errorText}`);
+      }
+
+      const responseData = await apiResponse.json();
+      let content = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!content) {
+        console.error('No content in API response');
+        return new Response(
+          JSON.stringify({ 
+            error: `${modelChoice.toUpperCase()} returned no analysis content.`,
+            errorType: 'NO_CONTENT'
+          }),
+          { 
+            status: 422,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
+        );
+      }
+
+      // Clean and parse response
+      try {
+        content = content.replace(/```json\n?|\n?```/g, '').trim();
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          content = jsonMatch[0];
+        }
+        
+        console.log(`${modelChoice.toUpperCase()} cleaned response:`, content.substring(0, 200));
+        
+        const shots = JSON.parse(content);
+        if (!Array.isArray(shots)) {
+          throw new Error('Response is not an array');
         }
 
-        // Delay between chunks to respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 500))
+        console.log(`${modelChoice.toUpperCase()} analysis complete: ${shots.length} shots identified`);
 
-      } catch (error) {
-        console.error(`Chunk ${chunkIndex} - Request error:`, error)
-        continue
+        if (shots.length === 0) {
+          return new Response(
+            JSON.stringify({ 
+              error: `${modelChoice.toUpperCase()} could not identify clear bullet impacts in the detected frames.`,
+              errorType: 'NO_SHOTS_DETECTED'
+            }),
+            { 
+              status: 422,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        }
+
+        // Sort and number shots
+        shots.sort((a, b) => a.timestamp - b.timestamp);
+        shots.forEach((shot, index) => {
+          shot.shot_number = index + 1;
+        });
+        
+        return await processShotsData(supabaseClient, shots, userId, `${modelChoice}-visual-detection`, drillMode);
+
+      } catch (parseError) {
+        console.error(`Failed to parse ${modelChoice.toUpperCase()} response:`, parseError);
+        return new Response(
+          JSON.stringify({ 
+            error: `${modelChoice.toUpperCase()} returned invalid response format.`,
+            errorType: 'PARSE_ERROR'
+          }),
+          { 
+            status: 422,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
       }
-    }
 
-    console.log(`Expert analysis complete. Total shots detected: ${allShots.length}`)
-
-    if (allShots.length === 0) {
+    } catch (error) {
+      console.error(`${modelChoice.toUpperCase()} API call failed:`, error);
       return new Response(
         JSON.stringify({ 
-          error: 'No shots detected in the analyzed frame sequences. Please ensure the video shows clear bullet impacts with adequate lighting.',
-          errorType: 'NO_SHOTS_DETECTED'
+          error: `${modelChoice.toUpperCase()} analysis failed: ${error.message}`,
+          errorType: 'API_ERROR'
         }),
         { 
-          status: 422,
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
-      )
+      );
     }
 
-    // Sort shots by timestamp and renumber sequentially
-    allShots.sort((a, b) => a.timestamp - b.timestamp)
-    allShots.forEach((shot, index) => {
-      shot.shot_number = index + 1
-    })
-    
-    return await processShotsData(supabaseClient, allShots, userId, 'expert-frame-analysis', drillMode)
-
   } catch (error) {
-    console.error('Unexpected error in expert analysis function:', error)
+    console.error('Unexpected error in analysis function:', error);
     return new Response(
       JSON.stringify({ 
-        error: `Expert analysis error: ${error.message}`,
+        error: `Analysis error: ${error.message}`,
         errorType: 'UNEXPECTED_ERROR'
       }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    )
+    );
   }
-})
+});
 
 async function processShotsData(supabaseClient: any, shots: any[], userId: string | null, videoUrl: string, drillMode: boolean) {
   // Expert-level performance analysis
@@ -265,11 +302,9 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
   const maxPossibleScore = totalShots * 10
   const averageScore = totalScore / totalShots
   
-  // Professional accuracy calculation (9+ ring hits)
   const highScoringShots = shots.filter(shot => shot.score >= 9).length
   const accuracyPercentage = Math.round((highScoringShots / totalShots) * 100)
   
-  // Expert group size calculation (maximum distance between any two shots)
   let groupSize = 0
   for (let i = 0; i < shots.length; i++) {
     for (let j = i + 1; j < shots.length; j++) {
@@ -281,7 +316,6 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     }
   }
   
-  // Professional directional trend analysis
   const highLeftShots = shots.filter(shot => shot.direction.includes('High') && shot.direction.includes('Left')).length
   const lowRightShots = shots.filter(shot => shot.direction.includes('Low') && shot.direction.includes('Right')).length
   const leftShots = shots.filter(shot => shot.direction.includes('Left')).length
@@ -296,7 +330,6 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     directionalTrend = `${Math.round((rightShots / totalShots) * 100)}% right bias`
   }
 
-  // Timing metrics for drill mode
   let timeToFirstShot = null
   let splitTimes = []
   let averageSplitTime = null
@@ -314,7 +347,6 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     }
   }
 
-  // Create session record with expert analysis
   const { data: session, error: sessionError } = await supabaseClient
     .from('sessions')
     .insert({
@@ -336,7 +368,7 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     console.error('Session creation error:', sessionError)
     return new Response(
       JSON.stringify({ 
-        error: `Failed to save expert analysis: ${sessionError.message}`,
+        error: `Failed to save analysis: ${sessionError.message}`,
         errorType: 'DATABASE_ERROR'
       }),
       { 
@@ -346,7 +378,6 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
     )
   }
 
-  // Create shot records with expert comments
   const shotInserts = shots.map(shot => ({
     session_id: session.id,
     shot_number: shot.shot_number,
