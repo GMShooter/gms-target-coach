@@ -1,4 +1,3 @@
-
 import React, { useCallback, useState } from 'react';
 import { Upload, Video, FileVideo, Zap, Brain, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useVideoAnalysis } from '@/hooks/useVideoAnalysis';
@@ -165,6 +164,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
               <li>Use white paper target with dark bullet impacts</li>
               <li>Minimize camera shake and maintain steady framing</li>
               <li>Record in at least 720p resolution</li>
+              <li>Make sure new shots create visible contrast changes</li>
             </ul>
           </div>
         </div>
@@ -178,6 +178,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
         />
       ) : (
         <>
+          {/* Upload area */}
           <div
             className="border-2 border-dashed border-slate-600 rounded-lg p-12 text-center hover:border-blue-400 transition-colors cursor-pointer bg-slate-800/20 backdrop-blur-sm"
             onDrop={handleDrop}
@@ -214,15 +215,15 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-6">
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <Upload className="w-4 h-4 text-blue-400" />
-              Enhanced Analysis Features
+              State-of-the-Art Analysis Features
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
-              <li>• <strong className="text-blue-400">Gemini 2.5 Flash Preview:</strong> Latest AI model for direct video analysis</li>
-              <li>• <strong className="text-green-400">Gemma 3 27B Fallback:</strong> Advanced frame detection with noise filtering</li>
-              <li>• <strong className="text-purple-400">Enhanced Detection:</strong> Multi-scale analysis with edge detection</li>
-              <li>• <strong className="text-yellow-400">Smart Retry Logic:</strong> Automatic recovery from temporary API issues</li>
+              <li>• <strong className="text-blue-400">Gemini 2.5 Flash:</strong> Latest AI model for direct video analysis</li>
+              <li>• <strong className="text-green-400">Image Subtraction:</strong> Mathematical pixel-by-pixel differencing</li>
+              <li>• <strong className="text-purple-400">Gemma 3 27B Fallback:</strong> Difference image analysis with morphological cleaning</li>
+              <li>• <strong className="text-yellow-400">Smart Detection:</strong> Isolates only new bullet impacts</li>
               <li>• <strong className="text-red-400">Professional Metrics:</strong> Split times, grouping, expert feedback</li>
-              <li>• Target should be clearly visible with good contrast</li>
+              <li>• Eliminates confusion from pre-existing holes</li>
               <li>• White paper target with dark background recommended</li>
               <li>• Minimum 720p video quality for optimal results</li>
             </ul>

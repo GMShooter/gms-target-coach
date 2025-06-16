@@ -20,16 +20,16 @@ serve(async (req) => {
     )
 
     const requestBody = await req.json();
-    const { videoData, mimeType, framePairs, modelChoice = 'gemini', userId, drillMode = false } = requestBody;
+    const { videoData, mimeType, differenceImages, modelChoice = 'gemini', userId, drillMode = false } = requestBody;
 
     // Determine analysis mode
     const isDirectVideo = videoData && modelChoice === 'gemini';
-    const isFramePairs = framePairs && Array.isArray(framePairs) && modelChoice === 'gemma';
+    const isDifferenceImages = differenceImages && Array.isArray(differenceImages) && modelChoice === 'gemma';
 
-    if (!isDirectVideo && !isFramePairs) {
+    if (!isDirectVideo && !isDifferenceImages) {
       return new Response(
         JSON.stringify({ 
-          error: 'Invalid request: provide either videoData (for Gemini) or framePairs (for Gemma)',
+          error: 'Invalid request: provide either videoData (for Gemini) or differenceImages (for Gemma)',
           errorType: 'INVALID_REQUEST'
         }),
         { 
@@ -39,7 +39,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Starting ${modelChoice.toUpperCase()} analysis - ${isDirectVideo ? 'Direct Video' : `${framePairs.length} Frame Pairs`}`);
+    console.log(`Starting ${modelChoice.toUpperCase()} analysis - ${isDirectVideo ? 'Direct Video' : `${differenceImages.length} Difference Images`}`);
 
     // Configure API with correct model names
     const apiKey = Deno.env.get('GEMINI_API_KEY');
@@ -56,7 +56,7 @@ serve(async (req) => {
       );
     }
 
-    // FIXED: Use correct model names
+    // Use correct model names
     const apiUrl = modelChoice === 'gemini' 
       ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${apiKey}`
       : `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${apiKey}`;
@@ -65,7 +65,7 @@ serve(async (req) => {
     let requestPayload: any;
 
     if (isDirectVideo) {
-      // DIRECT VIDEO ANALYSIS (Gemini) - Using base64 data
+      // DIRECT VIDEO ANALYSIS (Gemini)
       requestPayload = {
         contents: [{
           parts: [
@@ -109,26 +109,26 @@ If the video shows 8 shots, return an array with 8 objects. If 0 shots, return [
         }
       };
     } else {
-      // FRAME-PAIR ANALYSIS (Gemma)
+      // DIFFERENCE IMAGE ANALYSIS (Gemma) - NEW APPROACH
       const parts = [{
-        text: `EXPERT SHOOTING ANALYSIS - FRAME PAIR MODE
+        text: `EXPERT SHOOTING ANALYSIS - DIFFERENCE IMAGE MODE
 
-You are analyzing ${framePairs.length} pairs of consecutive video frames. Each pair shows a "before" and "after" moment.
+You are analyzing ${differenceImages.length} difference images. Each image shows ONLY a new bullet impact on a target (white pixels on black background).
 
-Your task: Compare the "after" image to the "before" image and identify any NEW bullet impacts that appear.
+Your task: Analyze each single bullet hole and return its characteristics.
 
 CRITICAL: Return ONLY a valid JSON array. No explanations.
 
-For each NEW bullet impact found, return:
+For each bullet impact you see, return:
 [
   {
     "shot_number": 1,
     "score": 9,
     "x_coordinate": -15.2,
     "y_coordinate": 5.8,
-    "timestamp": ${framePairs[0]?.timestamp || 0},
+    "timestamp": ${differenceImages[0]?.timestamp || 0},
     "direction": "High Left", 
-    "comment": "New impact detected"
+    "comment": "Analysis from difference image"
   }
 ]
 
@@ -136,29 +136,20 @@ DIRECTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "Hig
 COORDINATES: Center=(0,0), Right=+X, Up=+Y, in millimeters from bullseye
 SCORING: 10=bullseye, 9=inner ring, 8=next ring, etc.
 
-RETURN [] if no NEW impacts are visible.
+IMPORTANT: Each image shows a single new bullet hole isolated by image subtraction.
 
-FRAME PAIRS TO ANALYZE:`
+DIFFERENCE IMAGES TO ANALYZE:`
       }];
 
-      // Add frame pairs
-      framePairs.forEach((pair: any, index: number) => {
+      // Add difference images
+      differenceImages.forEach((diffImage: any, index: number) => {
         parts.push({
-          text: `Pair ${index + 1} - Before:`
+          text: `Difference Image ${index + 1} (t=${diffImage.timestamp}s):`
         });
         parts.push({
           inlineData: {
             mimeType: "image/jpeg",
-            data: pair.image1Data.split(',')[1]
-          }
-        });
-        parts.push({
-          text: `Pair ${index + 1} - After (t=${pair.timestamp}s):`
-        });
-        parts.push({
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: pair.image2Data.split(',')[1]
+            data: diffImage.imageData.split(',')[1]
           }
         });
       });
@@ -277,7 +268,7 @@ FRAME PAIRS TO ANALYZE:`
       if (validShots.length === 0) {
         return new Response(
           JSON.stringify({ 
-            error: 'No valid shots detected. Please ensure bullet impacts are clearly visible against the target with good lighting and contrast.',
+            error: 'No valid shots detected in difference images. Please ensure bullet impacts are clearly visible against the target.',
             errorType: 'NO_SHOTS_DETECTED'
           }),
           { 
@@ -343,7 +334,7 @@ FRAME PAIRS TO ANALYZE:`
         .from('sessions')
         .insert({
           user_id: userId,
-          video_url: isDirectVideo ? `${modelChoice}-direct-analysis` : `${modelChoice}-frame-analysis`,
+          video_url: isDirectVideo ? `${modelChoice}-direct-analysis` : `${modelChoice}-difference-analysis`,
           total_score: totalScore,
           group_size_mm: Math.round(groupSize),
           accuracy_percentage: accuracyPercentage,
@@ -382,7 +373,7 @@ FRAME PAIRS TO ANALYZE:`
         throw new Error(`Failed to save shots: ${shotsError.message}`);
       }
 
-      console.log(`Session created: ${session.id} with ${totalShots} shots using ${modelChoice.toUpperCase()}`);
+      console.log(`Session created: ${session.id} with ${totalShots} shots using ${modelChoice.toUpperCase()} - ${isDirectVideo ? 'Direct Video' : 'Difference Images'}`);
 
       return new Response(
         JSON.stringify({ 

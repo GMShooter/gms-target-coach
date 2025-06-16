@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { detectShotKeyframes } from '@/utils/shotDetection';
+import { processFramePairToDifference } from '@/utils/imageProcessor';
 import { useAPIManager } from './useAPIManager';
 
 export const useVideoAnalysis = () => {
@@ -77,9 +78,9 @@ export const useVideoAnalysis = () => {
         retryWithGemma = true;
       }
 
-      // FALLBACK STRATEGY: Smart Frame-Pair Sampling (Gemma)
+      // FALLBACK STRATEGY: Smart Image Subtraction (Gemma)
       if (retryWithGemma || model === 'gemma') {
-        setAnalysisProgress('🔍 Detecting shot moments with visual analysis...');
+        setAnalysisProgress('🔍 Detecting shot moments with advanced frame analysis...');
         console.log('🚀 Starting smart frame-pair detection...');
         
         const framePairs = await detectShotKeyframes(file);
@@ -89,11 +90,31 @@ export const useVideoAnalysis = () => {
           throw new Error('No significant changes detected in video. Please ensure clear bullet impacts are visible and try adjusting camera angle or lighting.');
         }
 
-        setAnalysisProgress(`⚡ Analyzing ${framePairs.length} key moments with Gemma...`);
+        setAnalysisProgress(`⚡ Processing ${framePairs.length} moments with image subtraction...`);
+        
+        // NEW: Convert frame pairs to difference images
+        const differenceImages = [];
+        for (let i = 0; i < framePairs.length; i++) {
+          setAnalysisProgress(`🔬 Creating difference image ${i + 1}/${framePairs.length}...`);
+          try {
+            const diffImage = await processFramePairToDifference(framePairs[i]);
+            differenceImages.push(diffImage);
+            console.log(`✅ Difference image ${i + 1} created successfully`);
+          } catch (err) {
+            console.error(`❌ Failed to create difference image ${i + 1}:`, err);
+            // Continue with remaining images
+          }
+        }
+
+        if (differenceImages.length === 0) {
+          throw new Error('Failed to create difference images. Please ensure the video shows clear bullet impacts with good contrast.');
+        }
+
+        setAnalysisProgress(`🤖 Analyzing ${differenceImages.length} difference images with Gemma...`);
         
         const { data: result, error: analysisError } = await supabase.functions.invoke('analyze-video', {
           body: {
-            framePairs: framePairs,
+            differenceImages: differenceImages,
             modelChoice: 'gemma',
             userId: user?.id || null,
             drillMode: isDrillMode
@@ -108,10 +129,10 @@ export const useVideoAnalysis = () => {
           sessionId = result.sessionId;
           
           const shotsCount = result.shotsCount || 0;
-          const modelName = retryWithGemma ? 'Gemma 3 27B (fallback)' : 'Gemma 3 27B';
+          const modelName = retryWithGemma ? 'Gemma 3 27B (with image subtraction)' : 'Gemma 3 27B';
           toast({
             title: "Analysis Complete!",
-            description: `${modelName} analyzed ${framePairs.length} key moments and found ${shotsCount} shots!`,
+            description: `${modelName} analyzed ${differenceImages.length} difference images and found ${shotsCount} shots!`,
           });
         }
       }
