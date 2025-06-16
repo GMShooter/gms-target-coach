@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { extractFramesAt10FPS } from '@/utils/frameExtractor';
+import { extractFramesAt10FPS, createFramePairs } from '@/utils/frameExtractor';
 import { useAPIManager } from './useAPIManager';
 
 export const useVideoAnalysis = () => {
@@ -38,72 +38,124 @@ export const useVideoAnalysis = () => {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Process frames in batches to avoid overwhelming the API
-      const BATCH_SIZE = model === 'gemini' ? 50 : 30; // Smaller batches for reliability
-      const batches = [];
-      
-      for (let i = 0; i < frames.length; i += BATCH_SIZE) {
-        batches.push(frames.slice(i, i + BATCH_SIZE));
-      }
-
-      console.log(`📦 Processing ${frames.length} frames in ${batches.length} batches (${BATCH_SIZE} frames each)`);
-
       let allDetectedShots: any[] = [];
 
-      // Process each batch
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        const batchProgress = `⚡ Processing batch ${batchIndex + 1}/${batches.length} with ${model.toUpperCase()} (${batch.length} frames)...`;
-        setAnalysisProgress(batchProgress);
+      if (model === 'gemini') {
+        // For Gemini: Use traditional frame analysis (single frames)
+        const BATCH_SIZE = 50;
+        const batches = [];
         
-        console.log(`Processing batch ${batchIndex + 1}/${batches.length}: frames ${batch[0].frameNumber}-${batch[batch.length-1].frameNumber}`);
-
-        const requestPayload = {
-          frames: batch.map(frame => ({
-            imageData: frame.imageData,
-            timestamp: frame.timestamp,
-            frameNumber: frame.frameNumber
-          })),
-          modelChoice: model,
-          userId: user?.id || null,
-          drillMode: isDrillMode,
-          batchInfo: {
-            batchIndex: batchIndex + 1,
-            totalBatches: batches.length,
-            framesInBatch: batch.length
-          }
-        };
-
-        try {
-          const { data: batchResult, error: batchError } = await supabase.functions.invoke('analyze-video', {
-            body: requestPayload
-          });
-
-          if (batchError) {
-            console.error(`Batch ${batchIndex + 1} error:`, batchError);
-            
-            if (batchResult && batchResult.errorType === 'NO_SHOTS_DETECTED_BY_AI') {
-              console.log(`Batch ${batchIndex + 1}: No shots detected, continuing...`);
-              continue;
-            }
-            
-            throw new Error(batchError.message || `Batch ${batchIndex + 1} analysis failed`);
-          }
-
-          if (batchResult && batchResult.shots && Array.isArray(batchResult.shots)) {
-            allDetectedShots = allDetectedShots.concat(batchResult.shots);
-            console.log(`Batch ${batchIndex + 1} complete: ${batchResult.shots.length} shots detected`);
-          }
-
-        } catch (batchError) {
-          console.error(`Batch ${batchIndex + 1} processing failed:`, batchError);
-          // Continue with next batch instead of failing completely
-          continue;
+        for (let i = 0; i < frames.length; i += BATCH_SIZE) {
+          batches.push(frames.slice(i, i + BATCH_SIZE));
         }
 
-        // Small delay between batches to avoid rate limiting
-        if (batchIndex < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`📦 Processing ${frames.length} frames in ${batches.length} batches (${BATCH_SIZE} frames each) with GEMINI`);
+
+        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+          const batch = batches[batchIndex];
+          const batchProgress = `⚡ Processing batch ${batchIndex + 1}/${batches.length} with GEMINI (${batch.length} frames)...`;
+          setAnalysisProgress(batchProgress);
+          
+          console.log(`Processing GEMINI batch ${batchIndex + 1}/${batches.length}: frames ${batch[0].frameNumber}-${batch[batch.length-1].frameNumber}`);
+
+          const requestPayload = {
+            frames: batch.map(frame => ({
+              imageData: frame.imageData,
+              timestamp: frame.timestamp,
+              frameNumber: frame.frameNumber
+            })),
+            modelChoice: model,
+            userId: user?.id || null,
+            drillMode: isDrillMode,
+            batchInfo: {
+              batchIndex: batchIndex + 1,
+              totalBatches: batches.length,
+              framesInBatch: batch.length
+            }
+          };
+
+          try {
+            const { data: batchResult, error: batchError } = await supabase.functions.invoke('analyze-video', {
+              body: requestPayload
+            });
+
+            if (batchError) {
+              console.error(`GEMINI Batch ${batchIndex + 1} error:`, batchError);
+              continue;
+            }
+
+            if (batchResult && batchResult.shots && Array.isArray(batchResult.shots)) {
+              allDetectedShots = allDetectedShots.concat(batchResult.shots);
+              console.log(`GEMINI Batch ${batchIndex + 1} complete: ${batchResult.shots.length} shots detected`);
+            }
+          } catch (batchError) {
+            console.error(`GEMINI Batch ${batchIndex + 1} processing failed:`, batchError);
+            continue;
+          }
+
+          if (batchIndex < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      } else {
+        // For Gemma: Use paired frame analysis for better context
+        setAnalysisProgress('🔄 Creating frame pairs for contextual analysis...');
+        const framePairs = createFramePairs(frames);
+        
+        if (framePairs.length === 0) {
+          throw new Error('Cannot create frame pairs from single frame');
+        }
+
+        const BATCH_SIZE = 25; // Smaller batches for paired frames
+        const batches = [];
+        
+        for (let i = 0; i < framePairs.length; i += BATCH_SIZE) {
+          batches.push(framePairs.slice(i, i + BATCH_SIZE));
+        }
+
+        console.log(`📦 Processing ${framePairs.length} frame pairs in ${batches.length} batches (${BATCH_SIZE} pairs each) with GEMMA`);
+
+        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+          const batch = batches[batchIndex];
+          const batchProgress = `⚡ Processing batch ${batchIndex + 1}/${batches.length} with GEMMA (${batch.length} frame pairs)...`;
+          setAnalysisProgress(batchProgress);
+          
+          console.log(`Processing GEMMA batch ${batchIndex + 1}/${batches.length}: frame pairs ${batch[0].frameNumber}-${batch[batch.length-1].frameNumber}`);
+
+          const requestPayload = {
+            framePairs: batch, // Send pairs instead of individual frames
+            modelChoice: model,
+            userId: user?.id || null,
+            drillMode: isDrillMode,
+            batchInfo: {
+              batchIndex: batchIndex + 1,
+              totalBatches: batches.length,
+              pairsInBatch: batch.length
+            }
+          };
+
+          try {
+            const { data: batchResult, error: batchError } = await supabase.functions.invoke('analyze-video', {
+              body: requestPayload
+            });
+
+            if (batchError) {
+              console.error(`GEMMA Batch ${batchIndex + 1} error:`, batchError);
+              continue;
+            }
+
+            if (batchResult && batchResult.shots && Array.isArray(batchResult.shots)) {
+              allDetectedShots = allDetectedShots.concat(batchResult.shots);
+              console.log(`GEMMA Batch ${batchIndex + 1} complete: ${batchResult.shots.length} shots detected`);
+            }
+          } catch (batchError) {
+            console.error(`GEMMA Batch ${batchIndex + 1} processing failed:`, batchError);
+            continue;
+          }
+
+          if (batchIndex < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
       }
 
@@ -138,7 +190,7 @@ export const useVideoAnalysis = () => {
         drillMode: isDrillMode,
         modelChoice: model,
         totalFramesProcessed: frames.length,
-        batchesProcessed: batches.length
+        batchesProcessed: model === 'gemini' ? Math.ceil(frames.length / 50) : Math.ceil(createFramePairs(frames).length / 25)
       };
 
       const { data: sessionResult, error: sessionError } = await supabase.functions.invoke('analyze-video', {
@@ -152,7 +204,7 @@ export const useVideoAnalysis = () => {
       const modelName = model === 'gemini' ? 'Gemini 2.5 Flash Preview' : 'Gemma 3 27B';
       toast({
         title: "Analysis Complete!",
-        description: `${modelName} analyzed ${frames.length} frames in ${batches.length} batches and found ${allDetectedShots.length} shots!`,
+        description: `${modelName} analyzed ${frames.length} frames and found ${allDetectedShots.length} shots!`,
       });
 
       return sessionResult.sessionId;

@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -27,13 +26,17 @@ serve(async (req) => {
     }
 
     // Handle batch analysis
-    const { frames, modelChoice = 'gemini', userId, drillMode = false, batchInfo } = requestBody;
+    const { frames, framePairs, modelChoice = 'gemini', userId, drillMode = false, batchInfo } = requestBody;
 
-    if (!frames || !Array.isArray(frames) || frames.length === 0) {
+    // Determine if we're using paired frame analysis (Gemma) or single frame analysis (Gemini)
+    const usingPairs = framePairs && Array.isArray(framePairs);
+    const dataToAnalyze = usingPairs ? framePairs : frames;
+
+    if (!dataToAnalyze || !Array.isArray(dataToAnalyze) || dataToAnalyze.length === 0) {
       return new Response(
         JSON.stringify({ 
-          error: 'No frames provided for analysis.',
-          errorType: 'NO_FRAMES_PROVIDED'
+          error: 'No frames or frame pairs provided for analysis.',
+          errorType: 'NO_DATA_PROVIDED'
         }),
         { 
           status: 400,
@@ -42,8 +45,11 @@ serve(async (req) => {
       );
     }
 
-    const batchDesc = batchInfo ? `batch ${batchInfo.batchIndex}/${batchInfo.totalBatches}` : 'frames';
-    console.log(`Starting ${modelChoice.toUpperCase()} analysis for ${frames.length} frames (${batchDesc})`);
+    const batchDesc = batchInfo 
+      ? `batch ${batchInfo.batchIndex}/${batchInfo.totalBatches}` 
+      : (usingPairs ? 'frame pairs' : 'frames');
+    
+    console.log(`Starting ${modelChoice.toUpperCase()} analysis for ${dataToAnalyze.length} ${usingPairs ? 'frame pairs' : 'frames'} (${batchDesc})`);
 
     // Configure API based on model choice
     let apiUrl, apiKey;
@@ -64,7 +70,7 @@ serve(async (req) => {
       }
       apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
     } else {
-      apiKey = Deno.env.get('GEMINI_API_KEY'); // Using same key for Gemma
+      apiKey = Deno.env.get('GEMINI_API_KEY');
       if (!apiKey) {
         return new Response(
           JSON.stringify({ 
@@ -80,12 +86,71 @@ serve(async (req) => {
       apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${apiKey}`;
     }
 
-    // Prepare analysis request with optimized prompt
-    const parts = [
-      {
-        text: `EXPERT SHOOTING ANALYSIS - ${modelChoice.toUpperCase()} BATCH MODE
+    // Prepare analysis request with appropriate prompt
+    const parts = [];
 
-You are analyzing ${frames.length} frames from a shooting video. Each frame may contain bullet impacts on a target.
+    if (usingPairs) {
+      // Paired frame analysis prompt for Gemma
+      parts.push({
+        text: `EXPERT SHOOTING ANALYSIS - GEMMA PAIRED FRAME MODE
+
+You are analyzing ${dataToAnalyze.length} pairs of consecutive video frames from a shooting session. Each pair contains:
+- Image A (before): The earlier frame
+- Image B (after): The subsequent frame
+
+Your task: Compare Image B to Image A and identify any NEW bullet impacts that appear in Image B that were NOT present in Image A.
+
+CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, just JSON.
+
+For each NEW bullet impact found when comparing the pairs, return:
+[
+  {
+    "shot_number": 1,
+    "score": 9,
+    "x_coordinate": -15.2,
+    "y_coordinate": 5.8,
+    "timestamp": ${dataToAnalyze[0]?.timestamp || 0},
+    "direction": "High Left", 
+    "comment": "Clean center shot"
+  }
+]
+
+DIRECTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "High", "Low", "Left", "Right"
+COORDINATES: Center=(0,0), Right=+X, Up=+Y, in millimeters from bullseye
+SCORING: 10=bullseye, 9=inner ring, 8=next ring, etc.
+
+RETURN [] if no NEW impacts are visible when comparing Image B to Image A.
+
+FRAME PAIRS TO ANALYZE:`
+      });
+
+      // Add frame pairs
+      dataToAnalyze.forEach((pair: any, index: number) => {
+        parts.push({
+          text: `Pair ${index + 1} - Before (Image A):`
+        });
+        parts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: pair.image1Data.split(',')[1]
+          }
+        });
+        parts.push({
+          text: `Pair ${index + 1} - After (Image B, t=${pair.timestamp}s):`
+        });
+        parts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: pair.image2Data.split(',')[1]
+          }
+        });
+      });
+    } else {
+      // Single frame analysis prompt for Gemini
+      parts.push({
+        text: `EXPERT SHOOTING ANALYSIS - GEMINI SINGLE FRAME MODE
+
+You are analyzing ${dataToAnalyze.length} frames from a shooting video. Each frame may contain bullet impacts on a target.
 
 CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, just JSON.
 
@@ -96,7 +161,7 @@ For each frame that shows a clear bullet impact (new hole), return:
     "score": 9,
     "x_coordinate": -15.2,
     "y_coordinate": 5.8,
-    "timestamp": ${frames[0]?.timestamp || 0},
+    "timestamp": ${dataToAnalyze[0]?.timestamp || 0},
     "direction": "High Left", 
     "comment": "Clean center shot"
   }
@@ -109,21 +174,21 @@ SCORING: 10=bullseye, 9=inner ring, 8=next ring, etc.
 RETURN [] if no clear impacts visible.
 
 FRAMES TO ANALYZE:`
-      }
-    ];
+      });
 
-    // Add frames in smaller chunks for better processing
-    frames.forEach((frame, index) => {
-      parts.push({
-        text: `Frame ${frame.frameNumber} (t=${frame.timestamp}s):`
+      // Add individual frames
+      dataToAnalyze.forEach((frame: any, index: number) => {
+        parts.push({
+          text: `Frame ${frame.frameNumber} (t=${frame.timestamp}s):`
+        });
+        parts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: frame.imageData.split(',')[1]
+          }
+        });
       });
-      parts.push({
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: frame.imageData.split(',')[1]
-        }
-      });
-    });
+    }
 
     const requestPayload = {
       contents: [{

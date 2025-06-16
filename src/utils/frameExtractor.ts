@@ -5,6 +5,13 @@ export interface ExtractedFrame {
   frameNumber: number;
 }
 
+export interface FramePair {
+  image1Data: string; // Frame N-1 (before)
+  image2Data: string; // Frame N (after)
+  timestamp: number; // Timestamp of Frame N
+  frameNumber: number; // Frame number of Frame N
+}
+
 export const extractFramesAt10FPS = async (
   videoFile: File
 ): Promise<ExtractedFrame[]> => {
@@ -68,4 +75,21 @@ export const extractFramesAt10FPS = async (
     
     video.src = URL.createObjectURL(videoFile);
   });
+};
+
+export const createFramePairs = (frames: ExtractedFrame[]): FramePair[] => {
+  const pairs: FramePair[] = [];
+  
+  // Create pairs of consecutive frames (Frame N-1, Frame N)
+  for (let i = 1; i < frames.length; i++) {
+    pairs.push({
+      image1Data: frames[i - 1].imageData, // Before frame
+      image2Data: frames[i].imageData,     // After frame
+      timestamp: frames[i].timestamp,
+      frameNumber: frames[i].frameNumber
+    });
+  }
+  
+  console.log(`Created ${pairs.length} frame pairs for AI analysis`);
+  return pairs;
 };
