@@ -41,7 +41,7 @@ export const useVideoAnalysis = () => {
       let allDetectedShots: any[] = [];
 
       if (model === 'gemini') {
-        // For Gemini: Use traditional frame analysis (single frames)
+        // For Gemini: Use traditional frame analysis (single frames) with de-duplication
         const BATCH_SIZE = 50;
         const batches = [];
         
@@ -50,6 +50,9 @@ export const useVideoAnalysis = () => {
         }
 
         console.log(`📦 Processing ${frames.length} frames in ${batches.length} batches (${BATCH_SIZE} frames each) with GEMINI`);
+
+        // Track unique shots to avoid duplicates
+        const uniqueShotCoordinates = new Set<string>();
 
         for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
           const batch = batches[batchIndex];
@@ -85,8 +88,22 @@ export const useVideoAnalysis = () => {
             }
 
             if (batchResult && batchResult.shots && Array.isArray(batchResult.shots)) {
-              allDetectedShots = allDetectedShots.concat(batchResult.shots);
-              console.log(`GEMINI Batch ${batchIndex + 1} complete: ${batchResult.shots.length} shots detected`);
+              let newShotsInBatch = 0;
+              
+              batchResult.shots.forEach((shot: any) => {
+                // Create a unique key for each shot based on its approximate coordinates
+                // Round to nearest 5mm to account for small variations in detection
+                const shotKey = `${Math.round(shot.x_coordinate / 5)}_${Math.round(shot.y_coordinate / 5)}`;
+                
+                // If we haven't seen a shot at this location before, add it
+                if (!uniqueShotCoordinates.has(shotKey)) {
+                  uniqueShotCoordinates.add(shotKey);
+                  allDetectedShots.push(shot);
+                  newShotsInBatch++;
+                }
+              });
+
+              console.log(`GEMINI Batch ${batchIndex + 1} complete: ${newShotsInBatch} NEW unique shots detected (${batchResult.shots.length} total detected, ${allDetectedShots.length} total unique)`);
             }
           } catch (batchError) {
             console.error(`GEMINI Batch ${batchIndex + 1} processing failed:`, batchError);

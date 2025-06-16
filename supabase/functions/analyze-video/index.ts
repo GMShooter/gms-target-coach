@@ -146,15 +146,15 @@ FRAME PAIRS TO ANALYZE:`
         });
       });
     } else {
-      // Single frame analysis prompt for Gemini
+      // Single frame analysis prompt for Gemini - FIXED TO FIND ALL HOLES
       parts.push({
         text: `EXPERT SHOOTING ANALYSIS - GEMINI SINGLE FRAME MODE
 
 You are analyzing ${dataToAnalyze.length} frames from a shooting video. Each frame may contain bullet impacts on a target.
 
-CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, just JSON.
+CRITICAL: Your task is to identify ALL visible bullet impacts in each frame. Return ONLY a valid JSON array of all detected shots.
 
-For each frame that shows a clear bullet impact (new hole), return:
+For EACH bullet impact visible in the frame, return an object in the array:
 [
   {
     "shot_number": 1,
@@ -162,8 +162,8 @@ For each frame that shows a clear bullet impact (new hole), return:
     "x_coordinate": -15.2,
     "y_coordinate": 5.8,
     "timestamp": ${dataToAnalyze[0]?.timestamp || 0},
-    "direction": "High Left", 
-    "comment": "Clean center shot"
+    "direction": "High Left",
+    "comment": "Identified from frame"
   }
 ]
 
@@ -171,7 +171,7 @@ DIRECTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "Hig
 COORDINATES: Center=(0,0), Right=+X, Up=+Y, in millimeters from bullseye
 SCORING: 10=bullseye, 9=inner ring, 8=next ring, etc.
 
-RETURN [] if no clear impacts visible.
+IMPORTANT: If a frame contains 8 visible holes, return an array with 8 objects. If a frame has 0 holes, return [].
 
 FRAMES TO ANALYZE:`
       });
