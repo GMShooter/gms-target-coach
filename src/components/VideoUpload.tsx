@@ -1,6 +1,6 @@
 
 import React, { useCallback, useState } from 'react';
-import { Upload, Video, FileVideo, Zap, Brain, Clock, AlertTriangle } from 'lucide-react';
+import { Upload, Video, FileVideo, Zap, Brain, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useVideoAnalysis } from '@/hooks/useVideoAnalysis';
 import { DrillMode } from './DrillMode';
 
@@ -70,15 +70,27 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="animate-spin w-16 h-16 border-4 border-red-400 border-t-transparent rounded-full mx-auto mb-6"></div>
           <h3 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2">
             <Brain className="w-6 h-6 text-blue-400" />
-            Video Analysis
+            AI Video Analysis
           </h3>
-          <div className="space-y-2 text-slate-400">
+          <div className="space-y-3 text-slate-400">
             <p className="text-lg font-semibold text-blue-400">{analysisProgress}</p>
-            <div className="grid grid-cols-1 gap-2 text-sm">
-              <p>📹 Direct video analysis with Gemini 2.5 Flash Preview</p>
-              <p>🤖 Smart fallback to frame-pair detection with Gemma 3 27B</p>
-              <p>⚡ Intelligent API management with automatic switching</p>
-              <p>📊 Professional ballistics analysis with split times</p>
+            <div className="grid grid-cols-1 gap-3 text-sm">
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                <span>Using Gemini 2.5 Flash Preview for direct video analysis</span>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle className="w-4 h-4 text-yellow-400" />
+                <span>Smart fallback to Gemma 3 27B with enhanced frame detection</span>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle className="w-4 h-4 text-purple-400" />
+                <span>Advanced shot detection with noise filtering</span>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle className="w-4 h-4 text-red-400" />
+                <span>Professional ballistics analysis with split times</span>
+              </div>
             </div>
           </div>
         </div>
@@ -134,7 +146,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
         </div>
         {isInCooldown && (
           <div className="mt-2 text-sm text-orange-300 bg-orange-900/20 rounded p-2">
-            Gemini cooling down - next analysis will use smart frame-pair detection
+            Gemini cooling down - next analysis will use enhanced frame-pair detection
           </div>
         )}
       </div>
@@ -145,7 +157,16 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
             <AlertTriangle className="w-5 h-5 text-red-400" />
             <h4 className="font-semibold text-red-400">Analysis Error</h4>
           </div>
-          <p className="text-slate-300">{error}</p>
+          <p className="text-slate-300 mb-2">{error}</p>
+          <div className="text-sm text-slate-400">
+            <p><strong>Troubleshooting tips:</strong></p>
+            <ul className="list-disc list-inside space-y-1 mt-1">
+              <li>Ensure good lighting and clear target visibility</li>
+              <li>Use white paper target with dark bullet impacts</li>
+              <li>Minimize camera shake and maintain steady framing</li>
+              <li>Record in at least 720p resolution</li>
+            </ul>
+          </div>
         </div>
       )}
 
@@ -170,10 +191,10 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
               <div>
                 <h3 className="text-xl font-semibold mb-2 flex items-center justify-center gap-2">
                   <Zap className="w-5 h-5 text-yellow-400" />
-                  Smart Video Analysis
+                  Enhanced AI Video Analysis
                 </h3>
                 <p className="text-slate-400 mb-4">
-                  Direct video analysis with Gemini or intelligent frame-pair detection
+                  Advanced shot detection with Gemini 2.5 Flash and improved algorithms
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                   <FileVideo className="w-4 h-4" />
@@ -193,16 +214,17 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-6">
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <Upload className="w-4 h-4 text-blue-400" />
-              Analysis Features
+              Enhanced Analysis Features
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
-              <li>• <strong className="text-blue-400">Direct Video Analysis:</strong> Gemini 2.5 Flash analyzes the entire video natively</li>
-              <li>• <strong className="text-yellow-400">Smart Fallback:</strong> Frame-pair detection with change analysis for reliability</li>
-              <li>• <strong className="text-green-400">Intelligent Switching:</strong> Automatic model selection based on availability</li>
-              <li>• <strong className="text-red-400">Professional Analysis:</strong> Split times, grouping, expert coaching feedback</li>
-              <li>• Target must be clearly visible with good contrast and lighting</li>
+              <li>• <strong className="text-blue-400">Gemini 2.5 Flash Preview:</strong> Latest AI model for direct video analysis</li>
+              <li>• <strong className="text-green-400">Gemma 3 27B Fallback:</strong> Advanced frame detection with noise filtering</li>
+              <li>• <strong className="text-purple-400">Enhanced Detection:</strong> Multi-scale analysis with edge detection</li>
+              <li>• <strong className="text-yellow-400">Smart Retry Logic:</strong> Automatic recovery from temporary API issues</li>
+              <li>• <strong className="text-red-400">Professional Metrics:</strong> Split times, grouping, expert feedback</li>
+              <li>• Target should be clearly visible with good contrast</li>
               <li>• White paper target with dark background recommended</li>
-              <li>• Minimum 720p video quality for best results</li>
+              <li>• Minimum 720p video quality for optimal results</li>
             </ul>
           </div>
         </>

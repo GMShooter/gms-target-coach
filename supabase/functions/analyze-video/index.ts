@@ -41,7 +41,7 @@ serve(async (req) => {
 
     console.log(`Starting ${modelChoice.toUpperCase()} analysis - ${isDirectVideo ? 'Direct Video' : `${framePairs.length} Frame Pairs`}`);
 
-    // Configure API
+    // Configure API with correct model names
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
       return new Response(
@@ -56,9 +56,10 @@ serve(async (req) => {
       );
     }
 
+    // FIXED: Use correct model names
     const apiUrl = modelChoice === 'gemini' 
-      ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`
-      : `https://generativelanguage.googleapis.com/v1beta/models/gemma-2-27b-it:generateContent?key=${apiKey}`;
+      ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${apiKey}`
+      : `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${apiKey}`;
 
     // Prepare request based on analysis mode
     let requestPayload: any;
@@ -172,35 +173,59 @@ FRAME PAIRS TO ANALYZE:`
       };
     }
 
-    console.log(`Calling ${modelChoice.toUpperCase()} API...`);
+    console.log(`Calling ${modelChoice.toUpperCase()} API with correct model name...`);
 
-    // Make API call
-    const apiResponse = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestPayload)
-    });
+    // Make API call with retry logic
+    let apiResponse;
+    let retryCount = 0;
+    const maxRetries = 2;
 
-    console.log(`${modelChoice.toUpperCase()} API response status:`, apiResponse.status);
+    while (retryCount <= maxRetries) {
+      try {
+        apiResponse = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestPayload)
+        });
 
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text();
-      console.error(`${modelChoice.toUpperCase()} API error:`, errorText);
-      
-      if (apiResponse.status === 503) {
-        return new Response(
-          JSON.stringify({ 
-            error: `${modelChoice.toUpperCase()} model overloaded. Please try again later.`,
-            errorType: 'MODEL_OVERLOADED'
-          }),
-          { 
-            status: 503,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
+        if (apiResponse.ok) {
+          break; // Success, exit retry loop
+        }
+
+        console.log(`${modelChoice.toUpperCase()} API response status:`, apiResponse.status);
+
+        if (apiResponse.status === 503 && retryCount < maxRetries) {
+          console.log(`Retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          retryCount++;
+          continue;
+        }
+
+        const errorText = await apiResponse.text();
+        console.error(`${modelChoice.toUpperCase()} API error:`, errorText);
+        
+        if (apiResponse.status === 503) {
+          return new Response(
+            JSON.stringify({ 
+              error: `${modelChoice.toUpperCase()} model overloaded. Please try again later.`,
+              errorType: 'MODEL_OVERLOADED'
+            }),
+            { 
+              status: 503,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        }
+        
+        throw new Error(`${modelChoice.toUpperCase()} API error: ${errorText}`);
+      } catch (fetchError) {
+        if (retryCount === maxRetries) {
+          throw fetchError;
+        }
+        console.log(`Network error, retrying... (attempt ${retryCount + 1}/${maxRetries})`);
+        retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
-      
-      throw new Error(`${modelChoice.toUpperCase()} API error: ${errorText}`);
     }
 
     // Parse response
@@ -211,7 +236,7 @@ FRAME PAIRS TO ANALYZE:`
       console.log(`No content in ${modelChoice.toUpperCase()} response`);
       return new Response(
         JSON.stringify({ 
-          error: 'No analysis results returned',
+          error: 'No analysis results returned from AI model',
           errorType: 'NO_CONTENT'
         }),
         { 
@@ -252,7 +277,7 @@ FRAME PAIRS TO ANALYZE:`
       if (validShots.length === 0) {
         return new Response(
           JSON.stringify({ 
-            error: 'No valid shots detected. Please ensure bullet impacts are clearly visible against the target.',
+            error: 'No valid shots detected. Please ensure bullet impacts are clearly visible against the target with good lighting and contrast.',
             errorType: 'NO_SHOTS_DETECTED'
           }),
           { 
