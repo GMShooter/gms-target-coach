@@ -7,7 +7,7 @@ export interface ExtractedFrame {
 
 export const extractFramesAtFPS = async (
   videoFile: File, 
-  targetFPS: number = 5 // Further reduced to 5 FPS for smaller payloads
+  targetFPS: number = 3 // Reduced to 3 FPS for even smaller payloads
 ): Promise<ExtractedFrame[]> => {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
@@ -23,9 +23,9 @@ export const extractFramesAtFPS = async (
     let frameNumber = 0;
 
     video.onloadedmetadata = () => {
-      // Smaller canvas size for reduced payload
-      canvas.width = Math.min(video.videoWidth, 640);
-      canvas.height = Math.min(video.videoHeight, 480);
+      // Even smaller canvas size for reduced payload
+      canvas.width = Math.min(video.videoWidth, 480);
+      canvas.height = Math.min(video.videoHeight, 360);
       
       const duration = video.duration;
       const frameInterval = 1 / targetFPS;
@@ -50,7 +50,7 @@ export const extractFramesAtFPS = async (
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           
           // Convert to base64 with lower quality for smaller size
-          const imageData = canvas.toDataURL('image/jpeg', 0.6);
+          const imageData = canvas.toDataURL('image/jpeg', 0.5);
           
           frames.push({
             imageData,
@@ -60,7 +60,7 @@ export const extractFramesAtFPS = async (
           
           // Move to next frame
           currentTime += frameInterval;
-          setTimeout(extractNextFrame, 50); // Slightly slower extraction
+          setTimeout(extractNextFrame, 100); // Faster extraction
         };
       };
       

@@ -17,16 +17,16 @@ export const useVideoAnalysis = () => {
     try {
       console.log('Starting expert video analysis with optimized frame extraction...');
       
-      // Extract frames at 5 FPS for faster processing and smaller payloads
-      const frames = await extractFramesAtFPS(file, 5);
+      // Extract frames at 3 FPS for smaller payloads but better coverage
+      const frames = await extractFramesAtFPS(file, 3);
       console.log(`Expert system extracted ${frames.length} frames for detailed analysis`);
       
       if (frames.length === 0) {
         throw new Error('No frames could be extracted from the video');
       }
 
-      // Limit frames to prevent payload size issues
-      const maxFrames = 50;
+      // Further limit frames to prevent payload size issues - use only 30 frames max
+      const maxFrames = 30;
       const framesToAnalyze = frames.length > maxFrames ? 
         frames.filter((_, index) => index % Math.ceil(frames.length / maxFrames) === 0).slice(0, maxFrames) : 
         frames;
@@ -55,29 +55,34 @@ export const useVideoAnalysis = () => {
         payloadSizeKB: Math.round(payloadSize / 1024)
       });
 
-      // Call the Edge Function with timeout handling
+      // Ensure we're not sending empty payload
+      if (payloadSize < 100) {
+        throw new Error('Request payload too small - frame extraction may have failed');
+      }
+
+      // Call the Edge Function with proper error handling
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Analysis timed out after 90 seconds')), 90000);
+        setTimeout(() => reject(new Error('Analysis timed out after 60 seconds')), 60000);
       });
 
       try {
         const analysisPromise = supabase.functions.invoke('analyze-video', {
-          body: requestPayload,
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          body: requestPayload
         });
 
-        const { data: analysisData, error: analysisError } = await Promise.race([
-          analysisPromise,
-          timeoutPromise
-        ]) as any;
+        const result = await Promise.race([analysisPromise, timeoutPromise]);
+        const { data: analysisData, error: analysisError } = result as any;
 
         console.log('Expert analysis response - data:', analysisData);
         console.log('Expert analysis response - error:', analysisError);
 
         if (analysisError) {
           console.error('Expert analysis error details:', analysisError);
+          
+          // Handle specific Supabase function errors
+          if (analysisError.message && analysisError.message.includes('non-2xx status code')) {
+            throw new Error('Server error during analysis. Please try with a shorter video or better lighting.');
+          }
           
           if (analysisData && typeof analysisData === 'object' && analysisData.error) {
             const errorMessage = analysisData.error;

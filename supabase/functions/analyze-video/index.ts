@@ -19,18 +19,20 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // Better request body parsing with error handling
+    // Better request body parsing with detailed logging
     let requestBody;
     try {
       const bodyText = await req.text();
       console.log('Raw request body length:', bodyText.length);
+      console.log('First 200 chars of body:', bodyText.substring(0, 200));
       
       if (!bodyText || bodyText.trim() === '') {
-        console.error('Empty request body received');
+        console.error('Empty request body received - this is the main issue');
         return new Response(
           JSON.stringify({ 
             error: 'Empty request body. Please provide frames and analysis parameters.',
-            errorType: 'INVALID_REQUEST'
+            errorType: 'INVALID_REQUEST',
+            debug: 'Body length was 0'
           }),
           { 
             status: 400,
@@ -40,12 +42,14 @@ serve(async (req) => {
       }
 
       requestBody = JSON.parse(bodyText);
+      console.log('Successfully parsed request body. Keys:', Object.keys(requestBody));
     } catch (parseError) {
       console.error('Failed to parse request body:', parseError);
       return new Response(
         JSON.stringify({ 
           error: 'Invalid JSON in request body. Please check your request format.',
-          errorType: 'INVALID_JSON'
+          errorType: 'INVALID_JSON',
+          debug: parseError.message
         }),
         { 
           status: 400,
@@ -94,7 +98,7 @@ serve(async (req) => {
 
     const allShots = []
     let chunkIndex = 0
-    const chunkSize = 3 // Process 3 frames at a time for faster processing
+    const chunkSize = 2 // Process 2 frames at a time for more reliable processing
 
     // Process frames in smaller chunks for better performance
     for (let i = 0; i < frames.length; i += chunkSize) {
@@ -148,7 +152,7 @@ JSON ONLY:`
         }],
         generationConfig: {
           temperature: 0.1,
-          maxOutputTokens: 800
+          maxOutputTokens: 500
         }
       }
 
@@ -170,8 +174,8 @@ JSON ONLY:`
           
           // For rate limit errors, try once more with delay
           if (geminiResponse.status === 429) {
-            console.log('Rate limited, waiting 2 seconds...')
-            await new Promise(resolve => setTimeout(resolve, 2000))
+            console.log('Rate limited, waiting 3 seconds...')
+            await new Promise(resolve => setTimeout(resolve, 3000))
             continue
           }
           
@@ -207,8 +211,8 @@ JSON ONLY:`
           }
         }
 
-        // Reduced delay between chunks
-        await new Promise(resolve => setTimeout(resolve, 300))
+        // Delay between chunks to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 500))
 
       } catch (error) {
         console.error(`Chunk ${chunkIndex} - Request error:`, error)
