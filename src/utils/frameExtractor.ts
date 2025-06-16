@@ -22,9 +22,9 @@ export const extractFramesAt10FPS = async (
     let frameNumber = 0;
 
     video.onloadedmetadata = () => {
-      // Set reasonable canvas size
-      canvas.width = Math.min(video.videoWidth, 800);
-      canvas.height = Math.min(video.videoHeight, 600);
+      // Set reasonable canvas size for smaller payloads
+      canvas.width = Math.min(video.videoWidth, 640);
+      canvas.height = Math.min(video.videoHeight, 480);
       
       const duration = video.duration;
       const frameInterval = 0.1; // 10 FPS
@@ -45,7 +45,8 @@ export const extractFramesAt10FPS = async (
         
         video.onseeked = () => {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = canvas.toDataURL('image/jpeg', 0.8);
+          // Use lower quality for smaller payloads
+          const imageData = canvas.toDataURL('image/jpeg', 0.6);
           
           frames.push({
             imageData,

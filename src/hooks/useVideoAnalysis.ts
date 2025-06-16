@@ -29,8 +29,6 @@ export const useVideoAnalysis = () => {
 
       // API Orchestration
       const { model, reason } = getModelChoice();
-      setAnalysisProgress(`🤖 ${reason} - analyzing ${frames.length} frames...`);
-      
       console.log('🔧 API Choice:', { model, reason, remainingRequests: getRemainingRequests() });
 
       if (model === 'gemini') {
@@ -40,96 +38,124 @@ export const useVideoAnalysis = () => {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Send to AI
-      const requestPayload = {
-        frames: frames.map(frame => ({
-          imageData: frame.imageData,
-          timestamp: frame.timestamp,
-          frameNumber: frame.frameNumber
-        })),
-        modelChoice: model,
+      // Process frames in batches to avoid overwhelming the API
+      const BATCH_SIZE = model === 'gemini' ? 50 : 30; // Smaller batches for reliability
+      const batches = [];
+      
+      for (let i = 0; i < frames.length; i += BATCH_SIZE) {
+        batches.push(frames.slice(i, i + BATCH_SIZE));
+      }
+
+      console.log(`📦 Processing ${frames.length} frames in ${batches.length} batches (${BATCH_SIZE} frames each)`);
+
+      let allDetectedShots: any[] = [];
+
+      // Process each batch
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        const batchProgress = `⚡ Processing batch ${batchIndex + 1}/${batches.length} with ${model.toUpperCase()} (${batch.length} frames)...`;
+        setAnalysisProgress(batchProgress);
+        
+        console.log(`Processing batch ${batchIndex + 1}/${batches.length}: frames ${batch[0].frameNumber}-${batch[batch.length-1].frameNumber}`);
+
+        const requestPayload = {
+          frames: batch.map(frame => ({
+            imageData: frame.imageData,
+            timestamp: frame.timestamp,
+            frameNumber: frame.frameNumber
+          })),
+          modelChoice: model,
+          userId: user?.id || null,
+          drillMode: isDrillMode,
+          batchInfo: {
+            batchIndex: batchIndex + 1,
+            totalBatches: batches.length,
+            framesInBatch: batch.length
+          }
+        };
+
+        try {
+          const { data: batchResult, error: batchError } = await supabase.functions.invoke('analyze-video', {
+            body: requestPayload
+          });
+
+          if (batchError) {
+            console.error(`Batch ${batchIndex + 1} error:`, batchError);
+            
+            if (batchResult && batchResult.errorType === 'NO_SHOTS_DETECTED_BY_AI') {
+              console.log(`Batch ${batchIndex + 1}: No shots detected, continuing...`);
+              continue;
+            }
+            
+            throw new Error(batchError.message || `Batch ${batchIndex + 1} analysis failed`);
+          }
+
+          if (batchResult && batchResult.shots && Array.isArray(batchResult.shots)) {
+            allDetectedShots = allDetectedShots.concat(batchResult.shots);
+            console.log(`Batch ${batchIndex + 1} complete: ${batchResult.shots.length} shots detected`);
+          }
+
+        } catch (batchError) {
+          console.error(`Batch ${batchIndex + 1} processing failed:`, batchError);
+          // Continue with next batch instead of failing completely
+          continue;
+        }
+
+        // Small delay between batches to avoid rate limiting
+        if (batchIndex < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      console.log(`All batches processed. Total shots detected: ${allDetectedShots.length}`);
+
+      if (allDetectedShots.length === 0) {
+        throw new Error('No shots detected in any batch');
+      }
+
+      // Combine results and save to database
+      setAnalysisProgress('💾 Saving analysis results...');
+
+      // Sort shots by timestamp and renumber them
+      allDetectedShots.sort((a, b) => a.timestamp - b.timestamp);
+      allDetectedShots.forEach((shot, index) => {
+        shot.shot_number = index + 1;
+      });
+
+      // Calculate split times
+      const splitTimes = [];
+      for (let i = 1; i < allDetectedShots.length; i++) {
+        const splitTime = allDetectedShots[i].timestamp - allDetectedShots[i-1].timestamp;
+        splitTimes.push(parseFloat(splitTime.toFixed(3)));
+      }
+
+      // Save session data
+      const finalRequestPayload = {
+        finalizeSession: true,
+        shots: allDetectedShots,
+        splitTimes,
         userId: user?.id || null,
-        drillMode: isDrillMode
+        drillMode: isDrillMode,
+        modelChoice: model,
+        totalFramesProcessed: frames.length,
+        batchesProcessed: batches.length
       };
 
-      const payloadSize = JSON.stringify(requestPayload).length;
-      console.log('📦 Payload details:', { 
-        frameCount: frames.length,
-        modelChoice: model,
-        payloadSizeKB: Math.round(payloadSize / 1024)
+      const { data: sessionResult, error: sessionError } = await supabase.functions.invoke('analyze-video', {
+        body: finalRequestPayload
       });
 
-      setAnalysisProgress(`⚡ Processing ${frames.length} frames with ${model.toUpperCase()}...`);
-
-      // Call the Edge Function
-      const timeoutDuration = model === 'gemini' ? 45000 : 60000;
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error(`${model.toUpperCase()} analysis timed out`)), timeoutDuration);
-      });
-
-      try {
-        const analysisPromise = supabase.functions.invoke('analyze-video', {
-          body: requestPayload
-        });
-
-        const result = await Promise.race([analysisPromise, timeoutPromise]);
-        const { data: analysisData, error: analysisError } = result as any;
-
-        console.log(`${model.toUpperCase()} analysis response - data:`, analysisData);
-        console.log(`${model.toUpperCase()} analysis response - error:`, analysisError);
-
-        if (analysisError) {
-          console.error(`${model.toUpperCase()} analysis error:`, analysisError);
-          
-          if (analysisData && typeof analysisData === 'object' && analysisData.error) {
-            const errorMessage = analysisData.error;
-            const errorType = analysisData.errorType || 'UNKNOWN_ERROR';
-            
-            if (errorType === 'QUOTA_EXCEEDED' || errorMessage.includes('quota')) {
-              const timeUntilReset = getTimeUntilReset();
-              toast({
-                title: "Analysis Quota Exceeded",
-                description: `${model.toUpperCase()} service quota reached. ${timeUntilReset > 0 ? `Try again in ${timeUntilReset}s` : 'Please try again later'}`,
-                variant: "destructive",
-              });
-              throw new Error(`${model.toUpperCase()} quota exceeded. Try again later.`);
-            }
-            
-            if (errorType === 'NO_SHOTS_DETECTED_BY_AI') {
-              toast({
-                title: "No Impacts Found",
-                description: `${model.toUpperCase()} analysis found no bullet impacts in this video.`,
-                variant: "destructive",
-              });
-              throw new Error(`No shots confirmed by ${model.toUpperCase()} analysis.`);
-            }
-
-            throw new Error(errorMessage);
-          }
-          
-          throw new Error(analysisError.message || `${model.toUpperCase()} analysis service error`);
-        }
-
-        if (!analysisData || !analysisData.sessionId) {
-          throw new Error(`Invalid response from ${model.toUpperCase()} analysis service`);
-        }
-
-        console.log(`${model.toUpperCase()} analysis completed successfully, session ID:`, analysisData.sessionId);
-
-        const modelName = model === 'gemini' ? 'Gemini 2.5 Flash Preview' : 'Gemma 3 27B';
-        toast({
-          title: "Analysis Complete!",
-          description: `${modelName} successfully analyzed ${frames.length} frames!`,
-        });
-
-        return analysisData.sessionId;
-
-      } catch (fetchError) {
-        if (fetchError.message.includes('timed out')) {
-          throw new Error(`${model.toUpperCase()} analysis timed out. The video may be too complex for analysis.`);
-        }
-        throw fetchError;
+      if (sessionError || !sessionResult?.sessionId) {
+        throw new Error('Failed to save analysis session');
       }
+
+      const modelName = model === 'gemini' ? 'Gemini 2.5 Flash Preview' : 'Gemma 3 27B';
+      toast({
+        title: "Analysis Complete!",
+        description: `${modelName} analyzed ${frames.length} frames in ${batches.length} batches and found ${allDetectedShots.length} shots!`,
+      });
+
+      return sessionResult.sessionId;
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred in video analysis';

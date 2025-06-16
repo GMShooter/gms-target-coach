@@ -20,7 +20,14 @@ serve(async (req) => {
     )
 
     const requestBody = await req.json();
-    const { frames, modelChoice = 'gemini', userId, drillMode = false } = requestBody;
+    
+    // Handle session finalization
+    if (requestBody.finalizeSession) {
+      return await finalizeSession(supabaseClient, requestBody);
+    }
+
+    // Handle batch analysis
+    const { frames, modelChoice = 'gemini', userId, drillMode = false, batchInfo } = requestBody;
 
     if (!frames || !Array.isArray(frames) || frames.length === 0) {
       return new Response(
@@ -35,10 +42,11 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Starting ${modelChoice.toUpperCase()} analysis for ${frames.length} frames`);
+    const batchDesc = batchInfo ? `batch ${batchInfo.batchIndex}/${batchInfo.totalBatches}` : 'frames';
+    console.log(`Starting ${modelChoice.toUpperCase()} analysis for ${frames.length} frames (${batchDesc})`);
 
     // Configure API based on model choice
-    let apiUrl, apiKey, headers;
+    let apiUrl, apiKey;
     
     if (modelChoice === 'gemini') {
       apiKey = Deno.env.get('GEMINI_API_KEY');
@@ -55,10 +63,8 @@ serve(async (req) => {
         );
       }
       apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-      headers = { 'Content-Type': 'application/json' };
     } else {
-      // Use the provided Gemini key for Gemma
-      apiKey = 'AIzaSyB-BLK4CrCg-sgdUwC8sePAbNtXjbWTyxE';
+      apiKey = Deno.env.get('GEMINI_API_KEY'); // Using same key for Gemma
       if (!apiKey) {
         return new Response(
           JSON.stringify({ 
@@ -72,16 +78,14 @@ serve(async (req) => {
         );
       }
       apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${apiKey}`;
-      headers = { 'Content-Type': 'application/json' };
     }
 
-    // Prepare analysis request
-    let parts = [];
-    
-    parts.push({
-      text: `EXPERT SHOOTING ANALYSIS - ${modelChoice.toUpperCase()} MODE
+    // Prepare analysis request with optimized prompt
+    const parts = [
+      {
+        text: `EXPERT SHOOTING ANALYSIS - ${modelChoice.toUpperCase()} BATCH MODE
 
-You are analyzing ${frames.length} FRAMES from video sampling at 10 FPS. Each frame shows a potential moment when a bullet impact occurred.
+You are analyzing ${frames.length} frames from a shooting video. Each frame may contain bullet impacts on a target.
 
 CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, just JSON.
 
@@ -94,7 +98,7 @@ For each frame that shows a clear bullet impact (new hole), return:
     "y_coordinate": 5.8,
     "timestamp": ${frames[0]?.timestamp || 0},
     "direction": "High Left", 
-    "comment": "Clean center shot - excellent trigger control"
+    "comment": "Clean center shot"
   }
 ]
 
@@ -102,23 +106,16 @@ DIRECTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "Hig
 COORDINATES: Center=(0,0), Right=+X, Up=+Y, in millimeters from bullseye
 SCORING: 10=bullseye, 9=inner ring, 8=next ring, etc.
 
-EMPTY: Return [] if no clear impacts visible
+RETURN [] if no clear impacts visible.
 
-JSON ONLY:`
-    });
-
-    // Add frames in chunks
-    const chunkSize = modelChoice === 'gemini' ? 15 : 20;
-    
-    frames.forEach((frame, index) => {
-      if (index % chunkSize === 0 && index > 0) {
-        parts.push({
-          text: `--- CHUNK ${Math.floor(index / chunkSize) + 1} ---`
-        });
+FRAMES TO ANALYZE:`
       }
-      
+    ];
+
+    // Add frames in smaller chunks for better processing
+    frames.forEach((frame, index) => {
       parts.push({
-        text: `Frame ${index + 1} (t=${frame.timestamp}s):`
+        text: `Frame ${frame.frameNumber} (t=${frame.timestamp}s):`
       });
       parts.push({
         inlineData: {
@@ -133,18 +130,18 @@ JSON ONLY:`
         parts: parts
       }],
       generationConfig: {
-        temperature: modelChoice === 'gemini' ? 0.1 : 0.15,
-        maxOutputTokens: modelChoice === 'gemini' ? 2048 : 1536,
+        temperature: 0.1,
+        maxOutputTokens: 2048,
         topP: 0.9
       }
     };
 
-    console.log(`Calling ${modelChoice.toUpperCase()} API with ${frames.length} frames...`);
+    console.log(`Calling ${modelChoice.toUpperCase()} API for ${batchDesc}...`);
 
     try {
       const apiResponse = await fetch(apiUrl, {
         method: 'POST',
-        headers: headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload)
       });
 
@@ -157,7 +154,7 @@ JSON ONLY:`
         if (apiResponse.status === 429) {
           return new Response(
             JSON.stringify({ 
-              error: `${modelChoice.toUpperCase()} rate limit exceeded. Please try again later.`,
+              error: `${modelChoice.toUpperCase()} rate limit exceeded.`,
               errorType: 'QUOTA_EXCEEDED'
             }),
             { 
@@ -174,14 +171,14 @@ JSON ONLY:`
       let content = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (!content) {
-        console.error('No content in API response');
+        console.log(`No content in ${modelChoice.toUpperCase()} response for ${batchDesc}`);
         return new Response(
           JSON.stringify({ 
-            error: `${modelChoice.toUpperCase()} returned no analysis content.`,
-            errorType: 'NO_CONTENT'
+            shots: [],
+            batchInfo: batchInfo
           }),
           { 
-            status: 422,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         );
@@ -195,68 +192,52 @@ JSON ONLY:`
           content = jsonMatch[0];
         }
         
-        console.log(`${modelChoice.toUpperCase()} cleaned response:`, content.substring(0, 200));
+        console.log(`${modelChoice.toUpperCase()} cleaned response for ${batchDesc}:`, content.substring(0, 200));
         
         const shots = JSON.parse(content);
         if (!Array.isArray(shots)) {
-          throw new Error('Response is not an array');
-        }
-
-        console.log(`${modelChoice.toUpperCase()} analysis complete: ${shots.length} shots identified`);
-
-        if (shots.length === 0) {
+          console.log(`Invalid array response for ${batchDesc}, treating as no shots`);
           return new Response(
             JSON.stringify({ 
-              error: `${modelChoice.toUpperCase()} could not identify clear bullet impacts in the frames.`,
-              errorType: 'NO_SHOTS_DETECTED_BY_AI'
+              shots: [],
+              batchInfo: batchInfo
             }),
             { 
-              status: 422,
+              status: 200,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             }
           );
         }
 
-        // Sort and number shots by timestamp
-        shots.sort((a, b) => a.timestamp - b.timestamp);
-        shots.forEach((shot, index) => {
-          shot.shot_number = index + 1;
-        });
-        
-        // Calculate split times
-        const splitTimes = [];
-        for (let i = 1; i < shots.length; i++) {
-          const splitTime = shots[i].timestamp - shots[i-1].timestamp;
-          splitTimes.push(parseFloat(splitTime.toFixed(3)));
-        }
-        
-        console.log(`Split times calculated: ${splitTimes.join(', ')}s`);
-        
-        return await processShotsData(
-          supabaseClient, 
-          shots, 
-          userId, 
-          `${modelChoice}-analysis`, 
-          drillMode,
-          splitTimes
+        console.log(`${modelChoice.toUpperCase()} analysis complete for ${batchDesc}: ${shots.length} shots identified`);
+
+        return new Response(
+          JSON.stringify({ 
+            shots: shots,
+            batchInfo: batchInfo
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
         );
 
       } catch (parseError) {
-        console.error(`Failed to parse ${modelChoice.toUpperCase()} response:`, parseError);
+        console.error(`Failed to parse ${modelChoice.toUpperCase()} response for ${batchDesc}:`, parseError);
         return new Response(
           JSON.stringify({ 
-            error: `${modelChoice.toUpperCase()} returned invalid response format.`,
-            errorType: 'PARSE_ERROR'
+            shots: [],
+            batchInfo: batchInfo
           }),
           { 
-            status: 422,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         );
       }
 
     } catch (error) {
-      console.error(`${modelChoice.toUpperCase()} API call failed:`, error);
+      console.error(`${modelChoice.toUpperCase()} API call failed for ${batchDesc}:`, error);
       return new Response(
         JSON.stringify({ 
           error: `${modelChoice.toUpperCase()} analysis failed: ${error.message}`,
@@ -284,58 +265,62 @@ JSON ONLY:`
   }
 });
 
-async function processShotsData(
-  supabaseClient: any, 
-  shots: any[], 
-  userId: string | null, 
-  videoUrl: string, 
-  drillMode: boolean,
-  splitTimes: number[]
-) {
-  const totalShots = shots.length
-  const totalScore = shots.reduce((sum, shot) => sum + shot.score, 0)
-  const averageScore = totalScore / totalShots
+async function finalizeSession(supabaseClient: any, requestBody: any) {
+  const { shots, splitTimes, userId, drillMode, modelChoice, totalFramesProcessed, batchesProcessed } = requestBody;
+
+  if (!shots || shots.length === 0) {
+    return new Response(
+      JSON.stringify({ 
+        error: 'No shots to save in session.',
+        errorType: 'NO_SHOTS_TO_SAVE'
+      }),
+      { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+
+  // Calculate session statistics
+  const totalShots = shots.length;
+  const totalScore = shots.reduce((sum: number, shot: any) => sum + shot.score, 0);
+  const accuracyPercentage = Math.round((shots.filter((shot: any) => shot.score >= 9).length / totalShots) * 100);
   
-  const highScoringShots = shots.filter(shot => shot.score >= 9).length
-  const accuracyPercentage = Math.round((highScoringShots / totalShots) * 100)
-  
-  let groupSize = 0
+  // Calculate group size
+  let groupSize = 0;
   for (let i = 0; i < shots.length; i++) {
     for (let j = i + 1; j < shots.length; j++) {
       const distance = Math.sqrt(
         Math.pow(shots[i].x_coordinate - shots[j].x_coordinate, 2) + 
         Math.pow(shots[i].y_coordinate - shots[j].y_coordinate, 2)
-      )
-      groupSize = Math.max(groupSize, distance)
+      );
+      groupSize = Math.max(groupSize, distance);
     }
   }
   
-  const leftShots = shots.filter(shot => shot.direction.includes('Left')).length
-  const rightShots = shots.filter(shot => shot.direction.includes('Right')).length
+  // Calculate directional trend
+  const leftShots = shots.filter((shot: any) => shot.direction.includes('Left')).length;
+  const rightShots = shots.filter((shot: any) => shot.direction.includes('Right')).length;
   
-  let directionalTrend = 'Centered shooting'
+  let directionalTrend = 'Centered shooting';
   if (leftShots > rightShots) {
-    directionalTrend = `${Math.round((leftShots / totalShots) * 100)}% left bias`
+    directionalTrend = `${Math.round((leftShots / totalShots) * 100)}% left bias`;
   } else if (rightShots > leftShots) {
-    directionalTrend = `${Math.round((rightShots / totalShots) * 100)}% right bias`
+    directionalTrend = `${Math.round((rightShots / totalShots) * 100)}% right bias`;
   }
 
-  let timeToFirstShot = null
-  let averageSplitTime = null
-  
-  if (shots.length > 0 && shots[0].timestamp !== undefined) {
-    timeToFirstShot = shots[0].timestamp
-    
-    if (splitTimes.length > 0) {
-      averageSplitTime = splitTimes.reduce((sum, time) => sum + time, 0) / splitTimes.length
-    }
-  }
+  // Time calculations
+  const timeToFirstShot = shots.length > 0 ? shots[0].timestamp : null;
+  const averageSplitTime = splitTimes && splitTimes.length > 0 
+    ? splitTimes.reduce((sum: number, time: number) => sum + time, 0) / splitTimes.length 
+    : null;
 
+  // Create session
   const { data: session, error: sessionError } = await supabaseClient
     .from('sessions')
     .insert({
       user_id: userId,
-      video_url: videoUrl,
+      video_url: `${modelChoice}-batch-analysis`,
       total_score: totalScore,
       group_size_mm: Math.round(groupSize),
       accuracy_percentage: accuracyPercentage,
@@ -343,26 +328,27 @@ async function processShotsData(
       drill_mode: drillMode,
       time_to_first_shot: timeToFirstShot,
       average_split_time: averageSplitTime,
-      split_times: splitTimes.length > 0 ? splitTimes : null
+      split_times: splitTimes && splitTimes.length > 0 ? splitTimes : null
     })
     .select()
-    .single()
+    .single();
 
   if (sessionError) {
-    console.error('Session creation error:', sessionError)
+    console.error('Session creation error:', sessionError);
     return new Response(
       JSON.stringify({ 
-        error: `Failed to save analysis: ${sessionError.message}`,
+        error: `Failed to save session: ${sessionError.message}`,
         errorType: 'DATABASE_ERROR'
       }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    )
+    );
   }
 
-  const shotInserts = shots.map(shot => ({
+  // Create shots
+  const shotInserts = shots.map((shot: any) => ({
     session_id: session.id,
     shot_number: shot.shot_number,
     score: shot.score,
@@ -371,25 +357,27 @@ async function processShotsData(
     direction: shot.direction,
     comment: shot.comment || '',
     shot_timestamp: shot.timestamp || null
-  }))
+  }));
 
   const { error: shotsError } = await supabaseClient
     .from('shots')
-    .insert(shotInserts)
+    .insert(shotInserts);
 
   if (shotsError) {
-    console.error('Shots creation error:', shotsError)
+    console.error('Shots creation error:', shotsError);
     return new Response(
       JSON.stringify({ 
-        error: `Failed to save shot analysis: ${shotsError.message}`,
+        error: `Failed to save shots: ${shotsError.message}`,
         errorType: 'DATABASE_ERROR'
       }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    )
+    );
   }
+
+  console.log(`Session finalized: ${session.id} with ${totalShots} shots from ${batchesProcessed} batches (${totalFramesProcessed} frames)`);
 
   return new Response(
     JSON.stringify({ sessionId: session.id }),
@@ -397,5 +385,5 @@ async function processShotsData(
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     }
-  )
+  );
 }
