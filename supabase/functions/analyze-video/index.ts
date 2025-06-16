@@ -19,11 +19,11 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // Parse request body
+    // Parse request body with enhanced logging
     let requestBody;
     try {
       const bodyText = await req.text();
-      console.log('Request body length:', bodyText.length);
+      console.log('Raw request body length:', bodyText.length);
       
       if (!bodyText || bodyText.trim() === '') {
         console.error('Empty request body received');
@@ -41,6 +41,12 @@ serve(async (req) => {
 
       requestBody = JSON.parse(bodyText);
       console.log('Request keys:', Object.keys(requestBody));
+      console.log('Payload details:', {
+        detectedShotsCount: requestBody.detectedShots?.length || 0,
+        modelChoice: requestBody.modelChoice,
+        fallbackMode: requestBody.fallbackMode || false,
+        payloadSizeKB: Math.round(bodyText.length / 1024)
+      });
     } catch (parseError) {
       console.error('Failed to parse request body:', parseError);
       return new Response(
@@ -55,7 +61,13 @@ serve(async (req) => {
       );
     }
 
-    const { detectedShots, modelChoice = 'gemini', userId, drillMode = false } = requestBody;
+    const { 
+      detectedShots, 
+      modelChoice = 'gemini', 
+      userId, 
+      drillMode = false, 
+      fallbackMode = false 
+    } = requestBody;
 
     // Validate input
     if (!detectedShots || !Array.isArray(detectedShots) || detectedShots.length === 0) {
@@ -72,7 +84,7 @@ serve(async (req) => {
       )
     }
 
-    console.log(`Starting ${modelChoice.toUpperCase()} analysis for ${detectedShots.length} detected shots`);
+    console.log(`Starting ${modelChoice.toUpperCase()} analysis for ${detectedShots.length} detected shots (fallback: ${fallbackMode})`);
 
     // Configure API based on model choice
     let apiUrl, apiKey, headers;
@@ -91,11 +103,11 @@ serve(async (req) => {
           }
         );
       }
-      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
       headers = { 'Content-Type': 'application/json' };
     } else {
-      // Gemma fallback (would need different API setup)
-      apiKey = Deno.env.get('GEMMA_API_KEY') || Deno.env.get('GEMINI_API_KEY'); // Use Gemini as fallback for now
+      // Use the provided Gemini key for Gemma (as fallback)
+      apiKey = 'AIzaSyB-BLK4CrCg-sgdUwC8sePAbNtXjbWTyxE';
       if (!apiKey) {
         return new Response(
           JSON.stringify({ 
@@ -108,16 +120,17 @@ serve(async (req) => {
           }
         );
       }
-      // For now, use Gemini with different parameters for "Gemma mode"
-      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      // Use Gemini Flash as "Gemma" for now - could be replaced with actual Gemma endpoint
+      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
       headers = { 'Content-Type': 'application/json' };
     }
 
     // Prepare analysis request
+    const modeDescription = fallbackMode ? 'FALLBACK FULL VIDEO ANALYSIS' : 'VIBE SHOT DETECTION';
     const parts = [{
-      text: `EXPERT SHOOTING ANALYSIS - ${modelChoice.toUpperCase()} MODE
+      text: `EXPERT SHOOTING ANALYSIS - ${modelChoice.toUpperCase()} MODE (${modeDescription})
 
-You are analyzing ${detectedShots.length} KEY FRAMES from visual shot detection. Each frame shows a moment when a new bullet impact was detected.
+You are analyzing ${detectedShots.length} ${fallbackMode ? 'SAMPLED FRAMES' : 'KEY FRAMES'} from ${fallbackMode ? 'comprehensive video sampling' : 'ViBe-based visual shot detection'}. ${fallbackMode ? 'Each frame represents a time sample from the video.' : 'Each frame shows a moment when a new bullet impact was detected by computer vision.'}
 
 CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, just JSON.
 
@@ -138,15 +151,25 @@ DIRECTIONS: "Centered", "High Left", "High Right", "Low Left", "Low Right", "Hig
 COORDINATES: Center=(0,0), Right=+X, Up=+Y, in millimeters from bullseye
 SCORING: 10=bullseye, 9=inner ring, 8=next ring, etc.
 
+${fallbackMode ? 'FALLBACK MODE: Look carefully across all frames for ANY bullet impacts, as some may be from non-shot moments.' : 'VIBE MODE: These frames were pre-selected by computer vision as containing new bullet holes.'}
+
 EMPTY: Return [] if no clear impacts visible
 
 JSON ONLY:`
     }];
 
-    // Add detected shot frames
+    // Add detected shot frames in chunks for better processing
+    const chunkSize = modelChoice === 'gemini' ? 3 : 5; // Smaller chunks for Gemini
+    
     detectedShots.forEach((shot, index) => {
+      if (index % chunkSize === 0 && index > 0) {
+        parts.push({
+          text: `--- CHUNK ${Math.floor(index / chunkSize) + 1} ---`
+        });
+      }
+      
       parts.push({
-        text: `Frame ${index + 1} (t=${shot.timestamp}s, confidence=${(shot.confidenceScore * 100).toFixed(1)}%):`
+        text: `${fallbackMode ? 'Sample' : 'Frame'} ${index + 1} (t=${shot.timestamp}s${fallbackMode ? '' : `, confidence=${(shot.confidenceScore * 100).toFixed(1)}%`}):`
       });
       parts.push({
         inlineData: {
@@ -161,12 +184,13 @@ JSON ONLY:`
         parts: parts
       }],
       generationConfig: {
-        temperature: modelChoice === 'gemini' ? 0.1 : 0.3,
-        maxOutputTokens: modelChoice === 'gemini' ? 1000 : 800
+        temperature: modelChoice === 'gemini' ? 0.1 : 0.2,
+        maxOutputTokens: modelChoice === 'gemini' ? 2048 : 1024,
+        topP: 0.9
       }
     };
 
-    console.log(`Calling ${modelChoice.toUpperCase()} API with ${detectedShots.length} key frames...`);
+    console.log(`Calling ${modelChoice.toUpperCase()} API with ${detectedShots.length} ${fallbackMode ? 'sampled frames' : 'key frames'} in ${Math.ceil(detectedShots.length / chunkSize)} chunks...`);
 
     try {
       const apiResponse = await fetch(apiUrl, {
@@ -234,8 +258,8 @@ JSON ONLY:`
         if (shots.length === 0) {
           return new Response(
             JSON.stringify({ 
-              error: `${modelChoice.toUpperCase()} could not identify clear bullet impacts in the detected frames.`,
-              errorType: 'NO_SHOTS_DETECTED'
+              error: `${modelChoice.toUpperCase()} could not identify clear bullet impacts in the ${fallbackMode ? 'sampled frames' : 'detected frames'}.`,
+              errorType: 'NO_SHOTS_DETECTED_BY_AI'
             }),
             { 
               status: 422,
@@ -244,13 +268,29 @@ JSON ONLY:`
           );
         }
 
-        // Sort and number shots
+        // Sort and number shots by timestamp
         shots.sort((a, b) => a.timestamp - b.timestamp);
         shots.forEach((shot, index) => {
           shot.shot_number = index + 1;
         });
         
-        return await processShotsData(supabaseClient, shots, userId, `${modelChoice}-visual-detection`, drillMode);
+        // Calculate split times
+        const splitTimes = [];
+        for (let i = 1; i < shots.length; i++) {
+          const splitTime = shots[i].timestamp - shots[i-1].timestamp;
+          splitTimes.push(parseFloat(splitTime.toFixed(3)));
+        }
+        
+        console.log(`Split times calculated: ${splitTimes.join(', ')}s`);
+        
+        return await processShotsData(
+          supabaseClient, 
+          shots, 
+          userId, 
+          `${modelChoice}-${fallbackMode ? 'fallback' : 'vibe'}-detection`, 
+          drillMode,
+          splitTimes
+        );
 
       } catch (parseError) {
         console.error(`Failed to parse ${modelChoice.toUpperCase()} response:`, parseError);
@@ -295,7 +335,14 @@ JSON ONLY:`
   }
 });
 
-async function processShotsData(supabaseClient: any, shots: any[], userId: string | null, videoUrl: string, drillMode: boolean) {
+async function processShotsData(
+  supabaseClient: any, 
+  shots: any[], 
+  userId: string | null, 
+  videoUrl: string, 
+  drillMode: boolean,
+  splitTimes: number[]
+) {
   // Expert-level performance analysis
   const totalShots = shots.length
   const totalScore = shots.reduce((sum, shot) => sum + shot.score, 0)
@@ -331,16 +378,10 @@ async function processShotsData(supabaseClient: any, shots: any[], userId: strin
   }
 
   let timeToFirstShot = null
-  let splitTimes = []
   let averageSplitTime = null
   
   if (shots.length > 0 && shots[0].timestamp !== undefined) {
     timeToFirstShot = shots[0].timestamp
-    
-    for (let i = 1; i < shots.length; i++) {
-      const splitTime = shots[i].timestamp - shots[i-1].timestamp
-      splitTimes.push(splitTime)
-    }
     
     if (splitTimes.length > 0) {
       averageSplitTime = splitTimes.reduce((sum, time) => sum + time, 0) / splitTimes.length
