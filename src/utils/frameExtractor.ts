@@ -5,9 +5,8 @@ export interface ExtractedFrame {
   frameNumber: number;
 }
 
-export const extractFramesAtFPS = async (
-  videoFile: File, 
-  targetFPS: number = 3 // Reduced to 3 FPS for even smaller payloads
+export const extractFramesAt10FPS = async (
+  videoFile: File
 ): Promise<ExtractedFrame[]> => {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
@@ -23,22 +22,21 @@ export const extractFramesAtFPS = async (
     let frameNumber = 0;
 
     video.onloadedmetadata = () => {
-      // Even smaller canvas size for reduced payload
-      canvas.width = Math.min(video.videoWidth, 480);
-      canvas.height = Math.min(video.videoHeight, 360);
+      // Set reasonable canvas size
+      canvas.width = Math.min(video.videoWidth, 800);
+      canvas.height = Math.min(video.videoHeight, 600);
       
       const duration = video.duration;
-      const frameInterval = 1 / targetFPS;
-      const totalFrames = Math.floor(duration * targetFPS);
+      const frameInterval = 0.1; // 10 FPS
+      const totalFrames = Math.floor(duration * 10);
       
-      console.log(`Expert analysis: Extracting ${totalFrames} frames at ${targetFPS} FPS from ${duration}s video`);
-      console.log(`Frame interval: ${frameInterval}s, canvas size: ${canvas.width}x${canvas.height}`);
+      console.log(`Extracting ${totalFrames} frames at 10 FPS from ${duration}s video`);
       
       let currentTime = 0;
       
       const extractNextFrame = () => {
         if (currentTime >= duration) {
-          console.log(`Frame extraction complete: ${frames.length} frames ready for expert analysis`);
+          console.log(`Frame extraction complete: ${frames.length} frames ready`);
           resolve(frames);
           return;
         }
@@ -46,11 +44,8 @@ export const extractFramesAtFPS = async (
         video.currentTime = currentTime;
         
         video.onseeked = () => {
-          // Draw the current frame to canvas
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          
-          // Convert to base64 with lower quality for smaller size
-          const imageData = canvas.toDataURL('image/jpeg', 0.5);
+          const imageData = canvas.toDataURL('image/jpeg', 0.8);
           
           frames.push({
             imageData,
@@ -58,9 +53,8 @@ export const extractFramesAtFPS = async (
             frameNumber: frameNumber++
           });
           
-          // Move to next frame
           currentTime += frameInterval;
-          setTimeout(extractNextFrame, 100); // Faster extraction
+          setTimeout(extractNextFrame, 50);
         };
       };
       
@@ -68,7 +62,7 @@ export const extractFramesAtFPS = async (
     };
     
     video.onerror = () => {
-      reject(new Error('Failed to load video for expert analysis'));
+      reject(new Error('Failed to load video'));
     };
     
     video.src = URL.createObjectURL(videoFile);
