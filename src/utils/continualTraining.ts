@@ -5,29 +5,30 @@ import { yoloDetector } from './yoloDetection';
 
 export interface TrainingData {
   id: string;
-  videoId: string;
+  video_id: string;
   detections: any[];
   annotations: any[];
-  createdAt: string;
-  isValidated: boolean;
+  created_at: string;
+  is_validated: boolean;
+  used_for_training: boolean;
 }
 
 export class ContinualTrainingManager {
   static async extractTrainingData(videoId: string): Promise<TrainingData | null> {
     try {
-      // Get video from storage
-      const { data: video } = await supabase
-        .from('training_videos')
+      // Get video from storage using raw query
+      const { data: video, error: videoError } = await supabase
+        .from('training_videos' as any)
         .select('*')
         .eq('id', videoId)
         .single();
 
-      if (!video) {
-        throw new Error('Video not found');
+      if (videoError || !video) {
+        throw new Error(`Video not found: ${videoError?.message}`);
       }
 
       // Extract frames and run YOLOv8 detection
-      const frames = await this.extractVideoFrames(video.storageUrl);
+      const frames = await this.extractVideoFrames(video.storage_url);
       const detections = [];
 
       for (const frame of frames) {
@@ -38,17 +39,18 @@ export class ContinualTrainingManager {
         });
       }
 
-      // Save training data
-      const trainingData: Omit<TrainingData, 'id'> = {
-        videoId,
+      // Save training data using raw query
+      const trainingData = {
+        video_id: videoId,
         detections,
-        annotations: [], // Will be filled by human validation
-        createdAt: new Date().toISOString(),
-        isValidated: false
+        annotations: [],
+        created_at: new Date().toISOString(),
+        is_validated: false,
+        used_for_training: false
       };
 
       const { data: savedData, error } = await supabase
-        .from('training_data')
+        .from('training_data' as any)
         .insert(trainingData)
         .select()
         .single();
@@ -58,7 +60,7 @@ export class ContinualTrainingManager {
       }
 
       console.log('✅ Training data extracted:', savedData);
-      return savedData;
+      return savedData as TrainingData;
     } catch (error) {
       console.error('❌ Training data extraction error:', error);
       return null;
@@ -126,10 +128,10 @@ export class ContinualTrainingManager {
   static async validateTrainingData(trainingDataId: string, annotations: any[]): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('training_data')
+        .from('training_data' as any)
         .update({
           annotations,
-          isValidated: true
+          is_validated: true
         })
         .eq('id', trainingDataId);
 

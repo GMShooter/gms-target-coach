@@ -28,7 +28,7 @@ serve(async (req) => {
         *,
         training_videos(*)
       `)
-      .eq('isValidated', true);
+      .eq('is_validated', true);
 
     if (trainingError) {
       throw trainingError;
@@ -52,12 +52,12 @@ serve(async (req) => {
     // Prepare training dataset
     const dataset = {
       videos: trainingData.map(item => ({
-        videoUrl: item.training_videos.storageUrl,
+        videoUrl: item.training_videos.storage_url,
         detections: item.detections,
         annotations: item.annotations,
         metadata: {
-          videoId: item.videoId,
-          createdAt: item.createdAt
+          videoId: item.video_id,
+          createdAt: item.created_at
         }
       }))
     };

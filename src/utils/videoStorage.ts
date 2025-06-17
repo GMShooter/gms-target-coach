@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { createHash } from 'crypto';
 
 export interface VideoMetadata {
   id: string;
@@ -8,9 +7,9 @@ export interface VideoMetadata {
   filename: string;
   size: number;
   duration: number;
-  uploadedAt: string;
-  userId: string;
-  storageUrl: string;
+  uploaded_at: string;
+  user_id: string;
+  storage_url: string;
 }
 
 export class VideoStorageManager {
@@ -28,16 +27,16 @@ export class VideoStorageManager {
       // Calculate video hash for deduplication
       const videoHash = await this.calculateVideoHash(file);
       
-      // Check if video already exists
+      // Check if video already exists using raw query
       const { data: existingVideo } = await supabase
-        .from('training_videos')
+        .from('training_videos' as any)
         .select('*')
         .eq('hash', videoHash)
         .single();
 
       if (existingVideo) {
         console.log('📹 Video already exists, skipping upload');
-        return existingVideo;
+        return existingVideo as VideoMetadata;
       }
 
       // Get video duration
@@ -58,19 +57,19 @@ export class VideoStorageManager {
         .from(this.BUCKET_NAME)
         .getPublicUrl(filename);
 
-      // Save metadata to database
-      const videoMetadata: Omit<VideoMetadata, 'id'> = {
+      // Save metadata to database using raw query
+      const videoMetadata = {
         hash: videoHash,
         filename: file.name,
         size: file.size,
         duration,
-        uploadedAt: new Date().toISOString(),
-        userId,
-        storageUrl: publicUrl
+        uploaded_at: new Date().toISOString(),
+        user_id: userId,
+        storage_url: publicUrl
       };
 
       const { data: savedVideo, error: saveError } = await supabase
-        .from('training_videos')
+        .from('training_videos' as any)
         .insert(videoMetadata)
         .select()
         .single();
@@ -80,7 +79,7 @@ export class VideoStorageManager {
       }
 
       console.log('✅ Video uploaded and saved:', savedVideo);
-      return savedVideo;
+      return savedVideo as VideoMetadata;
     } catch (error) {
       console.error('❌ Video upload error:', error);
       return null;
@@ -99,26 +98,26 @@ export class VideoStorageManager {
   }
 
   static async getTrainingVideos(userId?: string): Promise<VideoMetadata[]> {
-    let query = supabase.from('training_videos').select('*');
+    let query = supabase.from('training_videos' as any).select('*');
     
     if (userId) {
-      query = query.eq('userId', userId);
+      query = query.eq('user_id', userId);
     }
 
-    const { data, error } = await query.order('uploadedAt', { ascending: false });
+    const { data, error } = await query.order('uploaded_at', { ascending: false });
 
     if (error) {
       console.error('❌ Error fetching training videos:', error);
       return [];
     }
 
-    return data || [];
+    return (data || []) as VideoMetadata[];
   }
 
   static async deleteVideo(videoId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('training_videos')
+        .from('training_videos' as any)
         .delete()
         .eq('id', videoId);
 
