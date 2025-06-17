@@ -27,12 +27,16 @@ export class VideoStorageManager {
       // Calculate video hash for deduplication
       const videoHash = await this.calculateVideoHash(file);
       
-      // Check if video already exists using raw query
-      const { data: existingVideo } = await supabase
-        .from('training_videos' as any)
+      // Check if video already exists
+      const { data: existingVideo, error: existingError } = await supabase
+        .from('training_videos')
         .select('*')
         .eq('hash', videoHash)
-        .single();
+        .maybeSingle();
+
+      if (existingError) {
+        console.error('Error checking existing video:', existingError);
+      }
 
       if (existingVideo) {
         console.log('📹 Video already exists, skipping upload');
@@ -57,7 +61,7 @@ export class VideoStorageManager {
         .from(this.BUCKET_NAME)
         .getPublicUrl(filename);
 
-      // Save metadata to database using raw query
+      // Save metadata to database
       const videoMetadata = {
         hash: videoHash,
         filename: file.name,
@@ -69,7 +73,7 @@ export class VideoStorageManager {
       };
 
       const { data: savedVideo, error: saveError } = await supabase
-        .from('training_videos' as any)
+        .from('training_videos')
         .insert(videoMetadata)
         .select()
         .single();
@@ -98,7 +102,7 @@ export class VideoStorageManager {
   }
 
   static async getTrainingVideos(userId?: string): Promise<VideoMetadata[]> {
-    let query = supabase.from('training_videos' as any).select('*');
+    let query = supabase.from('training_videos').select('*');
     
     if (userId) {
       query = query.eq('user_id', userId);
@@ -117,7 +121,7 @@ export class VideoStorageManager {
   static async deleteVideo(videoId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('training_videos' as any)
+        .from('training_videos')
         .delete()
         .eq('id', videoId);
 

@@ -16,9 +16,9 @@ export interface TrainingData {
 export class ContinualTrainingManager {
   static async extractTrainingData(videoId: string): Promise<TrainingData | null> {
     try {
-      // Get video from storage using raw query
+      // Get video from storage
       const { data: video, error: videoError } = await supabase
-        .from('training_videos' as any)
+        .from('training_videos')
         .select('*')
         .eq('id', videoId)
         .single();
@@ -39,7 +39,7 @@ export class ContinualTrainingManager {
         });
       }
 
-      // Save training data using raw query
+      // Save training data
       const trainingData = {
         video_id: videoId,
         detections,
@@ -50,7 +50,7 @@ export class ContinualTrainingManager {
       };
 
       const { data: savedData, error } = await supabase
-        .from('training_data' as any)
+        .from('training_data')
         .insert(trainingData)
         .select()
         .single();
@@ -128,7 +128,7 @@ export class ContinualTrainingManager {
   static async validateTrainingData(trainingDataId: string, annotations: any[]): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('training_data' as any)
+        .from('training_data')
         .update({
           annotations,
           is_validated: true
