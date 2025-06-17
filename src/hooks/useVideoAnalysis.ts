@@ -13,6 +13,11 @@ export const useVideoAnalysis = () => {
   const { analyzeVideo: analyzeWithYOLO } = useYOLOAnalysis();
 
   const analyzeVideo = async (file: File, isDrillMode: boolean = false): Promise<string | null> => {
+    if (isAnalyzing) {
+      console.log('Analysis already in progress, skipping...');
+      return null;
+    }
+
     setIsAnalyzing(true);
     setError(null);
 
