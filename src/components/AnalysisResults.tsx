@@ -1,17 +1,24 @@
-
 import React from 'react';
 import { Target, TrendingUp, RotateCcw, AlertTriangle, CheckCircle, XCircle, Timer } from 'lucide-react';
 import { ShotTable } from './ShotTable';
 import { TargetVisualization } from './TargetVisualization';
 import { PerformanceMetrics } from './PerformanceMetrics';
+import { FrameValidation } from './FrameValidation';
 import { useSessionData } from '@/hooks/useSessionData';
 
 interface AnalysisResultsProps {
   sessionId: string;
   onNewAnalysis: () => void;
+  firstFrameBase64?: string;
+  lastFrameBase64?: string;
 }
 
-export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ sessionId, onNewAnalysis }) => {
+export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ 
+  sessionId, 
+  onNewAnalysis, 
+  firstFrameBase64, 
+  lastFrameBase64 
+}) => {
   const { data, loading, error } = useSessionData(sessionId);
 
   if (error) {
@@ -107,18 +114,18 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ sessionId, onN
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
-            Shooting Analysis Results
+            SOTA Analysis Results
             {isDrillMode && (
               <span className="text-lg bg-purple-900/30 text-purple-400 px-3 py-1 rounded-full border border-purple-700/50 flex items-center gap-2">
                 <Timer className="w-4 h-4" />
-                Drill Mode
+                Real-Time Mode
               </span>
             )}
           </h2>
           <p className="text-slate-400">
             {isDrillMode 
-              ? "Professional timing analysis with precision shot tracking"
-              : "Professional coaching feedback and performance metrics"
+              ? "Real-time Roboflow detection with precision shot tracking and Gemini analysis"
+              : "State-of-the-art frame-by-frame analysis with AI-powered coaching"
             }
           </p>
         </div>
@@ -151,15 +158,23 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ sessionId, onN
           <PerformanceMetrics 
             metrics={data?.session || null} 
             loading={loading} 
-            totalShots={data?.shots?.length || 10}
+            totalShots={data?.shots?.length || 0}
           />
         </div>
       </div>
 
+      {/* Frame Validation UI */}
+      {(firstFrameBase64 || lastFrameBase64) && (
+        <FrameValidation 
+          firstFrameBase64={firstFrameBase64}
+          lastFrameBase64={lastFrameBase64}
+        />
+      )}
+
       {/* Shot Table */}
       <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-6">
         <h3 className="text-xl font-semibold mb-4">
-          {isDrillMode ? "Shot-by-Shot Timing Analysis" : "Detailed Shot Analysis"}
+          {isDrillMode ? "Real-Time Shot Detection Log" : "Detailed Shot Analysis"}
         </h3>
         <ShotTable 
           shots={data?.shots || []} 
@@ -172,7 +187,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ sessionId, onN
       {coaching && (
         <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-6 animate-fade-in"
              style={{ animationDelay: '500ms' }}>
-          <h3 className="text-xl font-semibold mb-4">Coach's Analysis & Recommendations</h3>
+          <h3 className="text-xl font-semibold mb-4">SOTA Coach's Analysis & Recommendations</h3>
           
           <div className="grid md:grid-cols-2 gap-6">
             <div>

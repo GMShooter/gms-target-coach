@@ -6,7 +6,7 @@ import { DrillMode } from './DrillMode';
 
 interface VideoUploadProps {
   onVideoUpload: (file: File) => void;
-  onAnalysisComplete: (sessionId: string) => void;
+  onAnalysisComplete: (sessionId: string, firstFrameBase64?: string, lastFrameBase64?: string) => void;
 }
 
 export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnalysisComplete }) => {
@@ -15,6 +15,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
     isAnalyzing, 
     error, 
     analysisProgress,
+    currentFrame,
+    detectedBounds,
     getRemainingRequests,
     getTimeUntilReset,
     isInCooldown
@@ -49,7 +51,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
     onVideoUpload(file);
     const result = await analyzeVideo(file, isDrillMode);
     if (result?.sessionId) {
-      onAnalysisComplete(result.sessionId);
+      onAnalysisComplete(result.sessionId, result.firstFrameBase64, result.lastFrameBase64);
     }
   };
 
@@ -70,30 +72,50 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="animate-spin w-16 h-16 border-4 border-red-400 border-t-transparent rounded-full mx-auto mb-6"></div>
           <h3 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2">
             <Target className="w-6 h-6 text-red-400" />
-            YOLOv8 AI Analysis
+            SOTA Real-Time Analysis
           </h3>
+          
+          {/* Current Frame Display */}
+          {currentFrame && (
+            <div className="mb-6">
+              <div className="relative inline-block border border-slate-600 rounded-lg overflow-hidden">
+                <img 
+                  src={currentFrame} 
+                  alt="Current analysis frame" 
+                  className="w-64 h-64 object-cover"
+                />
+                {/* Overlay detection boxes */}
+                {detectedBounds.length > 0 && (
+                  <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs">
+                    {detectedBounds.length} detections
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
           <div className="space-y-3 text-slate-400">
             <p className="text-lg font-semibold text-blue-400">{analysisProgress}</p>
             <div className="grid grid-cols-1 gap-3 text-sm">
               <div className="flex items-center justify-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-400" />
-                <span>YOLOv8 state-of-the-art object detection</span>
+                <span>Real-time Roboflow detection at 1 FPS</span>
               </div>
               <div className="flex items-center justify-center gap-2">
                 <CheckCircle className="w-4 h-4 text-blue-400" />
-                <span>Gemini 2.5 Flash for intelligent analysis</span>
+                <span>Frame-by-frame shot comparison logic</span>
               </div>
               <div className="flex items-center justify-center gap-2">
                 <CheckCircle className="w-4 h-4 text-purple-400" />
-                <span>Continual learning with video storage</span>
+                <span>Generalized detection - no hardcoded shot counts</span>
               </div>
               <div className="flex items-center justify-center gap-2">
                 <CheckCircle className="w-4 h-4 text-yellow-400" />
-                <span>Smart deduplication and training data extraction</span>
+                <span>Gemini expert analysis with full context</span>
               </div>
               <div className="flex items-center justify-center gap-2">
                 <CheckCircle className="w-4 h-4 text-red-400" />
-                <span>Professional ballistics with split time analysis</span>
+                <span>Complete ballistics and timing analysis</span>
               </div>
             </div>
           </div>
@@ -124,7 +146,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
               : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
           }`}
         >
-          Smart Drill Mode
+          Live Camera Mode
         </button>
       </div>
 
@@ -133,23 +155,17 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-red-400" />
-            <span className="font-semibold text-red-400">YOLOv8 + Gemini Analysis</span>
+            <span className="font-semibold text-red-400">SOTA Roboflow + Gemini</span>
           </div>
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-1">
               <Zap className="w-4 h-4 text-yellow-400" />
-              <span className="text-slate-300">Gemini: {remainingRequests}/10</span>
+              <span className="text-slate-300">Real-time Detection Active</span>
             </div>
-            {isInCooldown && (
-              <div className="flex items-center gap-1">
-                <Clock className="w-4 h-4 text-orange-400" />
-                <span className="text-orange-400">Reset: {timeUntilReset}s</span>
-              </div>
-            )}
           </div>
         </div>
         <div className="mt-2 text-sm text-green-300 bg-green-900/20 rounded p-2">
-          Using YOLOv8 object detection for precise bullet hole identification with continual learning
+          Using state-of-the-art Roboflow detection with generalized frame comparison logic and comprehensive Gemini analysis
         </div>
       </div>
 
@@ -195,10 +211,10 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
               <div>
                 <h3 className="text-xl font-semibold mb-2 flex items-center justify-center gap-2">
                   <Zap className="w-5 h-5 text-yellow-400" />
-                  YOLOv8 + Gemini Video Analysis
+                  SOTA Frame-by-Frame Analysis
                 </h3>
                 <p className="text-slate-400 mb-4">
-                  State-of-the-art object detection with continual learning and AI analysis
+                  Real Roboflow detection with generalized shot comparison logic and AI analysis
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                   <FileVideo className="w-4 h-4" />
@@ -218,17 +234,17 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-6">
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <Upload className="w-4 h-4 text-blue-400" />
-              Next-Generation Analysis Features
+              Real SOTA Pipeline Features
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
-              <li>• <strong className="text-red-400">YOLOv8 Detection:</strong> Real-time object detection with 95%+ accuracy</li>
-              <li>• <strong className="text-blue-400">Gemini 2.5 Flash:</strong> Intelligent analysis and scoring</li>
-              <li>• <strong className="text-green-400">Continual Learning:</strong> Model improves with each video</li>
-              <li>• <strong className="text-purple-400">Smart Deduplication:</strong> No duplicate training data</li>
-              <li>• <strong className="text-yellow-400">Video Storage:</strong> Automatic training dataset building</li>
-              <li>• <strong className="text-orange-400">Model Retraining:</strong> Scheduled performance improvements</li>
+              <li>• <strong className="text-red-400">Real Roboflow API:</strong> Actual object detection, no simulation</li>
+              <li>• <strong className="text-blue-400">Frame-by-Frame Logic:</strong> Precise shot detection by comparison</li>
+              <li>• <strong className="text-green-400">Generalized Detection:</strong> No hardcoded shot assumptions</li>
+              <li>• <strong className="text-purple-400">Full Context Analysis:</strong> All frame data sent to Gemini</li>
+              <li>• <strong className="text-yellow-400">Live UI Feedback:</strong> Real-time frame display during analysis</li>
+              <li>• <strong className="text-orange-400">Frame Validation:</strong> Before/after comparison for accuracy</li>
               <li>• Professional metrics: Split times, grouping, expert feedback</li>
-              <li>• Minimum 720p video quality for optimal results</li>
+              <li>• Minimum 720p video quality for optimal Roboflow detection</li>
             </ul>
           </div>
         </>
