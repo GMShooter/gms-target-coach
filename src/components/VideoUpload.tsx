@@ -47,9 +47,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
 
   const handleVideoFile = async (file: File, isDrillMode: boolean) => {
     onVideoUpload(file);
-    const sessionId = await analyzeVideo(file, isDrillMode);
-    if (sessionId) {
-      onAnalysisComplete(sessionId);
+    const result = await analyzeVideo(file, isDrillMode);
+    if (result?.sessionId) {
+      onAnalysisComplete(result.sessionId);
     }
   };
 
