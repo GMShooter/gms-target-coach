@@ -1,12 +1,24 @@
 
 import React, { useCallback, useState } from 'react';
-import { Upload, Video, FileVideo, Zap, Brain, Clock, AlertTriangle, CheckCircle, Target } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Upload, Video, FileVideo, Zap, Brain, Clock, AlertTriangle, CheckCircle, Target, UploadCloud, File as FileIcon, Trash2, Loader } from 'lucide-react';
 import { useVideoAnalysis } from '@/hooks/useVideoAnalysis';
 import { DrillMode } from './DrillMode';
+import CountUp from 'react-countup';
 
 interface VideoUploadProps {
   onVideoUpload: (file: File) => void;
   onAnalysisComplete: (sessionId: string, firstFrameBase64?: string, lastFrameBase64?: string) => void;
+}
+
+interface FileWithPreview {
+  id: string;
+  preview: string;
+  progress: number;
+  name: string;
+  size: number;
+  type: string;
+  file: File;
 }
 
 export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnalysisComplete }) => {
@@ -16,209 +28,294 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
     error, 
     analysisProgress,
     currentFrame,
-    detectedBounds,
-    getRemainingRequests,
-    getTimeUntilReset,
-    isInCooldown
+    detectedBounds
   } = useVideoAnalysis();
+  
   const [mode, setMode] = useState<'upload' | 'drill'>('upload');
-  const [isRecording, setIsRecording] = useState(false);
-
-  const remainingRequests = getRemainingRequests();
-  const timeUntilReset = getTimeUntilReset();
+  const [files, setFiles] = useState<FileWithPreview[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    const videoFile = files.find(file => file.type.startsWith('video/'));
+    setIsDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    const videoFile = droppedFiles.find(file => file.type.startsWith('video/'));
     if (videoFile) {
-      handleVideoFile(videoFile, false);
+      processVideoFile(videoFile);
     }
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragging(false);
   }, []);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('video/')) {
-      handleVideoFile(file, false);
+      processVideoFile(file);
     }
   };
 
-  const handleVideoFile = async (file: File, isDrillMode: boolean) => {
+  const processVideoFile = (file: File) => {
+    const newFile: FileWithPreview = {
+      id: `${Date.now()}-${file.name}`,
+      preview: URL.createObjectURL(file),
+      progress: 0,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      file
+    };
+    
+    setFiles([newFile]);
+    simulateUpload(newFile.id);
     onVideoUpload(file);
+  };
+
+  const simulateUpload = (fileId: string) => {
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 20 + 10;
+      setFiles(prev => prev.map(f => 
+        f.id === fileId ? { ...f, progress: Math.min(progress, 100) } : f
+      ));
+      if (progress >= 100) {
+        clearInterval(interval);
+        // Start analysis when upload completes
+        const file = files.find(f => f.id === fileId)?.file;
+        if (file) {
+          handleVideoFile(file, false);
+        }
+      }
+    }, 200);
+  };
+
+  const handleVideoFile = async (file: File, isDrillMode: boolean) => {
     const result = await analyzeVideo(file, isDrillMode);
     if (result?.sessionId) {
       onAnalysisComplete(result.sessionId, result.firstFrameBase64, result.lastFrameBase64);
     }
   };
 
-  const handleDrillStart = () => {
-    setIsRecording(true);
-    console.log('Drill mode started');
+  const formatFileSize = (bytes: number): string => {
+    if (!bytes) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
-  const handleDrillStop = () => {
-    setIsRecording(false);
-    console.log('Drill mode stopped');
+  const removeFile = (fileId: string) => {
+    setFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
   if (isAnalyzing) {
     return (
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-12 text-center">
-          <div className="animate-spin w-16 h-16 border-4 border-red-400 border-t-transparent rounded-full mx-auto mb-6"></div>
-          <h3 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2">
-            <Target className="w-6 h-6 text-red-400" />
+      <motion.div 
+        className="max-w-4xl mx-auto"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-12 text-center shadow-2xl">
+          <motion.div 
+            className="relative w-20 h-20 mx-auto mb-8"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-red-600 rounded-full opacity-20 blur-lg" />
+            <div className="relative w-20 h-20 border-4 border-red-400 border-t-transparent rounded-full animate-spin" />
+            <Target className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-red-400" />
+          </motion.div>
+          
+          <h3 className="text-3xl font-bold mb-6 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
             SOTA Real-Time Analysis
           </h3>
           
           {/* Current Frame Display */}
           {currentFrame && (
-            <div className="mb-6">
-              <div className="relative inline-block border border-slate-600 rounded-lg overflow-hidden">
+            <motion.div 
+              className="mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="relative inline-block border-2 border-slate-600 rounded-2xl overflow-hidden shadow-2xl">
                 <img 
                   src={currentFrame} 
                   alt="Current analysis frame" 
-                  className="w-64 h-64 object-cover"
+                  className="w-80 h-80 object-cover"
                 />
-                {/* Overlay detection boxes */}
                 {detectedBounds.length > 0 && (
-                  <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs">
-                    {detectedBounds.length} detections
-                  </div>
+                  <motion.div 
+                    className="absolute top-4 right-4 bg-red-600 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow-lg"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 500 }}
+                  >
+                    <CountUp end={detectedBounds.length} duration={0.5} /> detections
+                  </motion.div>
                 )}
               </div>
-            </div>
+            </motion.div>
           )}
           
-          <div className="space-y-3 text-slate-400">
-            <p className="text-lg font-semibold text-blue-400">{analysisProgress}</p>
-            <div className="grid grid-cols-1 gap-3 text-sm">
-              <div className="flex items-center justify-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-400" />
-                <span>Real-time Roboflow detection at 1 FPS</span>
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                <CheckCircle className="w-4 h-4 text-blue-400" />
-                <span>Frame-by-frame shot comparison logic</span>
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                <CheckCircle className="w-4 h-4 text-purple-400" />
-                <span>Generalized detection - no hardcoded shot counts</span>
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                <CheckCircle className="w-4 h-4 text-yellow-400" />
-                <span>Gemini expert analysis with full context</span>
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                <CheckCircle className="w-4 h-4 text-red-400" />
-                <span>Complete ballistics and timing analysis</span>
-              </div>
+          <motion.div 
+            className="space-y-4 text-slate-300"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <p className="text-xl font-semibold text-blue-400 mb-6">{analysisProgress}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm max-w-2xl mx-auto">
+              {[
+                { Icon: CheckCircle, text: "Real-time Roboflow detection at 1 FPS", color: "text-green-400" },
+                { Icon: CheckCircle, text: "Frame-by-frame shot comparison logic", color: "text-blue-400" },
+                { Icon: CheckCircle, text: "Generalized detection - no hardcoded assumptions", color: "text-purple-400" },
+                { Icon: CheckCircle, text: "Gemini expert analysis with full context", color: "text-yellow-400" }
+              ].map((item, index) => (
+                <motion.div
+                  key={index}
+                  className={`flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 ${item.color}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                >
+                  <item.Icon className="w-5 h-5 flex-shrink-0" />
+                  <span>{item.text}</span>
+                </motion.div>
+              ))}
             </div>
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Mode Selection */}
-      <div className="flex gap-4 justify-center">
-        <button
-          onClick={() => setMode('upload')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            mode === 'upload'
-              ? 'bg-red-600 text-white'
-              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-          }`}
-        >
-          Upload Video
-        </button>
-        <button
-          onClick={() => setMode('drill')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            mode === 'drill'
-              ? 'bg-red-600 text-white'
-              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-          }`}
-        >
-          Live Camera Mode
-        </button>
-      </div>
-
-      {/* API Status */}
-      <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-4">
+    <div className="max-w-4xl mx-auto space-y-8">
+      {/* API Status Banner */}
+      <motion.div 
+        className="bg-gradient-to-r from-slate-800/50 to-slate-700/50 border border-slate-600/50 rounded-2xl p-6 backdrop-blur-sm"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-red-400" />
-            <span className="font-semibold text-red-400">SOTA Roboflow + Gemini</span>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1">
-              <Zap className="w-4 h-4 text-yellow-400" />
-              <span className="text-slate-300">Real-time Detection Active</span>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-500/20 rounded-xl">
+              <Target className="w-6 h-6 text-red-400" />
+            </div>
+            <div>
+              <h4 className="font-bold text-red-400 text-lg">SOTA Roboflow + Gemini</h4>
+              <p className="text-slate-400 text-sm">State-of-the-art detection pipeline active</p>
             </div>
           </div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-green-900/30 border border-green-700/50 rounded-xl">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-green-400 font-medium text-sm">Online</span>
+          </div>
         </div>
-        <div className="mt-2 text-sm text-green-300 bg-green-900/20 rounded p-2">
-          Using state-of-the-art Roboflow detection with generalized frame comparison logic and comprehensive Gemini analysis
-        </div>
-      </div>
+      </motion.div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-5 h-5 text-red-400" />
-            <h4 className="font-semibold text-red-400">Analysis Error</h4>
+        <motion.div 
+          className="p-6 bg-red-900/20 border border-red-700/50 rounded-2xl"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-6 h-6 text-red-400 mt-1 flex-shrink-0" />
+            <div>
+              <h4 className="font-semibold text-red-400 mb-2">Analysis Error</h4>
+              <p className="text-slate-300 mb-4">{error}</p>
+              <div className="text-sm text-slate-400 bg-slate-800/30 p-4 rounded-xl">
+                <p className="font-semibold mb-2">Troubleshooting tips:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Ensure good lighting and clear target visibility</li>
+                  <li>Use white paper target with dark bullet impacts</li>
+                  <li>Minimize camera shake and maintain steady framing</li>
+                  <li>Record in at least 720p resolution</li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <p className="text-slate-300 mb-2">{error}</p>
-          <div className="text-sm text-slate-400">
-            <p><strong>Troubleshooting tips:</strong></p>
-            <ul className="list-disc list-inside space-y-1 mt-1">
-              <li>Ensure good lighting and clear target visibility</li>
-              <li>Use white paper target with dark bullet impacts</li>
-              <li>Minimize camera shake and maintain steady framing</li>
-              <li>Record in at least 720p resolution</li>
-              <li>Make sure new shots create visible contrast changes</li>
-            </ul>
-          </div>
-        </div>
+        </motion.div>
       )}
 
       {mode === 'drill' ? (
         <DrillMode
-          onDrillStart={handleDrillStart}
-          onDrillStop={handleDrillStop}
-          isRecording={isRecording}
+          onDrillStart={() => console.log('Drill started')}
+          onDrillStop={() => console.log('Drill stopped')}
+          isRecording={false}
         />
       ) : (
         <>
-          {/* Upload area */}
-          <div
-            className="border-2 border-dashed border-slate-600 rounded-lg p-12 text-center hover:border-blue-400 transition-colors cursor-pointer bg-slate-800/20 backdrop-blur-sm"
+          {/* Upload Drop Zone */}
+          <motion.div
+            className={`relative rounded-3xl p-12 text-center cursor-pointer transition-all duration-300 ${
+              isDragging 
+                ? 'bg-gradient-to-br from-red-500/20 to-red-600/20 border-2 border-red-500 shadow-2xl shadow-red-500/20 scale-105' 
+                : 'bg-gradient-to-br from-slate-800/30 to-slate-900/30 border-2 border-dashed border-slate-600 hover:border-slate-500 hover:bg-slate-800/50'
+            }`}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
             onClick={() => document.getElementById('video-input')?.click()}
+            whileHover={{ scale: 1.02, y: -5 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 300 }}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
           >
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 bg-red-400/10 rounded-lg flex items-center justify-center">
-                <Target className="w-8 h-8 text-red-400" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold mb-2 flex items-center justify-center gap-2">
-                  <Zap className="w-5 h-5 text-yellow-400" />
-                  SOTA Frame-by-Frame Analysis
+            <div className="flex flex-col items-center gap-6">
+              <motion.div
+                className="relative"
+                animate={{ 
+                  y: isDragging ? [-5, 5, -5] : 0,
+                  scale: isDragging ? [0.95, 1.05, 0.95] : 1 
+                }}
+                transition={{ 
+                  duration: 1.5, 
+                  repeat: isDragging ? Infinity : 0,
+                  ease: "easeInOut" 
+                }}
+              >
+                <div className={`absolute -inset-6 rounded-full blur-xl transition-all duration-300 ${
+                  isDragging ? 'bg-red-400/20 animate-pulse' : 'bg-blue-400/10'
+                }`} />
+                <div className="relative p-6 bg-slate-800/50 rounded-2xl">
+                  <UploadCloud className={`w-16 h-16 transition-colors duration-300 ${
+                    isDragging ? 'text-red-400' : 'text-slate-400'
+                  }`} />
+                </div>
+              </motion.div>
+              
+              <div className="space-y-4">
+                <h3 className="text-3xl font-bold">
+                  {isDragging 
+                    ? 'Drop your video here' 
+                    : files.length 
+                      ? 'Add another video' 
+                      : 'Upload Video for Analysis'
+                  }
                 </h3>
-                <p className="text-slate-400 mb-4">
-                  Real Roboflow detection with generalized shot comparison logic and AI analysis
+                <p className="text-slate-400 text-lg max-w-md mx-auto">
+                  {isDragging ? (
+                    <span className="font-medium text-red-400">Release to upload</span>
+                  ) : (
+                    <>Drag & drop your shooting video here, or <span className="text-blue-400 font-medium">browse files</span></>
+                  )}
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                   <FileVideo className="w-4 h-4" />
-                  <span>Supports MP4, MOV, AVI formats</span>
+                  <span>MP4, MOV, AVI formats supported</span>
                 </div>
               </div>
             </div>
@@ -229,24 +326,135 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
               onChange={handleFileInput}
               className="hidden"
             />
-          </div>
-          
-          <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-6">
-            <h4 className="font-semibold mb-3 flex items-center gap-2">
-              <Upload className="w-4 h-4 text-blue-400" />
+          </motion.div>
+
+          {/* Uploaded Files */}
+          <AnimatePresence>
+            {files.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-4"
+              >
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xl font-bold">Uploaded Files ({files.length})</h3>
+                  {files.length > 1 && (
+                    <button
+                      onClick={() => setFiles([])}
+                      className="text-sm px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {files.map((file) => (
+                    <motion.div
+                      key={file.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="flex items-center gap-4 p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50"
+                    >
+                      {/* Video Thumbnail */}
+                      <div className="relative flex-shrink-0">
+                        <video
+                          src={file.preview}
+                          className="w-20 h-20 rounded-xl object-cover border border-slate-600"
+                          muted
+                          preload="metadata"
+                        />
+                        {file.progress === 100 && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="absolute -bottom-2 -right-2 p-1 bg-green-500 rounded-full"
+                          >
+                            <CheckCircle className="w-4 h-4 text-white" />
+                          </motion.div>
+                        )}
+                      </div>
+
+                      {/* File Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Video className="w-5 h-5 text-blue-400" />
+                          <h4 className="font-medium text-lg truncate" title={file.name}>
+                            {file.name}
+                          </h4>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-sm text-slate-400 mb-3">
+                          <span>{formatFileSize(file.size)}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{Math.round(file.progress)}%</span>
+                            {file.progress < 100 ? (
+                              <Loader className="w-4 h-4 animate-spin text-blue-400" />
+                            ) : (
+                              <button
+                                onClick={() => removeFile(file.id)}
+                                className="p-1 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <motion.div
+                            className={`h-full rounded-full ${
+                              file.progress < 100 ? 'bg-blue-500' : 'bg-green-500'
+                            }`}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${file.progress}%` }}
+                            transition={{ duration: 0.3 }}
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Features Info */}
+          <motion.div 
+            className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <h4 className="font-bold text-xl mb-6 flex items-center gap-3">
+              <Zap className="w-6 h-6 text-yellow-400" />
               Real SOTA Pipeline Features
             </h4>
-            <ul className="space-y-2 text-sm text-slate-400">
-              <li>• <strong className="text-red-400">Real Roboflow API:</strong> Actual object detection, no simulation</li>
-              <li>• <strong className="text-blue-400">Frame-by-Frame Logic:</strong> Precise shot detection by comparison</li>
-              <li>• <strong className="text-green-400">Generalized Detection:</strong> No hardcoded shot assumptions</li>
-              <li>• <strong className="text-purple-400">Full Context Analysis:</strong> All frame data sent to Gemini</li>
-              <li>• <strong className="text-yellow-400">Live UI Feedback:</strong> Real-time frame display during analysis</li>
-              <li>• <strong className="text-orange-400">Frame Validation:</strong> Before/after comparison for accuracy</li>
-              <li>• Professional metrics: Split times, grouping, expert feedback</li>
-              <li>• Minimum 720p video quality for optimal Roboflow detection</li>
-            </ul>
-          </div>
+            <div className="grid md:grid-cols-2 gap-4 text-sm text-slate-400">
+              {[
+                "🎯 Real Roboflow API: Actual object detection, no simulation",
+                "📊 Frame-by-Frame Logic: Precise shot detection by comparison", 
+                "🔄 Generalized Detection: No hardcoded shot assumptions",
+                "🧠 Full Context Analysis: All frame data sent to Gemini",
+                "📱 Live UI Feedback: Real-time frame display during analysis",
+                "✅ Frame Validation: Before/after comparison for accuracy"
+              ].map((feature, index) => (
+                <motion.div
+                  key={index}
+                  className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/30"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
+                >
+                  <span>{feature}</span>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
         </>
       )}
     </div>
