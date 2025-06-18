@@ -88,10 +88,18 @@ export const useVideoAnalysis = () => {
     }
   };
 
+  // Simple stub methods for API management compatibility
+  const getRemainingRequests = () => 10; // Always return 10 since we don't need rate limiting
+  const getTimeUntilReset = () => 0; // No cooldown needed
+  const isInCooldown = false; // Never in cooldown
+
   return { 
     analyzeVideo, 
     isAnalyzing, 
     error, 
-    analysisProgress
+    analysisProgress,
+    getRemainingRequests,
+    getTimeUntilReset,
+    isInCooldown
   };
 };
