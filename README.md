@@ -44,28 +44,3 @@ This application serves as a SaaS platform to democratize professional shooting 
 -   **Dynamic UI & Animations:** The UI features loading skeletons, animated shot markers appearing sequentially on the target, and numbers that count up for a polished user experience.
 
 </details>
-
-## 🚀 Getting Started
-
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/your-username/GMShooter.git
-    cd GMShooter
-    ```
-
-2.  **Install dependencies:**
-    ```sh
-    npm install
-    ```
-
-3.  **Set up Environment Variables:**
-    Create a `.env.local` file in the root directory and add your Supabase project URL and anon key.
-    ```
-    VITE_SUPABASE_URL=YOUR_SUPABASE_URL
-    VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-    ```
-
-4.  **Run the development server:**
-    ```sh
-    npm run dev
-    ```
