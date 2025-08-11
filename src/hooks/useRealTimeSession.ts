@@ -51,7 +51,7 @@ export const useRealTimeSession = () => {
   const lastFrameIdRef = useRef<number | null>(null);
 
   // Start a new session
-  const startSession = useCallback(async (distance?: string) => {
+  const startSession = useCallback(async () => {
     try {
       setError(null);
       
@@ -62,7 +62,7 @@ export const useRealTimeSession = () => {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
         },
-        body: JSON.stringify({ distance: distance || "15", fps: 1 })
+        body: JSON.stringify({})
       });
 
       if (!cameraResponse.ok) {

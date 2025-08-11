@@ -8,13 +8,14 @@ import { useRealTimeSession } from '@/hooks/useRealTimeSession';
 import { useToast } from '@/components/ui/use-toast';
 
 export const RealTimeSession = () => {
-  const [distance, setDistance] = useState("15");
+  const [setupStep, setSetupStep] = useState<'selectRange' | 'startSession'>('selectRange');
+  const [selectedRange, setSelectedRange] = useState<string | null>(null);
   const { sessionData, startSession, endSession, isAnalyzing, analysisResult, error, clearError } = useRealTimeSession();
   const { toast } = useToast();
 
   const handleStartSession = async () => {
     try {
-      await startSession(distance);
+      await startSession();
       toast({
         title: "Session Started",
         description: "Live shot detection is now active",
@@ -73,52 +74,66 @@ export const RealTimeSession = () => {
         <p className="text-xl text-muted-foreground">Real-time shot detection and coaching</p>
       </div>
 
-      {!sessionData.isActive ? (
-        <SessionSetup 
-          distance={distance}
-          setDistance={setDistance}
-          onStart={handleStartSession}
-        />
-      ) : (
+      {sessionData.isActive ? (
         <ActiveSession 
           sessionData={sessionData}
           onEnd={handleEndSession}
           isAnalyzing={isAnalyzing}
+        />
+      ) : setupStep === 'selectRange' ? (
+        <SelectRange 
+          onSelect={() => {
+            setSelectedRange('Combat & Schieß-Trainingszentrum Halevi Partner');
+            setSetupStep('startSession');
+          }}
+        />
+      ) : (
+        <StartSessionScreen 
+          selectedRange={selectedRange}
+          onStart={handleStartSession}
         />
       )}
     </div>
   );
 };
 
-const SessionSetup = ({ distance, setDistance, onStart }: {
-  distance: string;
-  setDistance: (d: string) => void;
-  onStart: () => void;
-}) => (
+const SelectRange = ({ onSelect }: { onSelect: () => void }) => (
+  <Card className="max-w-xl mx-auto cursor-pointer hover-scale" onClick={onSelect}>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        <Target className="h-5 w-5" />
+        Select Your Range
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      <div className="rounded-md overflow-hidden">
+        <img
+          src="/placeholder.svg"
+          alt="Combat & Schieß-Trainingszentrum Halevi Partner range"
+          className="w-full h-48 object-cover"
+          loading="lazy"
+        />
+      </div>
+      <p className="font-medium">Combat & Schieß-Trainingszentrum Halevi Partner</p>
+    </CardContent>
+  </Card>
+);
+
+const StartSessionScreen = ({ selectedRange, onStart }: { selectedRange: string | null; onStart: () => void }) => (
   <Card className="max-w-md mx-auto">
     <CardHeader>
       <CardTitle className="flex items-center gap-2">
         <Target className="h-5 w-5" />
-        Session Setup
+        Start Session
       </CardTitle>
     </CardHeader>
     <CardContent className="space-y-4">
       <div>
-        <label className="text-sm font-medium">Distance (meters)</label>
-        <select 
-          value={distance} 
-          onChange={(e) => setDistance(e.target.value)}
-          className="w-full mt-1 p-2 border rounded-md"
-        >
-          <option value="5">5m</option>
-          <option value="10">10m</option>
-          <option value="15">15m</option>
-          <option value="25">25m</option>
-        </select>
+        <p className="text-sm text-muted-foreground">{selectedRange || 'Selected Range'}</p>
       </div>
       <Button onClick={onStart} className="w-full" size="lg">
         <Play className="h-4 w-4 mr-2" />
-        Start Session
+        Start Session Now
       </Button>
     </CardContent>
   </Card>
