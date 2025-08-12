@@ -78,13 +78,23 @@ const Auth = () => {
         if (error) throw error;
         window.location.href = "/app"; // full refresh for clean state
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: `${window.location.origin}/app` },
         });
         if (error) throw error;
-        toast({ title: "Check your email", description: "Confirm your account to continue." });
+        
+        // Check if email confirmation is disabled and user is immediately confirmed
+        if (data.user && !data.user.email_confirmed_at) {
+          toast({ 
+            title: "Check your email", 
+            description: "Please check your email and click the confirmation link to continue." 
+          });
+        } else if (data.user && data.session) {
+          // User is immediately signed in (email confirmation disabled)
+          window.location.href = "/app";
+        }
       }
     } catch (error: any) {
       toast({ title: "Auth error", description: error?.message || "Please try again", variant: "destructive" });
