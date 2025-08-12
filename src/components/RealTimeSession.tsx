@@ -83,7 +83,7 @@ export const RealTimeSession = () => {
       ) : setupStep === 'selectRange' ? (
         <SelectRange 
           onSelect={() => {
-            setSelectedRange('Combat & Schieß-Trainingszentrum Halevi Partner');
+            setSelectedRange('Halevi Partner Advanced Security Training');
             setSetupStep('startSession');
           }}
         />
@@ -108,13 +108,13 @@ const SelectRange = ({ onSelect }: { onSelect: () => void }) => (
     <CardContent className="space-y-4">
       <div className="rounded-md overflow-hidden">
         <img
-          src="/placeholder.svg"
-          alt="Combat & Schieß-Trainingszentrum Halevi Partner range"
+          src="/lovable-uploads/2750118e-9b56-4942-9823-e93543b074cd.png"
+          alt="Halevi Partner Advanced Security Training range"
           className="w-full h-48 object-cover"
           loading="lazy"
         />
       </div>
-      <p className="font-medium">Combat & Schieß-Trainingszentrum Halevi Partner</p>
+      <p className="font-medium">Halevi Partner Advanced Security Training</p>
     </CardContent>
   </Card>
 );

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
@@ -37,13 +37,13 @@ const Auth = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        navigate("/", { replace: true });
+        navigate("/app", { replace: true });
       }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        navigate("/", { replace: true });
+        navigate("/app", { replace: true });
       }
     });
 
@@ -56,10 +56,13 @@ const Auth = () => {
       cleanupAuthState();
       await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/` },
+        options: { redirectTo: `${window.location.origin}/app` },
       });
     } catch (error: any) {
-      toast({ title: "Login failed", description: error?.message || "Google sign-in error", variant: "destructive" });
+      const msg = (error?.message && /Unsupported provider|provider is not enabled/i.test(error.message))
+        ? "Google provider is not enabled in Supabase. Enable it in Auth > Providers."
+        : (error?.message || "Google sign-in error");
+      toast({ title: "Login failed", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -73,12 +76,12 @@ const Auth = () => {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        window.location.href = "/"; // full refresh for clean state
+        window.location.href = "/app"; // full refresh for clean state
       } else {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/` },
+          options: { emailRedirectTo: `${window.location.origin}/app` },
         });
         if (error) throw error;
         toast({ title: "Check your email", description: "Confirm your account to continue." });
@@ -95,8 +98,11 @@ const Auth = () => {
       <Card className="max-w-md mx-auto">
         <CardHeader>
           <CardTitle className="text-center">
-            {mode === "login" ? "Log in to continue" : "Create your account"}
+            {mode === "login" ? "Login to your account" : "Create your account"}
           </CardTitle>
+          <CardDescription className="text-center">
+            {mode === "login" ? "Enter your email below to login to your account" : "Sign up with your email below"}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Button onClick={handleGoogle} className="w-full" size="lg" disabled={loading}>
