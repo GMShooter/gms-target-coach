@@ -32,8 +32,7 @@ This application serves as a SaaS platform to democratize professional shooting 
 
 *   **Frontend:** React, TypeScript, Vite, Tailwind CSS, Shadcn/UI
 *   **Backend:** Supabase (PostgreSQL Database, Edge Functions, Storage, Auth)
-*   **AI Engine:** Google Gemini Pro Vision API
-
+*   
 <details>
 <summary><strong>Technical Implementation Highlights</strong></summary>
 
