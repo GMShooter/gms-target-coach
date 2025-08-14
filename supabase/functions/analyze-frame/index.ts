@@ -36,17 +36,17 @@ serve(async (req) => {
     const base64Data = frameBase64.replace(/^data:image\/[a-z]+;base64,/, '');
     const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
     
-    // Call Roboflow Inference API
-    const roboflowResponse = await fetch('https://detect.roboflow.com/bullet-hole-detection/1', {
+    // Call RF-DETR Workflow API
+    const roboflowResponse = await fetch('https://serverless.roboflow.com/infer/workflows/gmshooter/production-inference-sahi-detr-2-2', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
       },
-      body: new URLSearchParams({
-        'api_key': roboflowApiKey,
-        'image': base64Data,
-        'confidence': '0.3',
-        'overlap': '0.3'
+      body: JSON.stringify({
+        api_key: roboflowApiKey,
+        inputs: {
+          image: {type: "base64", value: base64Data}
+        }
       })
     });
 
@@ -62,7 +62,7 @@ serve(async (req) => {
     }
 
     const roboflowData = await roboflowResponse.json();
-    const detections = roboflowData.predictions || [];
+    const detections = roboflowData.outputs?.output_0?.predictions || [];
     
     console.log(`🎯 Roboflow detected ${detections.length} objects in frame ${frameNumber}`);
     

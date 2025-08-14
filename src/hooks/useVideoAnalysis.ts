@@ -27,6 +27,12 @@ export const useVideoAnalysis = () => {
   const [analysisProgress, setAnalysisProgress] = useState<string>('');
   const [currentFrame, setCurrentFrame] = useState<string | null>(null);
   const [detectedBounds, setDetectedBounds] = useState<Array<any>>([]);
+  const [isPaused, setIsPaused] = useState(false);
+  const [frameNumber, setFrameNumber] = useState(0);
+  const [totalFrames, setTotalFrames] = useState(0);
+  const [currentTimestamp, setCurrentTimestamp] = useState(0);
+  const [totalDetectedShots, setTotalDetectedShots] = useState(0);
+  const [shouldStop, setShouldStop] = useState(false);
 
   const analyzeVideo = async (file: File, isDrillMode: boolean = false): Promise<{sessionId: string, firstFrameBase64?: string, lastFrameBase64?: string} | null> => {
     if (isAnalyzing) {
@@ -67,9 +73,12 @@ export const useVideoAnalysis = () => {
 
       const duration = video.duration;
       const frameRate = 1; // 1 FPS as specified
-      const totalFrames = Math.floor(duration * frameRate);
+      const totalFramesCalc = Math.floor(duration * frameRate);
+      setTotalFrames(totalFramesCalc);
+      setTotalDetectedShots(0);
+      setShouldStop(false);
       
-      console.log(`📊 Video duration: ${duration}s, extracting ${totalFrames} frames at ${frameRate} FPS`);
+      console.log(`📊 Video duration: ${duration}s, extracting ${totalFramesCalc} frames at ${frameRate} FPS`);
 
       // Extract and save first frame for validation
       video.currentTime = 0;
@@ -87,7 +96,17 @@ export const useVideoAnalysis = () => {
       setAnalysisProgress('🔍 Starting frame-by-frame Roboflow detection...');
 
       // GENERALIZED ANALYSIS LOOP - NO HARDCODED SHOT COUNTS
-      for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
+      for (let frameIndex = 0; frameIndex < totalFramesCalc; frameIndex++) {
+        // Check for pause or stop
+        while (isPaused && !shouldStop) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        if (shouldStop) {
+          console.log('Analysis stopped by user');
+          break;
+        }
+        
         const timestamp = frameIndex / frameRate;
         video.currentTime = timestamp;
         
@@ -97,11 +116,13 @@ export const useVideoAnalysis = () => {
         ctx.drawImage(video, 0, 0, 640, 640);
         const frameBase64 = canvas.toDataURL('image/jpeg', 0.8);
         
-        // Update UI with current frame
+        // Update UI with current frame and progress
         setCurrentFrame(frameBase64);
-        setAnalysisProgress(`🎯 Analyzing frame ${frameIndex + 1}/${totalFrames} (${timestamp.toFixed(1)}s)`);
+        setFrameNumber(frameIndex + 1);
+        setCurrentTimestamp(timestamp);
+        setAnalysisProgress(`🎯 Analyzing frame ${frameIndex + 1}/${totalFramesCalc} (${timestamp.toFixed(1)}s)`);
         
-        console.log(`🔍 Processing frame ${frameIndex + 1}/${totalFrames} at ${timestamp.toFixed(2)}s`);
+        console.log(`🔍 Processing frame ${frameIndex + 1}/${totalFramesCalc} at ${timestamp.toFixed(2)}s`);
 
         // Call Roboflow detection
         const { data: detectionResult, error: detectionError } = await supabase.functions.invoke('analyze-frame', {
@@ -149,6 +170,7 @@ export const useVideoAnalysis = () => {
               timestamp,
               coordinates: { x, y }
             });
+            setTotalDetectedShots(prev => prev + 1);
             console.log(`🎯 NEW SHOT DETECTED at frame ${frameIndex + 1}: (${x}, ${y}) at ${timestamp.toFixed(2)}s`);
           }
         }
@@ -220,8 +242,18 @@ export const useVideoAnalysis = () => {
       setAnalysisProgress('');
       setCurrentFrame(null);
       setDetectedBounds([]);
+      setIsPaused(false);
+      setFrameNumber(0);
+      setTotalFrames(0);
+      setCurrentTimestamp(0);
+      setTotalDetectedShots(0);
+      setShouldStop(false);
     }
   };
+
+  const pauseAnalysis = () => setIsPaused(true);
+  const resumeAnalysis = () => setIsPaused(false);
+  const stopAnalysis = () => setShouldStop(true);
 
   // Simple stub methods for API management compatibility
   const getRemainingRequests = () => 10;
@@ -235,6 +267,14 @@ export const useVideoAnalysis = () => {
     analysisProgress,
     currentFrame,
     detectedBounds,
+    isPaused,
+    frameNumber,
+    totalFrames,
+    currentTimestamp,
+    totalDetectedShots,
+    pauseAnalysis,
+    resumeAnalysis,
+    stopAnalysis,
     getRemainingRequests,
     getTimeUntilReset,
     isInCooldown

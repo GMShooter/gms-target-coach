@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Video, FileVideo, Zap, Brain, Clock, AlertTriangle, CheckCircle, Target, UploadCloud, File as FileIcon, Trash2, Loader } from 'lucide-react';
 import { useVideoAnalysis } from '@/hooks/useVideoAnalysis';
 import { DrillMode } from './DrillMode';
+import { VideoAnalysisProgress } from './VideoAnalysisProgress';
+import { MidAnalysisReport } from './MidAnalysisReport';
 import CountUp from 'react-countup';
 
 interface VideoUploadProps {
@@ -28,12 +30,21 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
     error, 
     analysisProgress,
     currentFrame,
-    detectedBounds
+    detectedBounds,
+    isPaused,
+    frameNumber,
+    totalFrames,
+    currentTimestamp,
+    totalDetectedShots,
+    pauseAnalysis,
+    resumeAnalysis,
+    stopAnalysis
   } = useVideoAnalysis();
   
   const [mode, setMode] = useState<'upload' | 'drill'>('upload');
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [showMidReport, setShowMidReport] = useState(false);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -116,84 +127,40 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
 
   if (isAnalyzing) {
     return (
-      <motion.div 
-        className="max-w-4xl mx-auto"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-12 text-center shadow-2xl">
-          <motion.div 
-            className="relative w-20 h-20 mx-auto mb-8"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-red-600 rounded-full opacity-20 blur-lg" />
-            <div className="relative w-20 h-20 border-4 border-red-400 border-t-transparent rounded-full animate-spin" />
-            <Target className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-red-400" />
-          </motion.div>
-          
-          <h3 className="text-3xl font-bold mb-6 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-            SOTA Real-Time Analysis
-          </h3>
-          
-          {/* Current Frame Display */}
-          {currentFrame && (
-            <motion.div 
-              className="mb-8"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="relative inline-block border-2 border-slate-600 rounded-2xl overflow-hidden shadow-2xl">
-                <img 
-                  src={currentFrame} 
-                  alt="Current analysis frame" 
-                  className="w-80 h-80 object-cover"
-                />
-                {detectedBounds.length > 0 && (
-                  <motion.div 
-                    className="absolute top-4 right-4 bg-red-600 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow-lg"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 500 }}
-                  >
-                    <CountUp end={detectedBounds.length} duration={0.5} /> detections
-                  </motion.div>
-                )}
-              </div>
-            </motion.div>
-          )}
-          
-          <motion.div 
-            className="space-y-4 text-slate-300"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <p className="text-xl font-semibold text-blue-400 mb-6">{analysisProgress}</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm max-w-2xl mx-auto">
-              {[
-                { Icon: CheckCircle, text: "Real-time Roboflow detection at 1 FPS", color: "text-green-400" },
-                { Icon: CheckCircle, text: "Frame-by-frame shot comparison logic", color: "text-blue-400" },
-                { Icon: CheckCircle, text: "Generalized detection - no hardcoded assumptions", color: "text-purple-400" },
-                { Icon: CheckCircle, text: "Gemini expert analysis with full context", color: "text-yellow-400" }
-              ].map((item, index) => (
-                <motion.div
-                  key={index}
-                  className={`flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 ${item.color}`}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                >
-                  <item.Icon className="w-5 h-5 flex-shrink-0" />
-                  <span>{item.text}</span>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </motion.div>
+      <>
+        <VideoAnalysisProgress
+          analysisProgress={analysisProgress}
+          currentFrame={currentFrame}
+          detectedBounds={detectedBounds}
+          frameNumber={frameNumber}
+          totalFrames={totalFrames}
+          timestamp={currentTimestamp}
+          isAnalyzing={isAnalyzing}
+          totalDetectedShots={totalDetectedShots}
+          onPause={pauseAnalysis}
+          onResume={resumeAnalysis}
+          onStop={stopAnalysis}
+          onViewMidReport={() => setShowMidReport(true)}
+          isPaused={isPaused}
+        />
+        
+        {showMidReport && (
+          <MidAnalysisReport
+            totalDetectedShots={totalDetectedShots}
+            currentTimestamp={currentTimestamp}
+            frameNumber={frameNumber}
+            totalFrames={totalFrames}
+            averageConfidence={detectedBounds.length > 0 ? detectedBounds.reduce((sum, d) => sum + d.confidence, 0) / detectedBounds.length : 0}
+            detectedBounds={detectedBounds}
+            onClose={() => setShowMidReport(false)}
+            onContinueAnalysis={() => setShowMidReport(false)}
+            onStopAnalysis={() => {
+              setShowMidReport(false);
+              stopAnalysis();
+            }}
+          />
+        )}
+      </>
     );
   }
 
