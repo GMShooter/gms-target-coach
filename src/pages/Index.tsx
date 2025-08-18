@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { RealTimeSession } from "@/components/RealTimeSession";
+import UserDashboard from "@/components/UserDashboard";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -30,7 +30,7 @@ const Index = () => {
   }, [navigate]);
 
   if (!checkedAuth) return null;
-  return <RealTimeSession />;
+  return <UserDashboard />;
 };
 
 export default Index;
