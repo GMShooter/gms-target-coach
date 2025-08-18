@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { BarChart3, Target, Clock, TrendingUp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Detection } from '@/types/detection';
 import CountUp from 'react-countup';
 
 interface MidAnalysisReportProps {
@@ -11,7 +12,7 @@ interface MidAnalysisReportProps {
   frameNumber: number;
   totalFrames: number;
   averageConfidence: number;
-  detectedBounds: Array<any>;
+  detectedBounds: Detection[];
   onClose: () => void;
   onContinueAnalysis: () => void;
   onStopAnalysis: () => void;
@@ -37,6 +38,9 @@ export const MidAnalysisReport: React.FC<MidAnalysisReportProps> = ({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mid-analysis-title"
     >
       <motion.div
         initial={{ scale: 0.9, y: 20 }}
@@ -51,7 +55,7 @@ export const MidAnalysisReport: React.FC<MidAnalysisReportProps> = ({
               <BarChart3 className="w-6 h-6 text-blue-400" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">Mid-Analysis Report</h2>
+              <h2 id="mid-analysis-title" className="text-2xl font-bold text-white">Mid-Analysis Report</h2>
               <p className="text-slate-400">Interim results at {currentTimestamp.toFixed(1)}s</p>
             </div>
           </div>

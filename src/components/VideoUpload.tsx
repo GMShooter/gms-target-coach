@@ -84,24 +84,21 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
     };
     
     setFiles([newFile]);
-    simulateUpload(newFile.id);
+    simulateUpload(newFile);
     onVideoUpload(file);
   };
 
-  const simulateUpload = (fileId: string) => {
+  const simulateUpload = (fileEntry: FileWithPreview) => {
     let progress = 0;
     const interval = setInterval(() => {
       progress += Math.random() * 20 + 10;
       setFiles(prev => prev.map(f => 
-        f.id === fileId ? { ...f, progress: Math.min(progress, 100) } : f
+        f.id === fileEntry.id ? { ...f, progress: Math.min(progress, 100) } : f
       ));
       if (progress >= 100) {
         clearInterval(interval);
-        // Start analysis when upload completes
-        const file = files.find(f => f.id === fileId)?.file;
-        if (file) {
-          handleVideoFile(file, false);
-        }
+        // Start analysis when upload completes using the passed file entry
+        handleVideoFile(fileEntry.file, false);
       }
     }, 200);
   };
@@ -122,7 +119,14 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
   };
 
   const removeFile = (fileId: string) => {
-    setFiles(prev => prev.filter(f => f.id !== fileId));
+    setFiles(prev => {
+      const toRemove = prev.find(f => f.id === fileId);
+      if (toRemove) {
+        // Clean up the preview URL to prevent memory leaks
+        URL.revokeObjectURL(toRemove.preview);
+      }
+      return prev.filter(f => f.id !== fileId);
+    });
   };
 
   if (isAnalyzing) {
@@ -197,22 +201,24 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoUpload, onAnaly
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-red-400 mt-1 flex-shrink-0" />
-            <div>
-              <h4 className="font-semibold text-red-400 mb-2">Analysis Error</h4>
-              <p className="text-slate-300 mb-4">{error}</p>
-              <div className="text-sm text-slate-400 bg-slate-800/30 p-4 rounded-xl">
-                <p className="font-semibold mb-2">Troubleshooting tips:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Ensure good lighting and clear target visibility</li>
-                  <li>Use white paper target with dark bullet impacts</li>
-                  <li>Minimize camera shake and maintain steady framing</li>
-                  <li>Record in at least 720p resolution</li>
-                </ul>
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl" role="alert">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-6 h-6 text-red-400 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-red-400 mb-2">Analysis Error</h4>
+                  <p className="text-slate-300 mb-4">{error}</p>
+                  <div className="text-sm text-slate-400 bg-slate-800/30 p-4 rounded-xl">
+                    <p className="font-semibold mb-2">Troubleshooting tips:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Ensure good lighting and clear target visibility</li>
+                      <li>Use white paper target with dark bullet impacts</li>
+                      <li>Minimize camera shake and maintain steady framing</li>
+                      <li>Record in at least 720p resolution</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
         </motion.div>
       )}
 

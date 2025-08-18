@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -77,17 +77,22 @@ const UserDashboard = () => {
     }
   };
 
-  const calculateStats = () => {
+  const calculateStats = useMemo(() => {
     const totalSessions = sessions.length;
-    const avgScore = sessions.reduce((acc, s) => acc + (s.total_score || 0), 0) / totalSessions || 0;
-    const avgAccuracy = sessions.reduce((acc, s) => acc + (s.accuracy_percentage || 0), 0) / totalSessions || 0;
+    
+    if (totalSessions === 0) {
+      return { totalSessions: 0, avgScore: 0, avgAccuracy: 0, bestSession: null };
+    }
+    
+    const avgScore = sessions.reduce((acc, s) => acc + (s.total_score || 0), 0) / totalSessions;
+    const avgAccuracy = sessions.reduce((acc, s) => acc + (s.accuracy_percentage || 0), 0) / totalSessions;
     const bestSession = sessions.reduce((best, current) => 
       (current.total_score || 0) > (best?.total_score || 0) ? current : best, sessions[0]);
 
     return { totalSessions, avgScore, avgAccuracy, bestSession };
-  };
+  }, [sessions]);
 
-  const stats = calculateStats();
+  const stats = calculateStats;
 
   if (loading) {
     return (
@@ -135,7 +140,7 @@ const UserDashboard = () => {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.avgScore.toFixed(1)}</div>
+            <div className="text-2xl font-bold">{stats.avgScore?.toFixed(1) || 'N/A'}</div>
           </CardContent>
         </Card>
         <Card>
@@ -144,7 +149,7 @@ const UserDashboard = () => {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.avgAccuracy.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{stats.avgAccuracy?.toFixed(1) || 'N/A'}%</div>
           </CardContent>
         </Card>
         <Card>
@@ -231,11 +236,11 @@ const UserDashboard = () => {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Group Size</label>
-                    <div className="text-2xl font-bold">{sessionData.session.group_size_mm?.toFixed(1)}mm</div>
+                    <div className="text-2xl font-bold">{sessionData.session.group_size_mm?.toFixed(1) || 'N/A'}mm</div>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Accuracy</label>
-                    <div className="text-2xl font-bold">{sessionData.session.accuracy_percentage?.toFixed(1)}%</div>
+                    <div className="text-2xl font-bold">{sessionData.session.accuracy_percentage?.toFixed(1) || 'N/A'}%</div>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Shots</label>

@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
 interface DetectedShot {
@@ -55,27 +56,50 @@ serve(async (req) => {
       );
     }
 
-    const existingShotsSet = new Set();
+    const existingShotsSet = new Map();
     const existingShotsList: ExistingShot[] = existingShots || [];
     
-    // Create coordinate sets for duplicate detection (rounded to nearest 20px)
+    // Create coordinate map for radius-based duplicate detection
     existingShotsList.forEach(shot => {
-      const roundedX = Math.round(shot.x_coordinate / 20) * 20;
-      const roundedY = Math.round(shot.y_coordinate / 20) * 20;
-      existingShotsSet.add(`${roundedX},${roundedY}`);
+      const key = `${shot.x_coordinate},${shot.y_coordinate}`;
+      existingShotsSet.set(key, { x: shot.x_coordinate, y: shot.y_coordinate });
     });
 
+    const DUPLICATE_RADIUS = 10; // pixels
     const newShots: DetectedShot[] = [];
     let nextShotNumber = existingShotsList.length + 1;
 
-    // Process each detection
+    // Process each detection with radius-based duplicate checking
     for (const detection of detections) {
-      const roundedX = Math.round(detection.x / 20) * 20;
-      const roundedY = Math.round(detection.y / 20) * 20;
-      const coordKey = `${roundedX},${roundedY}`;
+      let isDuplicate = false;
+      
+      // Check if detection is within duplicate radius of any existing shot
+      for (const [key, existingShot] of existingShotsSet.entries()) {
+        const distance = Math.sqrt(
+          Math.pow(detection.x - existingShot.x, 2) + 
+          Math.pow(detection.y - existingShot.y, 2)
+        );
+        
+        if (distance <= DUPLICATE_RADIUS) {
+          isDuplicate = true;
+          break;
+        }
+      }
 
-      // Check if this shot is new (not a duplicate)
-      if (!existingShotsSet.has(coordKey)) {
+      // Check against newly added shots in this batch
+      for (const newShot of newShots) {
+        const distance = Math.sqrt(
+          Math.pow(detection.x - newShot.x, 2) + 
+          Math.pow(detection.y - newShot.y, 2)
+        );
+        
+        if (distance <= DUPLICATE_RADIUS) {
+          isDuplicate = true;
+          break;
+        }
+      }
+
+      if (!isDuplicate) {
         console.log(`✨ New shot detected at (${detection.x}, ${detection.y})`);
         
         // Calculate score and direction
@@ -105,7 +129,10 @@ serve(async (req) => {
             y: detection.y,
             confidence: detection.confidence
           });
-          existingShotsSet.add(coordKey);
+          
+          // Add to existing shots map to prevent duplicates in this batch
+          const newShotKey = `${detection.x},${detection.y}`;
+          existingShotsSet.set(newShotKey, { x: detection.x, y: detection.y });
           nextShotNumber++;
         }
       }

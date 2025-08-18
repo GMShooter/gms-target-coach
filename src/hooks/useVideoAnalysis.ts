@@ -1,38 +1,25 @@
 
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { Detection, FrameDetection, DetectedShot } from '@/types/detection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-
-interface DetectedShot {
-  timestamp: number;
-  coordinates: { x: number; y: number };
-}
-
-interface FrameDetection {
-  timestamp: number;
-  detections: Array<{
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    confidence: number;
-    class: string;
-  }>;
-  frameNumber: number;
-}
 
 export const useVideoAnalysis = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState<string>('');
   const [currentFrame, setCurrentFrame] = useState<string | null>(null);
-  const [detectedBounds, setDetectedBounds] = useState<Array<any>>([]);
+  const [detectedBounds, setDetectedBounds] = useState<Detection[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [frameNumber, setFrameNumber] = useState(0);
   const [totalFrames, setTotalFrames] = useState(0);
   const [currentTimestamp, setCurrentTimestamp] = useState(0);
   const [totalDetectedShots, setTotalDetectedShots] = useState(0);
   const [shouldStop, setShouldStop] = useState(false);
+
+  // Use refs for values that need to be accessed in async loops
+  const pausedRef = useRef(false);
+  const stopRef = useRef(false);
 
   const analyzeVideo = async (file: File, isDrillMode: boolean = false): Promise<{sessionId: string, firstFrameBase64?: string, lastFrameBase64?: string} | null> => {
     if (isAnalyzing) {
@@ -42,6 +29,8 @@ export const useVideoAnalysis = () => {
 
     setIsAnalyzing(true);
     setError(null);
+    
+    let videoUrl: string | undefined;
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -63,13 +52,17 @@ export const useVideoAnalysis = () => {
       canvas.height = 640;
 
       // Load video file
-      const videoUrl = URL.createObjectURL(file);
-      video.src = videoUrl;
-      
-      await new Promise((resolve, reject) => {
-        video.onloadedmetadata = resolve;
-        video.onerror = reject;
-      });
+      try {
+        videoUrl = URL.createObjectURL(file);
+        video.src = videoUrl;
+        
+        await new Promise((resolve, reject) => {
+          video.onloadedmetadata = resolve;
+          video.onerror = reject;
+        });
+      } catch (videoError) {
+        throw new Error(`Failed to load video file: ${videoError instanceof Error ? videoError.message : 'Unknown error'}`);
+      }
 
       const duration = video.duration;
       const frameRate = 1; // 1 FPS as specified
@@ -77,6 +70,8 @@ export const useVideoAnalysis = () => {
       setTotalFrames(totalFramesCalc);
       setTotalDetectedShots(0);
       setShouldStop(false);
+      stopRef.current = false;
+      pausedRef.current = false;
       
       console.log(`📊 Video duration: ${duration}s, extracting ${totalFramesCalc} frames at ${frameRate} FPS`);
 
@@ -97,12 +92,12 @@ export const useVideoAnalysis = () => {
 
       // GENERALIZED ANALYSIS LOOP - NO HARDCODED SHOT COUNTS
       for (let frameIndex = 0; frameIndex < totalFramesCalc; frameIndex++) {
-        // Check for pause or stop
-        while (isPaused && !shouldStop) {
+        // Check for pause or stop using refs for fresh values
+        while (pausedRef.current && !stopRef.current) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         
-        if (shouldStop) {
+        if (stopRef.current) {
           console.log('Analysis stopped by user');
           break;
         }
@@ -124,21 +119,22 @@ export const useVideoAnalysis = () => {
         
         console.log(`🔍 Processing frame ${frameIndex + 1}/${totalFramesCalc} at ${timestamp.toFixed(2)}s`);
 
-        // Call Roboflow detection
-        const { data: detectionResult, error: detectionError } = await supabase.functions.invoke('analyze-frame', {
+        // Call Supabase analyze-frame function (unified workflow)
+        const { data: logResult, error: logError } = await supabase.functions.invoke('analyze-frame', {
           body: {
             frameBase64,
-            timestamp,
-            frameNumber: frameIndex
+            session_id: 'temp-session', // We'll create proper session management later
+            frameNumber: frameIndex,
+            timestamp
           }
         });
 
-        if (detectionError) {
-          console.error('Roboflow detection error:', detectionError);
+        if (logError) {
+          console.error('Frame analysis error:', logError);
           continue; // Continue with next frame instead of failing completely
         }
 
-        const detections = detectionResult?.detections || [];
+        const detections = logResult?.detections || [];
         
         // Store all detections for context
         allDetectedFrames.push({
@@ -167,6 +163,8 @@ export const useVideoAnalysis = () => {
             // This is a new shot!
             const [x, y] = holeKey.split('_').map(Number);
             newShotsData.push({
+              x,
+              y,
               timestamp,
               coordinates: { x, y }
             });
@@ -195,37 +193,43 @@ export const useVideoAnalysis = () => {
         return { sessionId: '', firstFrameBase64, lastFrameBase64 };
       }
 
-      setAnalysisProgress('🤖 Generating comprehensive report with Gemini...');
+      setAnalysisProgress('🤖 Generating final session report...');
 
-      // Send complete data to Gemini for final analysis
-      const { data: result, error: analysisError } = await supabase.functions.invoke('generate-report', {
-        body: {
-          allDetectedFrames,
-          newShotsData,
-          userId: user?.id || null,
-          drillMode: isDrillMode,
-          videoDuration: duration
-        }
-      });
-
-      if (analysisError) {
-        throw analysisError;
-      }
-
-      if (result?.sessionId) {
-        toast({
-          title: "SOTA Analysis Complete!",
-          description: `Real-time analysis detected ${newShotsData.length} new shots with full context!`,
+      // Use new end-session function for final analysis
+      if (user?.id && newShotsData.length > 0) {
+        // Create session first 
+        const { data: sessionResult, error: sessionError } = await supabase.functions.invoke('start-session', {
+          body: {
+            userId: user.id,
+            drillMode: isDrillMode
+          }
         });
-        
-        return {
-          sessionId: result.sessionId,
-          firstFrameBase64,
-          lastFrameBase64
-        };
+
+        if (!sessionError && sessionResult?.session_id) {
+          // Generate final report
+          const { data: finalResult, error: finalError } = await supabase.functions.invoke('end-session', {
+            body: {
+              session_id: sessionResult.session_id,
+              user_id: user.id
+            }
+          });
+
+          if (!finalError) {
+            toast({
+              title: "Analysis Complete!",
+              description: `Detected ${newShotsData.length} shots with comprehensive analysis!`,
+            });
+            
+            return {
+              sessionId: sessionResult.session_id,
+              firstFrameBase64,
+              lastFrameBase64
+            };
+          }
+        }
       }
 
-      return null;
+      return { sessionId: '', firstFrameBase64, lastFrameBase64 };
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred in video analysis';
@@ -238,22 +242,40 @@ export const useVideoAnalysis = () => {
       });
       return null;
     } finally {
+      // Clean up video URL to prevent memory leaks
+      if (videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+      }
+      
       setIsAnalyzing(false);
       setAnalysisProgress('');
       setCurrentFrame(null);
       setDetectedBounds([]);
       setIsPaused(false);
+      pausedRef.current = false;
       setFrameNumber(0);
       setTotalFrames(0);
       setCurrentTimestamp(0);
       setTotalDetectedShots(0);
       setShouldStop(false);
+      stopRef.current = false;
     }
   };
 
-  const pauseAnalysis = () => setIsPaused(true);
-  const resumeAnalysis = () => setIsPaused(false);
-  const stopAnalysis = () => setShouldStop(true);
+  const pauseAnalysis = useCallback(() => {
+    setIsPaused(true);
+    pausedRef.current = true;
+  }, []);
+  
+  const resumeAnalysis = useCallback(() => {
+    setIsPaused(false);
+    pausedRef.current = false;
+  }, []);
+  
+  const stopAnalysis = useCallback(() => {
+    setShouldStop(true);
+    stopRef.current = true;
+  }, []);
 
   // Simple stub methods for API management compatibility
   const getRemainingRequests = () => 10;
