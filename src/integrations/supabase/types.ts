@@ -14,36 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      model_versions: {
-        Row: {
-          created_at: string
-          id: string
-          model_type: string
-          performance_metrics: Json
-          status: string
-          training_data_count: number
-          version: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          model_type?: string
-          performance_metrics?: Json
-          status?: string
-          training_data_count?: number
-          version: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          model_type?: string
-          performance_metrics?: Json
-          status?: string
-          training_data_count?: number
-          version?: string
-        }
-        Relationships: []
-      }
       sessions: {
         Row: {
           accuracy_percentage: number | null
@@ -125,6 +95,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_shots_sessions"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "shots_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
@@ -133,83 +110,15 @@ export type Database = {
           },
         ]
       }
-      training_data: {
-        Row: {
-          annotations: Json
-          created_at: string
-          detections: Json
-          id: string
-          is_validated: boolean
-          used_for_training: boolean
-          video_id: string
-        }
-        Insert: {
-          annotations?: Json
-          created_at?: string
-          detections?: Json
-          id?: string
-          is_validated?: boolean
-          used_for_training?: boolean
-          video_id: string
-        }
-        Update: {
-          annotations?: Json
-          created_at?: string
-          detections?: Json
-          id?: string
-          is_validated?: boolean
-          used_for_training?: boolean
-          video_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "training_data_video_id_fkey"
-            columns: ["video_id"]
-            isOneToOne: false
-            referencedRelation: "training_videos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      training_videos: {
-        Row: {
-          duration: number
-          filename: string
-          hash: string
-          id: string
-          size: number
-          storage_url: string
-          uploaded_at: string
-          user_id: string
-        }
-        Insert: {
-          duration: number
-          filename: string
-          hash: string
-          id?: string
-          size: number
-          storage_url: string
-          uploaded_at?: string
-          user_id: string
-        }
-        Update: {
-          duration?: number
-          filename?: string
-          hash?: string
-          id?: string
-          size?: number
-          storage_url?: string
-          uploaded_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      validate_session: {
+        Args: { input_session_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
