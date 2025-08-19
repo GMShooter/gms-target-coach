@@ -75,6 +75,26 @@ export const useVideoAnalysis = () => {
       
       console.log(`📊 Video duration: ${duration}s, extracting ${totalFramesCalc} frames at ${frameRate} FPS`);
 
+      // Create a proper session first
+      if (!user?.id) {
+        throw new Error('User must be logged in to analyze videos');
+      }
+
+      // Create session using start-session function
+      const { data: sessionResult, error: sessionError } = await supabase.functions.invoke('start-session', {
+        body: {
+          userId: user.id,
+          drillMode: isDrillMode
+        }
+      });
+
+      if (sessionError || !sessionResult?.session_id) {
+        throw new Error(`Failed to create session: ${sessionError?.message || 'Unknown error'}`);
+      }
+
+      const sessionId = sessionResult.session_id;
+      console.log(`📊 Created session: ${sessionId}`);
+
       // Extract and save first frame for validation
       video.currentTime = 0;
       await new Promise(resolve => video.onseeked = resolve);
@@ -123,7 +143,7 @@ export const useVideoAnalysis = () => {
         const { data: logResult, error: logError } = await supabase.functions.invoke('analyze-frame', {
           body: {
             frameBase64,
-            session_id: 'temp-session', // We'll create proper session management later
+            session_id: sessionId, // Use the real session ID
             frameNumber: frameIndex,
             timestamp
           }
@@ -195,37 +215,28 @@ export const useVideoAnalysis = () => {
 
       setAnalysisProgress('🤖 Generating final session report...');
 
-      // Use new end-session function for final analysis
-      if (user?.id && newShotsData.length > 0) {
-        // Create session first 
-        const { data: sessionResult, error: sessionError } = await supabase.functions.invoke('start-session', {
+      // Generate final report using end-session function
+      if (newShotsData.length > 0) {
+        const { data: finalResult, error: finalError } = await supabase.functions.invoke('end-session', {
           body: {
-            userId: user.id,
-            drillMode: isDrillMode
+            session_id: sessionId,
+            user_id: user.id
           }
         });
 
-        if (!sessionError && sessionResult?.session_id) {
-          // Generate final report
-          const { data: finalResult, error: finalError } = await supabase.functions.invoke('end-session', {
-            body: {
-              session_id: sessionResult.session_id,
-              user_id: user.id
-            }
+        if (!finalError) {
+          toast({
+            title: "Analysis Complete!",
+            description: `Detected ${newShotsData.length} shots with comprehensive analysis!`,
           });
-
-          if (!finalError) {
-            toast({
-              title: "Analysis Complete!",
-              description: `Detected ${newShotsData.length} shots with comprehensive analysis!`,
-            });
-            
-            return {
-              sessionId: sessionResult.session_id,
-              firstFrameBase64,
-              lastFrameBase64
-            };
-          }
+          
+          return {
+            sessionId: sessionId,
+            firstFrameBase64,
+            lastFrameBase64
+          };
+        } else {
+          console.error('Error generating final report:', finalError);
         }
       }
 

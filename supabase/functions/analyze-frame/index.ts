@@ -14,6 +14,13 @@ serve(async (req) => {
   }
 
   try {
+    // Debug environment variables
+    console.log('Environment check:', {
+      hasRoboflowKey: !!Deno.env.get('ROBOFLOW_API_KEY'),
+      hasSupabaseKey: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+      hasSupabaseUrl: !!Deno.env.get('SUPABASE_URL')
+    });
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -58,11 +65,12 @@ serve(async (req) => {
     });
 
     if (!roboflowResponse.ok) {
-      console.error(`Roboflow API error: ${roboflowResponse.status}`);
+      const errorText = await roboflowResponse.text();
+      console.error(`Roboflow API error: ${roboflowResponse.status} - ${errorText}`);
       return new Response(
         JSON.stringify({ 
           detections: [],
-          error: `Roboflow API returned status ${roboflowResponse.status}`
+          error: `Roboflow API returned status ${roboflowResponse.status}: ${errorText}`
         }),
         { status: roboflowResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
