@@ -229,18 +229,23 @@ export const useVideoAnalysis = () => {
             title: "Analysis Complete!",
             description: `Detected ${newShotsData.length} shots with comprehensive analysis!`,
           });
-          
-          return {
-            sessionId: sessionId,
-            firstFrameBase64,
-            lastFrameBase64
-          };
         } else {
           console.error('Error generating final report:', finalError);
+          toast({
+            title: "Analysis Partially Complete",
+            description: `Detected ${newShotsData.length} shots, but report generation failed.`,
+            variant: "destructive"
+          });
         }
+        
+        return {
+          sessionId: sessionId,
+          firstFrameBase64,
+          lastFrameBase64
+        };
       }
 
-      return { sessionId: '', firstFrameBase64, lastFrameBase64 };
+      return { sessionId: sessionId, firstFrameBase64, lastFrameBase64 };
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred in video analysis';
