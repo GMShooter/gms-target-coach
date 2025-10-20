@@ -108,8 +108,8 @@ const LandingPage = () => {
       position: fixed;
       pointer-events: none;
       border-radius: 9999px;
-      background-image: radial-gradient(circle, rgba(59, 130, 246, 0.15), rgba(147, 51, 234, 0.1), transparent 70%);
-      box-shadow: 0 0 40px rgba(59, 130, 246, 0.1), 0 0 60px rgba(147, 51, 234, 0.05);
+      background-image: radial-gradient(circle, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.25), transparent 70%);
+      box-shadow: 0 0 60px rgba(59, 130, 246, 0.2), 0 0 80px rgba(147, 51, 234, 0.15);
       transform: translate(-50%, -50%);
       will-change: left, top, opacity;
       transition: left 70ms linear, top 70ms linear, opacity 300ms ease-out;
@@ -222,13 +222,21 @@ const LandingPage = () => {
               <div className="w-1 h-1 bg-slate-300 rounded-full opacity-60"></div>
               <div className="w-1 h-1 bg-slate-300 rounded-full opacity-40"></div>
             </div>
+            <div className="mt-8 flex justify-center opacity-0" style={{ animation: 'word-appear 1s ease-out forwards', animationDelay: '4.5s' }}>
+              <button
+                onClick={() => window.location.href = '/login'}
+                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-300 shadow-lg hover:shadow-blue-500/25"
+              >
+                Get Started
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Responsive Mouse Gradient Size & Blur */}
-        <div 
+        <div
           id="mouse-gradient-react"
-          className="w-60 h-60 blur-xl sm:w-80 sm:h-80 sm:blur-2xl md:w-96 md:h-96 md:blur-3xl"
+          className="w-80 h-80 blur-2xl sm:w-96 sm:h-96 sm:blur-3xl md:w-[28rem] md:h-[28rem] md:blur-[40px]"
           style={{
             left: mouseGradientStyle.left,
             top: mouseGradientStyle.top,
