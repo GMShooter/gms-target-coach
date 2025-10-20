@@ -187,7 +187,7 @@ const LandingPage = () => {
           <div className="text-center max-w-5xl mx-auto relative">
             {/* Large Logo in Center */}
             <div className="mb-8 opacity-0" style={{ animation: 'word-appear 1s ease-out forwards', animationDelay: '500ms' }}>
-              <img src="/GMShoot_logo.png" alt="GMShoot Logo" className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 mx-auto" />
+              <img src="/GMShoot_logo.png" alt="GMShoot Logo" className="w-64 h-48 sm:w-80 sm:h-60 md:w-96 md:h-72 lg:w-[28rem] lg:h-[20rem] mx-auto" />
             </div>
             {/* Responsive Main Heading Sizes */}
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extralight leading-tight tracking-tight text-slate-50 text-decoration-animate">
