@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Button } from './components/ui/button';
 import Home from './pages/Home';
 import About from './pages/About';
+import DigitalSerenity from './components/ui/digital-serenity';
 import './App.css';
 
 function App() {
@@ -24,7 +25,8 @@ function App() {
         </nav>
         
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<DigitalSerenity />} />
+          <Route path="/home" element={<Home />} />
           <Route path="/about" element={<About />} />
         </Routes>
       </div>

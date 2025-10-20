@@ -4,6 +4,9 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Ensure Tailwind CSS is loaded
+import './App.css';
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
