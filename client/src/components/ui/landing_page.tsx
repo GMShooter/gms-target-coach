@@ -6,7 +6,7 @@ interface Ripple {
   y: number;
 }
 
-const DigitalSerenity = () => {
+const LandingPage = () => {
   const [mouseGradientStyle, setMouseGradientStyle] = useState({
     left: '0px',
     top: '0px',
@@ -67,16 +67,18 @@ const DigitalSerenity = () => {
     const handleMouseLeave = (e: MouseEvent) => {
       if (e.target instanceof HTMLElement) e.target.style.textShadow = 'none';
     };
+    
+    // Add event listeners
     wordElements.forEach(word => {
       word.addEventListener('mouseenter', handleMouseEnter);
       word.addEventListener('mouseleave', handleMouseLeave);
     });
+    
+    // Clean up event listeners
     return () => {
       wordElements.forEach(word => {
-        if (word) {
-          word.removeEventListener('mouseenter', handleMouseEnter);
-          word.removeEventListener('mouseleave', handleMouseLeave);
-        }
+        word.removeEventListener('mouseenter', handleMouseEnter);
+        word.removeEventListener('mouseleave', handleMouseLeave);
       });
     };
   }, []);
@@ -245,4 +247,4 @@ const DigitalSerenity = () => {
   );
 };
 
-export default DigitalSerenity;
+export default LandingPage;
