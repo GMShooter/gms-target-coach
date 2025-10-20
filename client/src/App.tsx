@@ -17,17 +17,25 @@ function App() {
 
 function AppContent() {
   const location = useLocation();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showLogin, setShowLogin] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Check if we should show the login screen
   useEffect(() => {
     if (location.pathname === '/login') {
-      setShowLogin(true);
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setShowLogin(true);
+        setIsTransitioning(false);
+      }, 300);
     } else {
-      setShowLogin(false);
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setShowLogin(false);
+        setIsTransitioning(false);
+      }, 300);
     }
   }, [location.pathname]);
 
@@ -35,34 +43,47 @@ function AppContent() {
     e.preventDefault();
     // TODO: Implement Firebase authentication
     console.log('Login with:', email, password);
-    setIsAuthenticated(true);
     window.location.href = '/';
   };
 
   const handleGoogleLogin = () => {
     // TODO: Implement Google OAuth
     console.log('Google login');
-    setIsAuthenticated(true);
     window.location.href = '/';
   };
 
+  const handleBackToLanding = () => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 300);
+  };
 
-  // If we're on the login path or not authenticated, show login screen
-  if (showLogin || !isAuthenticated) {
+
+  // If we're on the login path, show login screen
+  if (showLogin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-800 flex items-center justify-center p-4">
+      <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-800 flex items-center justify-center p-4 transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+        <div className="absolute top-4 left-4">
+          <Button variant="ghost" onClick={handleBackToLanding} className="text-slate-300 hover:text-white">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </Button>
+        </div>
         <Card className="w-full max-w-md">
           <CardHeader className="flex flex-col items-center space-y-2">
-            <img src="/GMShoot_logo.png" alt="GMShoot Logo" className="h-16 w-16" />
-            <CardTitle className="text-2xl">Welcome to GMShoot</CardTitle>
-            <CardDescription>
+            <img src="/GMShoot_logo.png" alt="GMShoot Logo" className="h-24 w-24" />
+            <CardTitle className="text-2xl text-slate-100">Welcome to GMShoot</CardTitle>
+            <CardDescription className="text-slate-300">
               Sign in to access your shooting analysis dashboard
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-slate-200">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -73,7 +94,7 @@ function AppContent() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-slate-200">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -92,12 +113,12 @@ function AppContent() {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
+                <span className="bg-slate-800 px-2 text-slate-300">
                   Or continue with
                 </span>
               </div>
             </div>
-            <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
+            <Button variant="outline" className="w-full border-slate-600 text-white hover:bg-slate-800" onClick={handleGoogleLogin}>
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -116,13 +137,13 @@ function AppContent() {
                   fill="#EA4335"
                 />
               </svg>
-              Google
+              <span className="text-white">Google</span>
             </Button>
           </CardContent>
           <CardFooter className="flex justify-center">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-slate-300">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-primary hover:underline">
+              <Link to="/signup" className="text-blue-400 hover:underline">
                 Sign up
               </Link>
             </p>
@@ -133,11 +154,10 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
       <nav className="p-4 border-b">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <img src="/GMShoot_logo.png" alt="GMShoot Logo" className="h-8 w-8" />
             <h1 className="text-2xl font-bold">GMShoot</h1>
           </div>
           <div className="space-x-4">
@@ -151,7 +171,6 @@ function AppContent() {
               <Button variant="ghost">Reports</Button>
             </Link>
             <Button variant="outline" onClick={() => {
-              setIsAuthenticated(false);
               window.location.href = '/login';
             }}>
               Sign Out
