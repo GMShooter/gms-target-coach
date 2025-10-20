@@ -108,7 +108,8 @@ const LandingPage = () => {
       position: fixed;
       pointer-events: none;
       border-radius: 9999px;
-      background-image: radial-gradient(circle, rgba(156, 163, 175, 0.05), rgba(107, 114, 128, 0.05), transparent 70%);
+      background-image: radial-gradient(circle, rgba(59, 130, 246, 0.15), rgba(147, 51, 234, 0.1), transparent 70%);
+      box-shadow: 0 0 40px rgba(59, 130, 246, 0.1), 0 0 60px rgba(147, 51, 234, 0.05);
       transform: translate(-50%, -50%);
       will-change: left, top, opacity;
       transition: left 70ms linear, top 70ms linear, opacity 300ms ease-out;
