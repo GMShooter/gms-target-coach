@@ -6,7 +6,18 @@
     "start": "craco start",
     "build": "craco build",
     "test": "craco test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "deploy": "node scripts/deploy.js",
+    "deploy:supabase": "node scripts/deploy.js supabase",
+    "deploy:frontend": "node scripts/deploy.js frontend",
+    "deploy:test": "node scripts/deploy.js test",
+    "deploy:full": "node scripts/deploy.js full",
+    "setup": "npm install && npm run build",
+    "dev": "concurrently \"npm run start\" \"cd supabase && supabase start\"",
+    "db:push": "cd supabase && supabase db push",
+    "db:studio": "cd supabase && supabase db studio",
+    "functions:deploy": "cd supabase && supabase functions deploy --no-verify-jwt",
+    "functions:logs": "cd supabase && supabase functions logs"
   },
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -23,6 +34,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.4.0",
+    "lucide-react": "^0.546.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.4",
@@ -53,10 +65,34 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
+    "@testing-library/react-hooks": "^8.0.1",
     "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^29.5.14",
     "autoprefixer": "^10.4.21",
+    "cypress": "^13.17.0",
+    "jest-axe": "^9.0.0",
+    "jest-environment-jsdom": "^29.7.0",
     "jest-websocket-mock": "^2.5.0",
+    "msw": "^2.7.0",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.15"
+    "tailwindcss": "^4.1.15",
+    "ts-jest": "^29.2.6"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/*.d.ts",
+      "!src/index.tsx",
+      "!src/reportWebVitals.ts",
+      "!src/setupTests.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    }
   }
 }

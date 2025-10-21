@@ -3,7 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl!, supabaseAnonKey!);
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const createSession = async (userId: string, sessionType: string) => {
   if (!userId) throw new Error("User ID is required to create a session.");
@@ -33,4 +37,32 @@ export const endSession = async (sessionId: string) => {
     console.error("Error ending session:", error);
     throw error;
   }
+};
+
+export const startSession = async (userId: string, drillMode: boolean = false) => {
+  if (!userId) throw new Error("User ID is required to start a session.");
+
+  const { data, error } = await supabase.functions.invoke('start-session', {
+    body: { userId, drillMode },
+  });
+
+  if (error) {
+    console.error('Error starting session:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const analyzeFrame = async (frameBase64: string) => {
+  const { data, error } = await supabase.functions.invoke('analyze-frame', {
+    body: { frameBase64 },
+  });
+
+  if (error) {
+    console.error('Error analyzing frame:', error);
+    throw error;
+  }
+
+  return data;
 };
