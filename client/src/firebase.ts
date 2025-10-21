@@ -2,14 +2,13 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 // Your web app's Firebase configuration
-// Replace with your actual config from Firebase console
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyClozThfUdOOXnC0gkHz_DCVP1t75B5hro",
   authDomain: "gmshooter.firebaseapp.com",
   projectId: "gmshooter",
-  storageBucket: "gmshooter.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  storageBucket: "gmshooter.firebasestorage.app",
+  messagingSenderId: "97079543510",
+  appId: "1:97079543510:web:4db510e1cbfc6256546b77"
 };
 
 // Initialize Firebase

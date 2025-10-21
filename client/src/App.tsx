@@ -31,13 +31,13 @@ function AppContent() {
       setTimeout(() => {
         setShowLogin(true);
         setIsTransitioning(false);
-      }, 800);
+      }, 50);
     } else {
       setIsTransitioning(true);
       setTimeout(() => {
         setShowLogin(false);
         setIsTransitioning(false);
-      }, 800);
+      }, 50);
     }
   }, [location.pathname]);
 
@@ -66,14 +66,14 @@ function AppContent() {
     setIsTransitioning(true);
     setTimeout(() => {
       window.location.href = '/';
-    }, 800);
+    }, 50);
   };
 
 
   // If we're on the login path, show login screen
   if (showLogin) {
     return (
-      <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-800 flex items-center justify-center p-4 transition-all duration-700 ease-in-out ${isTransitioning ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'}`}>
+      <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-800 flex items-center justify-center p-4 transition-all duration-500 ease-in-out ${isTransitioning ? 'transform translate-x-full opacity-0' : 'transform translate-x-0 opacity-100'}`}>
         <div className="absolute top-4 left-4">
           <Button variant="ghost" onClick={handleBackToLanding} className="text-slate-300 hover:text-white">
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,7 +164,7 @@ function AppContent() {
   }
 
   return (
-    <div className={`min-h-screen bg-background transition-all duration-700 ease-in-out ${isTransitioning ? 'opacity-0 transform scale-105' : 'opacity-100 transform scale-100'}`}>
+    <div className={`min-h-screen bg-background transition-all duration-500 ease-in-out ${isTransitioning ? 'transform -translate-x-full opacity-0' : 'transform translate-x-0 opacity-100'}`}>
       <nav className="p-4 border-b">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-2">
