@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
 import LandingPage from './components/ui/landing_page';
+import { auth, googleProvider } from './firebase';
+import { signInWithEmailAndPassword, signInWithPopup, signOut } from 'firebase/auth';
 import './App.css';
 
 function App() {
@@ -29,41 +31,49 @@ function AppContent() {
       setTimeout(() => {
         setShowLogin(true);
         setIsTransitioning(false);
-      }, 300);
+      }, 800);
     } else {
       setIsTransitioning(true);
       setTimeout(() => {
         setShowLogin(false);
         setIsTransitioning(false);
-      }, 300);
+      }, 800);
     }
   }, [location.pathname]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement Firebase authentication
-    console.log('Login with:', email, password);
-    window.location.href = '/';
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Login error:', error);
+      // TODO: Show error message to user
+    }
   };
 
-  const handleGoogleLogin = () => {
-    // TODO: Implement Google OAuth
-    console.log('Google login');
-    window.location.href = '/';
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Google login error:', error);
+      // TODO: Show error message to user
+    }
   };
 
   const handleBackToLanding = () => {
     setIsTransitioning(true);
     setTimeout(() => {
       window.location.href = '/';
-    }, 300);
+    }, 800);
   };
 
 
   // If we're on the login path, show login screen
   if (showLogin) {
     return (
-      <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-800 flex items-center justify-center p-4 transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-800 flex items-center justify-center p-4 transition-all duration-700 ease-in-out ${isTransitioning ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'}`}>
         <div className="absolute top-4 left-4">
           <Button variant="ghost" onClick={handleBackToLanding} className="text-slate-300 hover:text-white">
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +164,7 @@ function AppContent() {
   }
 
   return (
-    <div className={`min-h-screen bg-background transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+    <div className={`min-h-screen bg-background transition-all duration-700 ease-in-out ${isTransitioning ? 'opacity-0 transform scale-105' : 'opacity-100 transform scale-100'}`}>
       <nav className="p-4 border-b">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-2">
@@ -170,8 +180,13 @@ function AppContent() {
             <Link to="/reports">
               <Button variant="ghost">Reports</Button>
             </Link>
-            <Button variant="outline" onClick={() => {
-              window.location.href = '/login';
+            <Button variant="outline" onClick={async () => {
+              try {
+                await signOut(auth);
+                window.location.href = '/login';
+              } catch (error) {
+                console.error('Sign out error:', error);
+              }
             }}>
               Sign Out
             </Button>
