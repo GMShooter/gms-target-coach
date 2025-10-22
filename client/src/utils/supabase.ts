@@ -13,7 +13,7 @@ export const createSession = async (userId: string, sessionType: string) => {
   if (!userId) throw new Error("User ID is required to create a session.");
 
   const { data, error } = await supabase
-    .from('sessions')
+    .from('analysis_sessions')
     .insert([{ user_id: userId, status: 'processing', session_type: sessionType }])
     .select('id')
     .single();

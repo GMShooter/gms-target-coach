@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription } from './ui/alert';
 import { useVideoAnalysis } from '../hooks/useVideoAnalysis';
-import { Upload, Play, TestTube, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, Play, TestTube, AlertCircle, CheckCircle, Target, TrendingUp, Award, BarChart3, Eye } from 'lucide-react';
+import { BullseyeRadarChart, SessionScoreLineChart } from './ui/charts';
 
 const VideoAnalysis: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -16,7 +17,6 @@ const VideoAnalysis: React.FC = () => {
     results,
     error,
     videoFile,
-    sessionId,
     uploadVideo,
     processVideo,
     testWithFrames,
@@ -70,6 +70,37 @@ const VideoAnalysis: React.FC = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  // Helper functions for chart data
+  const calculateConsistency = (results: any[]) => {
+    if (results.length < 2) return 0;
+    const accuracies = results.map(r => r.accuracy);
+    const mean = accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length;
+    const variance = accuracies.reduce((sum, acc) => sum + Math.pow(acc - mean, 2), 0) / accuracies.length;
+    const standardDeviation = Math.sqrt(variance);
+    return Math.max(0, 100 - standardDeviation);
+  };
+
+  const calculateStability = (results: any[]) => {
+    if (results.length < 2) return 0;
+    const confidences = results.map(r => r.confidence);
+    const mean = confidences.reduce((sum, conf) => sum + conf, 0) / confidences.length;
+    const variance = confidences.reduce((sum, conf) => sum + Math.pow(conf - mean, 2), 0) / confidences.length;
+    const standardDeviation = Math.sqrt(variance);
+    return Math.max(0, 100 - standardDeviation);
+  };
+
+  const calculateFollowThrough = (results: any[]) => {
+    // Simulate follow-through based on accuracy and confidence correlation
+    if (results.length < 2) return 0;
+    const accuracies = results.map(r => r.accuracy);
+    const confidences = results.map(r => r.confidence);
+    const correlation = accuracies.reduce((sum, acc, i) => {
+      return sum + (acc - accuracies.reduce((s, a) => s + a, 0) / accuracies.length) *
+                    (confidences[i] - confidences.reduce((s, c) => s + c, 0) / confidences.length);
+    }, 0) / accuracies.length;
+    return Math.min(100, Math.max(0, correlation * 2));
   };
 
   return (
@@ -180,82 +211,170 @@ const VideoAnalysis: React.FC = () => {
 
       {/* Results */}
       {results.length > 0 && (
-        <Card className="mb-8 border-slate-700 bg-slate-800">
-          <CardHeader>
-            <CardTitle className="text-slate-100 flex items-center">
-              <CheckCircle className="mr-2 h-5 w-5 text-green-400" />
-              Analysis Results
-            </CardTitle>
-            <CardDescription className="text-slate-300">
-              {results.length} frames analyzed
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Overall Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-slate-900/50 p-4 rounded-lg">
-                  <p className="text-slate-400 text-sm">Average Accuracy</p>
-                  <p className="text-2xl font-bold text-slate-100">
+        <div className="space-y-8">
+          {/* Header */}
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-4">
+              <CheckCircle className="mr-3 h-8 w-8 text-green-400" />
+              <h2 className="text-3xl font-bold text-slate-100">Analysis Complete</h2>
+            </div>
+            <p className="text-slate-400">
+              Deep analysis of {results.length} frames provides actionable insights.
+            </p>
+          </div>
+
+          {/* Key Performance Indicators */}
+          <Card className="border-slate-700 bg-gradient-to-r from-slate-800 to-slate-900">
+            <CardHeader>
+              <CardTitle className="text-slate-100 flex items-center">
+                <BarChart3 className="mr-2 h-5 w-5 text-blue-400" />
+                Performance Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="text-center">
+                  <div className="flex items-center justify-center w-12 h-12 bg-blue-500/20 rounded-full mb-2">
+                    <Target className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <p className="text-slate-400 text-sm">Avg. Accuracy</p>
+                  <p className="text-3xl font-bold text-slate-100">
                     {(results.reduce((sum, r) => sum + r.accuracy, 0) / results.length).toFixed(1)}%
                   </p>
                 </div>
-                <div className="bg-slate-900/50 p-4 rounded-lg">
-                  <p className="text-slate-400 text-sm">Average Confidence</p>
-                  <p className="text-2xl font-bold text-slate-100">
+                <div className="text-center">
+                  <div className="flex items-center justify-center w-12 h-12 bg-green-500/20 rounded-full mb-2">
+                    <TrendingUp className="h-6 w-6 text-green-400" />
+                  </div>
+                  <p className="text-slate-400 text-sm">Avg. Confidence</p>
+                  <p className="text-3xl font-bold text-slate-100">
                     {(results.reduce((sum, r) => sum + r.confidence, 0) / results.length).toFixed(1)}%
                   </p>
                 </div>
-                <div className="bg-slate-900/50 p-4 rounded-lg">
+                <div className="text-center">
+                  <div className="flex items-center justify-center w-12 h-12 bg-purple-500/20 rounded-full mb-2">
+                    <Award className="h-6 w-6 text-purple-400" />
+                  </div>
                   <p className="text-slate-400 text-sm">Best Shot</p>
-                  <p className="text-2xl font-bold text-slate-100">
+                  <p className="text-3xl font-bold text-slate-100">
                     {Math.max(...results.map(r => r.accuracy)).toFixed(1)}%
                   </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Frame Results */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-100">Frame Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {results.map((result) => (
-                    <div key={result.id} className="bg-slate-900/50 p-4 rounded-lg">
-                      {result.imageUrl && (
-                        <img 
-                          src={result.imageUrl} 
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Radar Chart */}
+            <Card className="border-slate-700 bg-slate-800">
+              <CardHeader>
+                <CardTitle className="text-slate-100 flex items-center">
+                  <Target className="mr-2 h-5 w-5 text-purple-400" />
+                  Shooting Performance Radar
+                </CardTitle>
+                <CardDescription className="text-slate-300">
+                  Comprehensive view of your shooting metrics
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BullseyeRadarChart data={[
+                  { shot: "Accuracy", accuracy: results.reduce((sum, r) => sum + r.accuracy, 0) / results.length, confidence: results.reduce((sum, r) => sum + r.confidence, 0) / results.length },
+                  { shot: "Consistency", accuracy: calculateConsistency(results), confidence: calculateStability(results) },
+                  { shot: "Follow Through", accuracy: calculateFollowThrough(results), confidence: Math.max(...results.map(r => r.confidence)) },
+                  { shot: "Best Shot", accuracy: Math.max(...results.map(r => r.accuracy)), confidence: results.reduce((sum, r) => sum + r.confidence, 0) / results.length },
+                  { shot: "Average", accuracy: results.reduce((sum, r) => sum + r.accuracy, 0) / results.length, confidence: results.reduce((sum, r) => sum + r.confidence, 0) / results.length }
+                ]} />
+              </CardContent>
+            </Card>
+
+            {/* Line Chart */}
+            <Card className="border-slate-700 bg-slate-800">
+              <CardHeader>
+                <CardTitle className="text-slate-100 flex items-center">
+                  <TrendingUp className="mr-2 h-5 w-5 text-green-400" />
+                  Performance Timeline
+                </CardTitle>
+                <CardDescription className="text-slate-300">
+                  Track your accuracy and confidence over time
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SessionScoreLineChart data={results.map(r => ({
+                  session: `Frame ${r.frameNumber}`,
+                  score: r.accuracy,
+                  accuracy: r.confidence
+                }))} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Detailed Frame Analysis */}
+          <Card className="border-slate-700 bg-slate-800">
+            <CardHeader>
+              <CardTitle className="text-slate-100 flex items-center">
+                <Eye className="mr-2 h-5 w-5 text-indigo-400" />
+                Frame-by-Frame Breakdown
+              </CardTitle>
+              <CardDescription className="text-slate-300">
+                Click on any frame for a detailed view.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {results.map((result, index) => (
+                  <div key={result.id} className="group relative bg-slate-900/50 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all duration-300">
+                    {result.imageUrl && (
+                      <div className="relative">
+                        <img
+                          src={result.imageUrl}
                           alt={`Frame ${result.frameNumber}`}
-                          className="w-full h-32 object-cover rounded mb-2"
+                          className="w-full h-48 object-cover"
                         />
-                      )}
-                      <div className="space-y-1">
-                        <p className="text-slate-300 text-sm">
-                          Frame {result.frameNumber} ({result.timestamp.toFixed(1)}s)
-                        </p>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 text-sm">Accuracy:</span>
-                          <span className="text-slate-200 text-sm font-medium">
-                            {result.accuracy.toFixed(1)}%
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 text-sm">Confidence:</span>
-                          <span className="text-slate-200 text-sm font-medium">
-                            {result.confidence.toFixed(1)}%
-                          </span>
+                        <div className="absolute top-2 right-2 bg-slate-800/80 text-slate-100 text-xs px-2 py-1 rounded-full">
+                          Frame {result.frameNumber}
                         </div>
                       </div>
+                    )}
+                    <div className="p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400 text-sm">Accuracy</span>
+                        <span className={`text-lg font-bold ${
+                          result.accuracy > 80 ? 'text-green-400' :
+                          result.accuracy > 60 ? 'text-yellow-400' : 'text-red-400'
+                        }`}>
+                          {result.accuracy.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400 text-sm">Confidence</span>
+                        <span className="text-slate-200 text-sm font-medium">
+                          {result.confidence.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-700 rounded-full h-2">
+                        <div
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${result.accuracy}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-slate-500 text-xs">
+                        Timestamp: {result.timestamp.toFixed(1)}s
+                      </p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button onClick={handleReset} className="w-full">
+            </CardContent>
+          </Card>
+
+          {/* Action Button */}
+          <div className="text-center">
+            <Button onClick={handleReset} variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
               Analyze Another Video
             </Button>
-          </CardFooter>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

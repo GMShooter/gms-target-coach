@@ -4,41 +4,71 @@ import { apiTestUtils, mockApiResponses, testHelpers } from '../../utils/test-ut
 // Mock Supabase client
 jest.mock('../../utils/supabase', () => ({
   supabase: {
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        limit: jest.fn(() => Promise.resolve({ data: [], error: null }))
-      })),
-      insert: jest.fn(() => ({
-        select: jest.fn(() => Promise.resolve({ 
-          data: mockApiResponses.supabaseSession, 
-          error: null 
+    from: jest.fn((table) => {
+      // Create base response based on table
+      const baseResponse = table === 'shots' ? mockApiResponses.supabaseShot : mockApiResponses.supabaseSession;
+      
+      return {
+        select: jest.fn(() => ({
+          eq: jest.fn((field, value) => {
+            return {
+              order: jest.fn(() => ({
+                limit: jest.fn(() => Promise.resolve({
+                  data: [mockApiResponses.supabaseSession],
+                  error: null
+                }))
+              })),
+              then: (resolve: any) => resolve({
+                data: table === 'shots' && field === 'session_id'
+                  ? [mockApiResponses.supabaseShot]
+                  : [mockApiResponses.supabaseSession],
+                error: null
+              })
+            };
+          }),
+          order: jest.fn(() => ({
+            limit: jest.fn(() => Promise.resolve({
+              data: [mockApiResponses.supabaseSession],
+              error: null
+            }))
+          })),
+          limit: jest.fn(() => Promise.resolve({
+            data: [],
+            error: null
+          }))
+        })),
+        insert: jest.fn((data) => ({
+          select: jest.fn(() => {
+            // Check if this is a shot insert
+            if (data.frame_id !== undefined) {
+              return Promise.resolve({
+                data: mockApiResponses.supabaseShot,
+                error: null
+              });
+            }
+            // Default to session
+            return Promise.resolve({
+              data: mockApiResponses.supabaseSession,
+              error: null
+            });
+          })
+        })),
+        update: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            select: jest.fn(() => Promise.resolve({
+              data: mockApiResponses.supabaseSession,
+              error: null
+            }))
+          }))
+        })),
+        delete: jest.fn(() => ({
+          eq: jest.fn(() => Promise.resolve({
+            data: null,
+            error: null
+          }))
         }))
-      })),
-      update: jest.fn(() => ({
-        eq: jest.fn(() => Promise.resolve({ 
-          data: mockApiResponses.supabaseSession, 
-          error: null 
-        }))
-      })),
-      delete: jest.fn(() => ({
-        eq: jest.fn(() => Promise.resolve({ 
-          data: null, 
-          error: null 
-        }))
-      })),
-      eq: jest.fn(() => ({
-        select: jest.fn(() => Promise.resolve({ 
-          data: [mockApiResponses.supabaseSession], 
-          error: null 
-        }))
-      })),
-      order: jest.fn(() => ({
-        limit: jest.fn(() => Promise.resolve({ 
-          data: [mockApiResponses.supabaseSession], 
-          error: null 
-        }))
-      }))
-    })),
+      };
+    }),
     auth: {
       signInWithPassword: jest.fn(() => Promise.resolve({
         data: { user: mockApiResponses.supabaseUser, session: {} },

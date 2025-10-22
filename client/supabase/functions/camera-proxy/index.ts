@@ -6,7 +6,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 const activeSessions = new Map<string, any>();
 const frameQueue = new Map<string, any[]>();
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -131,12 +131,17 @@ function handleFrameAdd(payload: any) {
 }
 
 function generateMockFrame(): string {
-  // Generate a simple mock frame as base64
-  // In production, this would be actual camera data
-  const canvas = new Uint8Array(100);
-  for (let i = 0; i < canvas.length; i++) {
-    canvas[i] = Math.floor(Math.random() * 256);
-  }
+  // Generate a simple SVG image as base64 for testing
+  const svg = `
+    <svg width="640" height="480" xmlns="http://www.w3.org/2000/svg">
+      <rect width="640" height="480" fill="#1e293b"/>
+      <circle cx="320" cy="240" r="50" fill="#3b82f6" opacity="0.8"/>
+      <text x="320" y="250" text-anchor="middle" fill="white" font-family="Arial" font-size="16">Mock Camera Frame</text>
+      <text x="320" y="270" text-anchor="middle" fill="white" font-family="Arial" font-size="12">${new Date().toLocaleTimeString()}</text>
+    </svg>
+  `;
   
-  return btoa(String.fromCharCode(...canvas));
+  // Convert SVG to base64
+  const base64 = btoa(unescape(encodeURIComponent(svg)));
+  return base64;
 }

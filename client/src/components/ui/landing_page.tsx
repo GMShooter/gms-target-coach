@@ -115,11 +115,11 @@ const LandingPage = () => {
       transition: left 70ms linear, top 70ms linear, opacity 300ms ease-out;
     }
     @keyframes word-appear { 0% { opacity: 0; transform: translateY(30px) scale(0.8); filter: blur(10px); } 50% { opacity: 0.8; transform: translateY(10px) scale(0.95); filter: blur(2px); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
-    @keyframes grid-draw { 0% { stroke-dashoffset: 1000; opacity: 0; } 50% { opacity: 0.3; } 100% { stroke-dashoffset: 0; opacity: 0.15; } }
-    @keyframes pulse-glow { 0%, 100% { opacity: 0.1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(1.1); } }
+    @keyframes grid-draw { 0% { stroke-dashoffset: 1000; opacity: 0; } 50% { opacity: 0.5; } 100% { stroke-dashoffset: 0; opacity: 0.3; } }
+    @keyframes pulse-glow { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.2); } }
     .word-animate { display: inline-block; opacity: 0; margin: 0 0.1em; transition: color 0.3s ease, transform 0.3s ease; }
     .word-animate:hover { color: #cbd5e1; transform: translateY(-2px); }
-    .grid-line { stroke: #94a3b8; stroke-width: 0.5; opacity: 0; stroke-dasharray: 5 5; stroke-dashoffset: 1000; animation: grid-draw 2s ease-out forwards; }
+    .grid-line { stroke: #94a3b8; stroke-width: 1; opacity: 0; stroke-dasharray: 10 5; stroke-dashoffset: 1000; animation: grid-draw 2.5s ease-out forwards; }
     .detail-dot { fill: #cbd5e1; opacity: 0; animation: pulse-glow 3s ease-in-out infinite; }
     .corner-element-animate { position: absolute; width: 40px; height: 40px; border: 1px solid rgba(203, 213, 225, 0.2); opacity: 0; animation: word-appear 1s ease-out forwards; }
     .text-decoration-animate { position: relative; }
@@ -146,13 +146,13 @@ const LandingPage = () => {
           <line x1="0" y1="80%" x2="100%" y2="80%" className="grid-line" style={{ animationDelay: '1s' }} />
           <line x1="20%" y1="0" x2="20%" y2="100%" className="grid-line" style={{ animationDelay: '1.5s' }} />
           <line x1="80%" y1="0" x2="80%" y2="100%" className="grid-line" style={{ animationDelay: '2s' }} />
-          <line x1="50%" y1="0" x2="50%" y2="100%" className="grid-line" style={{ animationDelay: '2.5s', opacity: '0.05' }} />
-          <line x1="0" y1="50%" x2="100%" y2="50%" className="grid-line" style={{ animationDelay: '3s', opacity: '0.05' }} />
-          <circle cx="20%" cy="20%" r="2" className="detail-dot" style={{ animationDelay: '3s' }} />
-          <circle cx="80%" cy="20%" r="2" className="detail-dot" style={{ animationDelay: '3.2s' }} />
-          <circle cx="20%" cy="80%" r="2" className="detail-dot" style={{ animationDelay: '3.4s' }} />
-          <circle cx="80%" cy="80%" r="2" className="detail-dot" style={{ animationDelay: '3.6s' }} />
-          <circle cx="50%" cy="50%" r="1.5" className="detail-dot" style={{ animationDelay: '4s' }} />
+          <line x1="50%" y1="0" x2="50%" y2="100%" className="grid-line" style={{ animationDelay: '2.5s' }} />
+          <line x1="0" y1="50%" x2="100%" y2="50%" className="grid-line" style={{ animationDelay: '3s' }} />
+          <circle cx="20%" cy="20%" r="4" className="detail-dot" style={{ animationDelay: '3s' }} />
+          <circle cx="80%" cy="20%" r="4" className="detail-dot" style={{ animationDelay: '3.2s' }} />
+          <circle cx="20%" cy="80%" r="4" className="detail-dot" style={{ animationDelay: '3.4s' }} />
+          <circle cx="80%" cy="80%" r="4" className="detail-dot" style={{ animationDelay: '3.6s' }} />
+          <circle cx="50%" cy="50%" r="3" className="detail-dot" style={{ animationDelay: '4s' }} />
         </svg>
 
         {/* Responsive Corner Elements */}
@@ -222,9 +222,9 @@ const LandingPage = () => {
               <span className="word-animate" data-delay="3400">excel.</span>
             </h2>
             <div className="mt-6 flex justify-center space-x-4 opacity-0" style={{ animation: 'word-appear 1s ease-out forwards', animationDelay: '4.2s' }}>
-              <div className="w-1 h-1 bg-slate-300 rounded-full opacity-40"></div>
-              <div className="w-1 h-1 bg-slate-300 rounded-full opacity-60"></div>
-              <div className="w-1 h-1 bg-slate-300 rounded-full opacity-40"></div>
+              <div className="w-1.5 h-1.5 bg-slate-300 rounded-full opacity-60"></div>
+              <div className="w-1.5 h-1.5 bg-slate-300 rounded-full opacity-80"></div>
+              <div className="w-1.5 h-1.5 bg-slate-300 rounded-full opacity-60"></div>
             </div>
             <div className="mt-8 flex justify-center opacity-0" style={{ animation: 'word-appear 1s ease-out forwards', animationDelay: '4.5s' }}>
               <button

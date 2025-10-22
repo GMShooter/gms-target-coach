@@ -2,10 +2,10 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
 const ROBOFLOW_API_KEY = Deno.env.get('ROBOFLOW_API_KEY');
-const ROBOFLOW_MODEL = 'gmshooter/production-inference-sahi-detr-2-2';
-const ROBOFLOW_API_URL = `https://detect.roboflow.com/${ROBOFLOW_MODEL}`;
+const ROBOFLOW_MODEL = 'gmshooter-v2/1'; // Updated model name
+const ROBOFLOW_API_URL = `https://api.roboflow.com/${ROBOFLOW_MODEL}`;
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -20,28 +20,39 @@ serve(async (req) => {
       throw new Error('frameBase64 is required.');
     }
 
-    // Sanitize the Base64 string by removing the data URL prefix if it exists.
-    const base64Data = frameBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+    // Prepare the request body according to Roboflow API specification
+    const requestData = {
+      image: frameBase64,
+      confidence: 0.5,
+      overlap: 0.5
+    };
 
-    const formData = new FormData();
-    formData.append('file', base64Data, 'image.jpg');
-
-    const roboflowResponse = await fetch(ROBOFLOW_API_URL + '?api_key=' + ROBOFLOW_API_KEY, {
+    console.log('Making request to Roboflow API:', ROBOFLOW_API_URL);
+    
+    const roboflowResponse = await fetch(ROBOFLOW_API_URL, {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ROBOFLOW_API_KEY}`
+      },
+      body: JSON.stringify(requestData)
     });
+
+    console.log('Roboflow API response status:', roboflowResponse.status);
 
     if (!roboflowResponse.ok) {
       const errorText = await roboflowResponse.text();
+      console.error('Roboflow API error response:', errorText);
       throw new Error(`Roboflow API error: ${roboflowResponse.status} ${errorText}`);
     }
 
     const detections = await roboflowResponse.json();
+    console.log('Roboflow API successful response, detections count:', detections.predictions?.length || 0);
     
     const responseHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
     return new Response(JSON.stringify({ detections }), { headers: responseHeaders });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in analyze-frame function:', error);
     const responseHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: responseHeaders });

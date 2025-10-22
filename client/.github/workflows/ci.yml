@@ -1,0 +1,189 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd client
+        npm ci
+
+    - name: Run linting
+      run: |
+        cd client
+        npm run test:lint
+
+    - name: Run type checking
+      run: |
+        cd client
+        npx tsc --noEmit
+
+    - name: Run unit tests
+      run: |
+        cd client
+        npm run test:unit
+
+    - name: Run integration tests
+      run: |
+        cd client
+        npm run test:integration
+
+    - name: Run tests with coverage
+      run: |
+        cd client
+        npm run test:ci
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./client/coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Build Storybook
+      run: |
+        cd client
+        npm run build-storybook
+
+    - name: Build application
+      run: |
+        cd client
+        npm run build
+
+  e2e-test:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd client
+        npm ci
+
+    - name: Install Chrome
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+
+    - name: Run E2E tests
+      run: |
+        cd client
+        npm run test:e2e
+      env:
+        CYPRESS_baseUrl: http://localhost:3000
+
+    - name: Upload E2E screenshots
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: cypress-screenshots
+        path: client/cypress/screenshots
+
+    - name: Upload E2E videos
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: cypress-videos
+        path: client/cypress/videos
+
+  visual-regression:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd client
+        npm ci
+
+    - name: Build Storybook
+      run: |
+        cd client
+        npm run build-storybook
+
+    - name: Run visual regression tests
+      run: |
+        cd client
+        npx chromatic --project-token=${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+      env:
+        CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, e2e-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd client
+        npm ci
+
+    - name: Build application
+      run: |
+        cd client
+        npm run build
+
+    - name: Deploy to production
+      run: |
+        cd client
+        npm run deploy:full
+      env:
+        FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

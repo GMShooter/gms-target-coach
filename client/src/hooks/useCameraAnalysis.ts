@@ -6,6 +6,7 @@ export const useCameraAnalysis = (userId: string | null) => {
   const [error, setError] = useState<string | null>(null);
   const [latestFrame, setLatestFrame] = useState<string | null>(null);
   const [lastFrameId, setLastFrameId] = useState<number | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const isPolling = useRef(false);
 
@@ -34,19 +35,26 @@ export const useCameraAnalysis = (userId: string | null) => {
   }, [lastFrameId]);
 
   const startAnalysis = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setError('You must be authenticated to start camera analysis');
+      return;
+    }
     setError(null);
     setIsAnalyzing(true);
 
     try {
+      // Generate a unique session ID
+      const newSessionId = `session-${userId}-${Date.now()}`;
+      setSessionId(newSessionId);
       const { error } = await supabase.functions.invoke('camera-proxy', {
-        body: { action: 'start_session', payload: { fps: 1 } },
+        body: { action: 'start_session', payload: { sessionId: newSessionId, fps: 1 } },
       });
       if (error) throw new Error(error.message);
       pollFrames(); // Start polling for frames
     } catch (err: any) {
       setError(`Failed to start session: ${err.message}`);
       setIsAnalyzing(false);
+      setSessionId(null);
     }
   }, [userId, pollFrames]);
 
@@ -56,16 +64,21 @@ export const useCameraAnalysis = (userId: string | null) => {
     setError(null);
     setLatestFrame(null);
     setLastFrameId(null);
+    
+    const currentSessionId = sessionId;
+    setSessionId(null);
 
     try {
-      await supabase.functions.invoke('camera-proxy', {
-        body: { action: 'stop_session' },
-      });
+      if (currentSessionId) {
+        await supabase.functions.invoke('camera-proxy', {
+          body: { action: 'stop_session', payload: { sessionId: currentSessionId } },
+        });
+      }
     } catch (err: any) {
       // This is a best-effort stop, so we don't need to bother the user if it fails.
       console.error("Failed to explicitly stop session:", err);
     }
-  }, []);
+  }, [sessionId]);
 
   // Cleanup on unmount
   useEffect(() => {

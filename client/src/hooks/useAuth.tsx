@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, createContext, ReactNode } from 'react';
+import React, { useState, useEffect, useContext, createContext, ReactNode, useCallback } from 'react';
 import { User } from 'firebase/auth';
 import {
   signInWithGoogle,
@@ -47,16 +47,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
 
   // Convert Firebase user to AuthUser format
-  const formatUser = (firebaseUser: User): AuthUser => ({
+  const formatUser = useCallback((firebaseUser: User): AuthUser => ({
     id: firebaseUser.uid,
     email: firebaseUser.email || '',
     displayName: firebaseUser.displayName || undefined,
     photoURL: firebaseUser.photoURL || undefined,
     firebaseUid: firebaseUser.uid
-  });
+  }), []);
 
   // Sync user with Supabase
-  const syncUserWithSupabase = async (firebaseUser: User) => {
+  const syncUserWithSupabase = useCallback(async (firebaseUser: User) => {
     try {
       const authUser = formatUser(firebaseUser);
       
@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Error syncing user with Supabase:', error);
       setError('Failed to sync user data');
     }
-  };
+  }, [formatUser]);
 
   // Handle Google sign in
   const handleGoogleSignIn = async () => {
@@ -117,7 +117,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await syncUserWithSupabase(firebaseUser);
     } catch (error: any) {
       console.error('Google sign in error:', error);
-      setError(error.message || 'Failed to sign in with Google');
+      let errorMessage = 'Failed to sign in with Google';
+      
+      // Provide more specific error messages
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign-in popup was closed before completion';
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Sign-in popup was blocked by the browser';
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        errorMessage = 'Sign-in was cancelled';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -133,7 +146,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await syncUserWithSupabase(firebaseUser);
     } catch (error: any) {
       console.error('Email sign in error:', error);
-      setError(error.message || 'Failed to sign in with email');
+      let errorMessage = 'Failed to sign in with email';
+      
+      // Provide more specific error messages
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email address';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address';
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = 'This account has been disabled';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many failed login attempts. Please try again later';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -183,7 +213,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     return () => unsubscribe();
-  }, []);
+  }, [syncUserWithSupabase]);
 
   const value: AuthContextType = {
     user,
