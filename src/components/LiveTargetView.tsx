@@ -2,25 +2,27 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge-2';
-import { HardwareAPI, type HardwareConnection, type ShotDetection, type TargetConfiguration } from '@/services/HardwareAPI';
+import { HardwareAPI, type PiDevice, type SessionData, type ShotData, type FrameData } from '@/services/HardwareAPI';
 import { Play, Pause, Square, Settings, Camera, Target, Wifi, WifiOff } from 'lucide-react';
 
 interface LiveTargetViewProps {
+  deviceId?: string;
   sessionId?: string;
-  onShotDetected?: (shot: ShotDetection) => void;
-  onSessionComplete?: (results: ShotDetection[]) => void;
+  onShotDetected?: (shot: ShotData) => void;
+  onSessionComplete?: (results: ShotData[]) => void;
 }
 
 export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
+  deviceId,
   sessionId,
   onShotDetected,
   onSessionComplete
 }) => {
-  const [connection, setConnection] = useState<HardwareConnection | null>(null);
+  const [device, setDevice] = useState<PiDevice | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [isSessionActive, setIsSessionActive] = useState(false);
-  const [shots, setShots] = useState<ShotDetection[]>([]);
-  const [currentConfig, setCurrentConfig] = useState<TargetConfiguration | null>(null);
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [shots, setShots] = useState<ShotData[]>([]);
+  const [currentFrame, setCurrentFrame] = useState<FrameData | null>(null);
   const [streamUrl, setStreamUrl] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [showSettings, setShowSettings] = useState(false);
@@ -36,39 +38,39 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     // Cleanup on unmount
     return () => {
       if (hardwareAPIRef.current) {
-        hardwareAPIRef.current.disconnect();
+        hardwareAPIRef.current.cleanup();
       }
     };
   }, []);
 
-  // Handle connection status changes
+  // Handle device connection
   useEffect(() => {
     if (!hardwareAPIRef.current) return;
 
-    const handleConnectionChange = (conn: HardwareConnection) => {
-      setConnection(conn);
-      setIsConnected(conn.status === 'connected');
-      
-      if (conn.status === 'connected' && conn.streamUrl) {
-        setStreamUrl(conn.streamUrl);
-        setError('');
-      } else if (conn.status === 'error') {
-        setError(conn.error || 'Connection error');
-      }
+    const handleDeviceConnected = (connectedDevice: PiDevice) => {
+      setDevice(connectedDevice);
+      setIsConnected(connectedDevice.status === 'online');
+      setError('');
     };
 
-    hardwareAPIRef.current.on('connectionChange', handleConnectionChange);
-    
-    return () => {
-      hardwareAPIRef.current?.off('connectionChange', handleConnectionChange);
+    const handleDeviceDisconnected = () => {
+      setDevice(null);
+      setIsConnected(false);
+      setStreamUrl('');
+      setSession(null);
     };
-  }, []);
 
-  // Handle shot detection
-  useEffect(() => {
-    if (!hardwareAPIRef.current) return;
+    const handleSessionStarted = (sessionData: SessionData) => {
+      setSession(sessionData);
+      setShots([]);
+    };
 
-    const handleShotDetected = (shot: ShotDetection) => {
+    const handleSessionEnded = () => {
+      setSession(null);
+      onSessionComplete?.(shots);
+    };
+
+    const handleShotDetected = (shot: ShotData) => {
       setShots(prev => [...prev, shot]);
       onShotDetected?.(shot);
       
@@ -76,12 +78,39 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
       drawShotOverlay(shot);
     };
 
-    hardwareAPIRef.current.on('shotDetected', handleShotDetected);
+    const handleFrameUpdated = (frameData: FrameData) => {
+      setCurrentFrame(frameData);
+      if (frameData.imageUrl) {
+        setStreamUrl(frameData.imageUrl);
+      }
+    };
+
+    const handleError = (errorData: any) => {
+      setError(errorData.message || 'An error occurred');
+    };
+
+    // Register event listeners
+    hardwareAPIRef.current.addEventListener('deviceConnected', handleDeviceConnected);
+    hardwareAPIRef.current.addEventListener('deviceDisconnected', handleDeviceDisconnected);
+    hardwareAPIRef.current.addEventListener('sessionStarted', handleSessionStarted);
+    hardwareAPIRef.current.addEventListener('sessionEnded', handleSessionEnded);
+    hardwareAPIRef.current.addEventListener('shotDetected', handleShotDetected);
+    hardwareAPIRef.current.addEventListener('frameUpdated', handleFrameUpdated);
+    hardwareAPIRef.current.addEventListener('error', handleError);
     
     return () => {
-      hardwareAPIRef.current?.off('shotDetected', handleShotDetected);
+      // Remove event listeners
+      if (hardwareAPIRef.current) {
+        hardwareAPIRef.current.removeEventListener('deviceConnected', handleDeviceConnected);
+        hardwareAPIRef.current.removeEventListener('deviceDisconnected', handleDeviceDisconnected);
+        hardwareAPIRef.current.removeEventListener('sessionStarted', handleSessionStarted);
+        hardwareAPIRef.current.removeEventListener('sessionEnded', handleSessionEnded);
+        hardwareAPIRef.current.removeEventListener('shotDetected', handleShotDetected);
+        hardwareAPIRef.current.removeEventListener('frameUpdated', handleFrameUpdated);
+        hardwareAPIRef.current.removeEventListener('error', handleError);
+      }
     };
-  }, [onShotDetected]);
+  }, [onShotDetected, onSessionComplete, shots]);
 
   // Initialize video stream
   useEffect(() => {
@@ -113,17 +142,15 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     };
   }, [streamUrl]);
 
-  // Connect to hardware
-  const connectToHardware = async () => {
+  // Connect to hardware via QR code
+  const connectToHardware = async (qrData: string) => {
     if (!hardwareAPIRef.current) return;
     
     try {
       setError('');
-      await hardwareAPIRef.current.connect();
-      
-      // Get current configuration
-      const config = await hardwareAPIRef.current.getTargetConfiguration();
-      setCurrentConfig(config);
+      const connectedDevice = await hardwareAPIRef.current.connectViaQRCode(qrData);
+      setDevice(connectedDevice);
+      setIsConnected(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect to hardware');
     }
@@ -131,12 +158,12 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
 
   // Disconnect from hardware
   const disconnectFromHardware = async () => {
-    if (!hardwareAPIRef.current) return;
+    if (!hardwareAPIRef.current || !device) return;
     
     try {
-      await hardwareAPIRef.current.disconnect();
+      await hardwareAPIRef.current.disconnectDevice(device.id);
       setStreamUrl('');
-      setIsSessionActive(false);
+      setSession(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to disconnect from hardware');
     }
@@ -144,12 +171,22 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
 
   // Start shooting session
   const startSession = async () => {
-    if (!hardwareAPIRef.current || !sessionId) return;
+    if (!hardwareAPIRef.current || !device || !sessionId) return;
     
     try {
       setError('');
-      await hardwareAPIRef.current.startSession(sessionId);
-      setIsSessionActive(true);
+      const sessionRequest = {
+        sessionId,
+        userId: 'current-user', // This should come from auth context
+        settings: {
+          targetDistance: 10,
+          targetSize: 1,
+          detectionSensitivity: 0.8
+        }
+      };
+      
+      const sessionData = await hardwareAPIRef.current.startSession(device.id, sessionRequest);
+      setSession(sessionData);
       setShots([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start session');
@@ -158,12 +195,12 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
 
   // Stop shooting session
   const stopSession = async () => {
-    if (!hardwareAPIRef.current) return;
+    if (!hardwareAPIRef.current || !session) return;
     
     try {
       setError('');
-      await hardwareAPIRef.current.stopSession();
-      setIsSessionActive(false);
+      await hardwareAPIRef.current.stopSession(session.sessionId);
+      setSession(null);
       onSessionComplete?.(shots);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to stop session');
@@ -171,12 +208,16 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
   };
 
   // Draw shot overlay on canvas
-  const drawShotOverlay = useCallback((shot: ShotDetection) => {
+  const drawShotOverlay = useCallback((shot: ShotData) => {
     if (!canvasRef.current) return;
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    
+    // Convert percentage coordinates to canvas coordinates
+    const x = (shot.coordinates.x / 100) * canvas.width;
+    const y = (shot.coordinates.y / 100) * canvas.height;
     
     // Clear previous overlay after a delay
     setTimeout(() => {
@@ -187,35 +228,23 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(shot.x, shot.y, 10, 0, 2 * Math.PI);
+    ctx.arc(x, y, 10, 0, 2 * Math.PI);
     ctx.stroke();
     
     // Draw crosshair
     ctx.beginPath();
-    ctx.moveTo(shot.x - 15, shot.y);
-    ctx.lineTo(shot.x + 15, shot.y);
-    ctx.moveTo(shot.x, shot.y - 15);
-    ctx.lineTo(shot.x, shot.y + 15);
+    ctx.moveTo(x - 15, y);
+    ctx.lineTo(x + 15, y);
+    ctx.moveTo(x, y - 15);
+    ctx.lineTo(x, y + 15);
     ctx.stroke();
     
     // Draw score
     ctx.fillStyle = '#ef4444';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`Score: ${shot.score}`, shot.x, shot.y - 20);
+    ctx.fillText(`Score: ${shot.score}`, x, y - 20);
   }, []);
-
-  // Update target configuration
-  const updateConfiguration = async (config: Partial<TargetConfiguration>) => {
-    if (!hardwareAPIRef.current) return;
-    
-    try {
-      const updatedConfig = await hardwareAPIRef.current.setTargetConfiguration(config);
-      setCurrentConfig(updatedConfig);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update configuration');
-    }
-  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -247,7 +276,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                     </>
                   )}
                 </Badge>
-                {isSessionActive && (
+                {session && session.status === 'active' && (
                   <Badge variant="warning" className="animate-pulse">
                     <Target className="h-3 w-3 mr-1" />
                     Session Active
@@ -299,18 +328,22 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
             <div className="flex items-center justify-between mt-4">
               <div className="flex items-center gap-2">
                 {!isConnected ? (
-                  <Button onClick={connectToHardware} disabled={false}>
+                  <Button onClick={() => {
+                    // For demo purposes, use a mock QR code
+                    const mockQRCode = 'GMShoot://pi-device-001|Raspberry Pi|192.168.1.100|8080';
+                    connectToHardware(mockQRCode);
+                  }} disabled={false}>
                     <Play className="h-4 w-4 mr-2" />
                     Connect Hardware
                   </Button>
                 ) : (
                   <>
-                    <Button 
-                      onClick={isSessionActive ? stopSession : startSession}
+                    <Button
+                      onClick={session ? stopSession : startSession}
                       disabled={!sessionId}
-                      variant={isSessionActive ? "destructive" : "default"}
+                      variant={session ? "destructive" : "default"}
                     >
-                      {isSessionActive ? (
+                      {session ? (
                         <>
                           <Square className="h-4 w-4 mr-2" />
                           Stop Session
@@ -361,7 +394,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {shots.slice(-10).reverse().map((shot, index) => (
-                  <div key={shot.id || index} className="flex items-center justify-between p-2 bg-muted rounded">
+                  <div key={shot.shotId || index} className="flex items-center justify-between p-2 bg-muted rounded">
                     <div className="flex items-center gap-2">
                       <Target className="h-4 w-4" />
                       <span className="text-sm">Shot #{shots.length - index}</span>
@@ -377,31 +410,35 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
         </Card>
         
         {/* Target configuration */}
-        {currentConfig && (
+        {session && (
           <Card>
             <CardHeader>
-              <CardTitle>Target Configuration</CardTitle>
+              <CardTitle>Session Configuration</CardTitle>
               <CardDescription>
-                Current target settings
+                Current session settings
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium">Target Type:</span>
-                  <span className="text-sm">{currentConfig.targetType}</span>
+                  <span className="text-sm font-medium">Session ID:</span>
+                  <span className="text-sm">{session.sessionId}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium">Distance:</span>
-                  <span className="text-sm">{currentConfig.distance}m</span>
+                  <span className="text-sm font-medium">Device:</span>
+                  <span className="text-sm">{device?.name || 'Unknown'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium">Scoring Zone:</span>
-                  <span className="text-sm">{currentConfig.scoringZone}</span>
+                  <span className="text-sm font-medium">Target Distance:</span>
+                  <span className="text-sm">{session.settings.targetDistance}m</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium">Detection Sensitivity:</span>
-                  <span className="text-sm">{currentConfig.sensitivity}%</span>
+                  <span className="text-sm font-medium">Target Size:</span>
+                  <span className="text-sm">{session.settings.targetSize}m</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Shot Count:</span>
+                  <span className="text-sm">{session.shotCount}</span>
                 </div>
               </div>
             </CardContent>

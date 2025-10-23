@@ -40,6 +40,7 @@ describe('CameraAnalysis Component', () => {
       error: null,
       signInWithGoogle: jest.fn(),
       signInWithEmail: jest.fn(),
+      signUpWithEmail: jest.fn(),
       signOut: jest.fn(),
       clearError: jest.fn(),
     });
@@ -79,6 +80,7 @@ describe('CameraAnalysis Component', () => {
         error: null,
         signInWithGoogle: jest.fn(),
         signInWithEmail: jest.fn(),
+        signUpWithEmail: jest.fn(),
         signOut: jest.fn(),
         clearError: jest.fn(),
       });
@@ -99,6 +101,7 @@ describe('CameraAnalysis Component', () => {
         error: null,
         signInWithGoogle: jest.fn(),
         signInWithEmail: jest.fn(),
+        signUpWithEmail: jest.fn(),
         signOut: jest.fn(),
         clearError: jest.fn(),
       });
@@ -121,6 +124,7 @@ describe('CameraAnalysis Component', () => {
         error: null,
         signInWithGoogle: jest.fn(),
         signInWithEmail: jest.fn(),
+        signUpWithEmail: jest.fn(),
         signOut: jest.fn(),
         clearError: jest.fn(),
       });
@@ -334,6 +338,7 @@ describe('CameraAnalysis Component', () => {
         error: null,
         signInWithGoogle: jest.fn(),
         signInWithEmail: jest.fn(),
+        signUpWithEmail: jest.fn(),
         signOut: jest.fn(),
         clearError: jest.fn(),
       });
@@ -396,6 +401,7 @@ describe('CameraAnalysis Component', () => {
         error: null,
         signInWithGoogle: jest.fn(),
         signInWithEmail: jest.fn(),
+        signUpWithEmail: jest.fn(),
         signOut: jest.fn(),
         clearError: jest.fn(),
       });
@@ -416,6 +422,7 @@ describe('CameraAnalysis Component', () => {
         error: null,
         signInWithGoogle: jest.fn(),
         signInWithEmail: jest.fn(),
+        signUpWithEmail: jest.fn(),
         signOut: jest.fn(),
         clearError: jest.fn(),
       });
