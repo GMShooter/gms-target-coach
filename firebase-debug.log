@@ -222,3 +222,173 @@
 [debug] [2025-10-22T14:26:09.378Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [omitted]
 [debug] [2025-10-22T14:26:09.383Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
 [debug] [2025-10-22T14:26:09.384Z] > authorizing via signed-in user (shovalb9@gmail.com)
+[debug] [2025-10-22T21:36:13.739Z] Checked if tokens are valid: false, expires at: 1761144158310
+[debug] [2025-10-22T21:36:13.747Z] Checked if tokens are valid: false, expires at: 1761144158310
+[debug] [2025-10-22T21:36:13.748Z] > refreshing access token with scopes: []
+[debug] [2025-10-22T21:36:13.752Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-22T21:36:13.753Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-22T21:36:13.823Z] Checked if tokens are valid: false, expires at: 1761144158310
+[debug] [2025-10-22T21:36:13.824Z] Checked if tokens are valid: false, expires at: 1761144158310
+[debug] [2025-10-22T21:36:13.824Z] > refreshing access token with scopes: []
+[debug] [2025-10-22T21:36:13.825Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-22T21:36:13.826Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-22T21:36:13.831Z] Checked if tokens are valid: false, expires at: 1761144158310
+[debug] [2025-10-22T21:36:13.831Z] Checked if tokens are valid: false, expires at: 1761144158310
+[debug] [2025-10-22T21:36:13.831Z] > refreshing access token with scopes: []
+[debug] [2025-10-22T21:36:13.831Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-22T21:36:13.832Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-22T21:36:13.834Z] Checked if tokens are valid: false, expires at: 1761144158310
+[debug] [2025-10-22T21:36:13.834Z] Checked if tokens are valid: false, expires at: 1761144158310
+[debug] [2025-10-22T21:36:13.834Z] > refreshing access token with scopes: []
+[debug] [2025-10-22T21:36:13.835Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-22T21:36:13.835Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-22T21:36:14.026Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-22T21:36:14.026Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-22T21:36:14.037Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com [none]
+[debug] [2025-10-22T21:36:14.038Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-22T21:36:14.040Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-22T21:36:14.040Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-22T21:36:14.049Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com [none]
+[debug] [2025-10-22T21:36:14.049Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-22T21:36:14.051Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-22T21:36:14.051Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-22T21:36:14.058Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com [none]
+[debug] [2025-10-22T21:36:14.059Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-22T21:36:14.061Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-22T21:36:14.061Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-22T21:36:14.069Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [none]
+[debug] [2025-10-22T21:36:14.069Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-22T21:36:15.076Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com 403
+[debug] [2025-10-22T21:36:15.076Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com [omitted]
+[debug] [2025-10-22T21:36:15.181Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com 200
+[debug] [2025-10-22T21:36:15.181Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com [omitted]
+[debug] [2025-10-22T21:36:15.187Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com 200
+[debug] [2025-10-22T21:36:15.187Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com [omitted]
+[debug] [2025-10-22T21:36:15.579Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ 200
+[debug] [2025-10-22T21:36:15.579Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [omitted]
+[debug] [2025-10-22T21:36:15.583Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-22T21:36:15.583Z] > authorizing via signed-in user (shovalb9@gmail.com)
+[debug] [2025-10-22T21:38:23.263Z] Checked if tokens are valid: true, expires at: 1761172573061
+[debug] [2025-10-22T21:38:23.266Z] Checked if tokens are valid: true, expires at: 1761172573061
+[debug] [2025-10-22T21:38:23.267Z] Checked if tokens are valid: true, expires at: 1761172573061
+[debug] [2025-10-22T21:38:23.268Z] Checked if tokens are valid: true, expires at: 1761172573061
+[debug] [2025-10-22T21:38:23.268Z] Checked if tokens are valid: true, expires at: 1761172573061
+[debug] [2025-10-22T21:38:23.268Z] Checked if tokens are valid: true, expires at: 1761172573061
+[debug] [2025-10-22T21:38:23.269Z] Checked if tokens are valid: true, expires at: 1761172573061
+[debug] [2025-10-22T21:38:23.269Z] Checked if tokens are valid: true, expires at: 1761172573061
+[debug] [2025-10-22T21:38:23.270Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [none]
+[debug] [2025-10-22T21:38:23.270Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-22T21:38:23.289Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com [none]
+[debug] [2025-10-22T21:38:23.289Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-22T21:38:23.291Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com [none]
+[debug] [2025-10-22T21:38:23.291Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-22T21:38:23.292Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com [none]
+[debug] [2025-10-22T21:38:23.292Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-22T21:38:24.276Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com 403
+[debug] [2025-10-22T21:38:24.276Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com [omitted]
+[debug] [2025-10-22T21:38:24.528Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com 200
+[debug] [2025-10-22T21:38:24.528Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com [omitted]
+[debug] [2025-10-22T21:38:24.530Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com 200
+[debug] [2025-10-22T21:38:24.530Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com [omitted]
+[debug] [2025-10-22T21:38:24.633Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ 200
+[debug] [2025-10-22T21:38:24.633Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [omitted]
+[debug] [2025-10-22T21:38:24.637Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-22T21:38:24.637Z] > authorizing via signed-in user (shovalb9@gmail.com)
+[debug] [2025-10-23T01:28:55.987Z] Checked if tokens are valid: false, expires at: 1761172573061
+[debug] [2025-10-23T01:28:55.994Z] Checked if tokens are valid: false, expires at: 1761172573061
+[debug] [2025-10-23T01:28:55.996Z] > refreshing access token with scopes: []
+[debug] [2025-10-23T01:28:56.000Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-23T01:28:56.000Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-23T01:28:56.067Z] Checked if tokens are valid: false, expires at: 1761172573061
+[debug] [2025-10-23T01:28:56.067Z] Checked if tokens are valid: false, expires at: 1761172573061
+[debug] [2025-10-23T01:28:56.067Z] > refreshing access token with scopes: []
+[debug] [2025-10-23T01:28:56.068Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-23T01:28:56.069Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-23T01:28:56.103Z] Checked if tokens are valid: false, expires at: 1761172573061
+[debug] [2025-10-23T01:28:56.104Z] Checked if tokens are valid: false, expires at: 1761172573061
+[debug] [2025-10-23T01:28:56.104Z] > refreshing access token with scopes: []
+[debug] [2025-10-23T01:28:56.104Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-23T01:28:56.104Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-23T01:28:56.123Z] Checked if tokens are valid: false, expires at: 1761172573061
+[debug] [2025-10-23T01:28:56.123Z] Checked if tokens are valid: false, expires at: 1761172573061
+[debug] [2025-10-23T01:28:56.123Z] > refreshing access token with scopes: []
+[debug] [2025-10-23T01:28:56.124Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-23T01:28:56.124Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-23T01:28:56.307Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-23T01:28:56.307Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-23T01:28:56.323Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com [none]
+[debug] [2025-10-23T01:28:56.323Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:28:56.329Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-23T01:28:56.329Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-23T01:28:56.341Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com [none]
+[debug] [2025-10-23T01:28:56.341Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:28:56.344Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-23T01:28:56.344Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-23T01:28:56.356Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [none]
+[debug] [2025-10-23T01:28:56.356Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:28:56.359Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-23T01:28:56.359Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-23T01:28:56.370Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com [none]
+[debug] [2025-10-23T01:28:56.371Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:28:57.512Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com 403
+[debug] [2025-10-23T01:28:57.512Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com [omitted]
+[debug] [2025-10-23T01:28:57.725Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com 200
+[debug] [2025-10-23T01:28:57.726Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com [omitted]
+[debug] [2025-10-23T01:28:57.726Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com 200
+[debug] [2025-10-23T01:28:57.726Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com [omitted]
+[debug] [2025-10-23T01:28:57.850Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ 200
+[debug] [2025-10-23T01:28:57.850Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [omitted]
+[debug] [2025-10-23T01:28:57.855Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-23T01:28:57.855Z] > authorizing via signed-in user (shovalb9@gmail.com)
+[debug] [2025-10-23T01:31:01.465Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:31:01.469Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:31:01.471Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:31:01.471Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:31:01.472Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:31:01.472Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:31:01.473Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:31:01.473Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:31:01.475Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [none]
+[debug] [2025-10-23T01:31:01.475Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:31:01.501Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com [none]
+[debug] [2025-10-23T01:31:01.501Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:31:01.504Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com [none]
+[debug] [2025-10-23T01:31:01.504Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:31:01.505Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com [none]
+[debug] [2025-10-23T01:31:01.505Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:31:02.625Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com 200
+[debug] [2025-10-23T01:31:02.625Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com [omitted]
+[debug] [2025-10-23T01:31:02.626Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com 200
+[debug] [2025-10-23T01:31:02.626Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com [omitted]
+[debug] [2025-10-23T01:31:02.627Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com 403
+[debug] [2025-10-23T01:31:02.627Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com [omitted]
+[debug] [2025-10-23T01:31:03.035Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ 200
+[debug] [2025-10-23T01:31:03.035Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [omitted]
+[debug] [2025-10-23T01:31:03.040Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-23T01:31:03.040Z] > authorizing via signed-in user (shovalb9@gmail.com)
+[debug] [2025-10-23T01:58:51.955Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:58:51.958Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:58:51.961Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:58:51.961Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:58:51.962Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:58:51.962Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:58:51.963Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:58:51.963Z] Checked if tokens are valid: true, expires at: 1761186535359
+[debug] [2025-10-23T01:58:51.964Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [none]
+[debug] [2025-10-23T01:58:51.965Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:58:51.989Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com [none]
+[debug] [2025-10-23T01:58:51.989Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:58:51.991Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com [none]
+[debug] [2025-10-23T01:58:51.991Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:58:51.992Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com [none]
+[debug] [2025-10-23T01:58:51.992Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com x-goog-quota-user=projects/gmshooter
+[debug] [2025-10-23T01:58:53.032Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com 403
+[debug] [2025-10-23T01:58:53.032Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseio.com [omitted]
+[debug] [2025-10-23T01:58:53.180Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com 200
+[debug] [2025-10-23T01:58:53.180Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebasecrashlytics.googleapis.com [omitted]
+[debug] [2025-10-23T01:58:53.184Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com 200
+[debug] [2025-10-23T01:58:53.185Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/firebaseapphosting.googleapis.com [omitted]
+[debug] [2025-10-23T01:58:53.353Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ 200
+[debug] [2025-10-23T01:58:53.353Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/gmshooter/services/ [omitted]
+[debug] [2025-10-23T01:58:53.356Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-23T01:58:53.357Z] > authorizing via signed-in user (shovalb9@gmail.com)

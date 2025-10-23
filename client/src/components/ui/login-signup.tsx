@@ -92,8 +92,21 @@ export default function LoginSignupForm() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-800">
-      <div className="w-full max-w-md">
-        <Card className="border-slate-700 bg-slate-800/50 backdrop-blur-sm shadow-2xl">
+      {/* Background effects */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-purple-900/10 to-teal-900/10"></div>
+      <div className="absolute inset-0">
+        <svg className="w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(148, 163, 184, 0.3)" strokeWidth="0.5"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)" />
+        </svg>
+      </div>
+      
+      <div className="relative z-10 w-full max-w-md px-4">
+        <Card className="border-slate-700/50 bg-slate-800/60 backdrop-blur-md shadow-2xl">
           <CardHeader className="flex flex-col items-center space-y-2 pb-6">
             <GMShootLogo className="w-12 h-12 text-blue-400 mb-2" />
             <h2 className="text-2xl font-semibold text-white">
@@ -185,13 +198,23 @@ export default function LoginSignupForm() {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            <Button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-[1.02]"
               onClick={handleSubmit}
               disabled={loading}
             >
-              {loading ? "Please wait..." : (isLogin ? "Sign In" : "Create Account")}
+              {loading ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Please wait...
+                </span>
+              ) : (
+                isLogin ? "Sign In" : "Create Account"
+              )}
             </Button>
 
             <div className="relative my-4">
@@ -205,7 +228,7 @@ export default function LoginSignupForm() {
 
             <Button
               variant="outline"
-              className="w-full bg-slate-700/50 border-slate-600 text-white hover:bg-slate-700"
+              className="w-full bg-slate-700/50 border-slate-600/50 text-white hover:bg-slate-700/70 hover:border-slate-500/50 transition-all duration-300"
               onClick={handleGoogleSignIn}
               disabled={loading}
             >

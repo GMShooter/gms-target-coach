@@ -1,16 +1,5 @@
 {
   "mcpServers": {
-    "git": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/inspector",
-        "uvx",
-        "mcp-server-git",
-        "--repository",
-        "https://github.com/GMShooter/gms-target-coach"
-      ]
-    },
     "firebase": {
       "command": "npx",
       "args": [
@@ -41,6 +30,26 @@
       "alwaysAllow": [
         "puppeteer_navigate"
       ]
+    },
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "-e",
+        "GITHUB_TOOLSETS",
+        "-e",
+        "GITHUB_READ_ONLY",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "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",
+        "GITHUB_TOOLSETS": "",
+        "GITHUB_READ_ONLY": ""
+      }
     }
   }
 }

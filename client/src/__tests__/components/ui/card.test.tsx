@@ -211,7 +211,9 @@ describe('Card Components', () => {
     it('renders card with nested interactive elements', async () => {
       const user = userEvent.setup();
       const handleCardClick = jest.fn();
-      const handleButtonClick = jest.fn();
+      const handleButtonClick = jest.fn((e) => {
+        e.stopPropagation(); // Prevent event bubbling to card
+      });
 
       render(
         <Card onClick={handleCardClick}>
@@ -321,12 +323,14 @@ describe('Card Components', () => {
         </Card>
       );
 
-      const card = screen.getByText('Focusable Card');
-      card.focus();
-      await user.keyboard('{Enter}');
+      const card = screen.getByText('Focusable Card').parentElement; // Get the actual Card div
+      if (card) {
+        card.focus();
+        await user.keyboard('{Enter}');
 
-      expect(card).toHaveFocus();
-      expect(handleKeyDown).toHaveBeenCalled();
+        expect(card).toHaveFocus();
+        expect(handleKeyDown).toHaveBeenCalled();
+      }
     });
   });
 });

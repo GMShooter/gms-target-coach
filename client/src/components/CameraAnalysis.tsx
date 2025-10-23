@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCameraAnalysis } from '../hooks/useCameraAnalysis';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from './ui/button';
@@ -9,22 +9,32 @@ import { Badge } from './ui/badge-2';
 
 const CameraAnalysis: React.FC = () => {
   const imageRef = useRef<HTMLImageElement>(null);
+  const [imageSrc, setImageSrc] = useState<string>("");
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id || null;
   const { isAnalyzing, error, startAnalysis, stopAnalysis, latestFrame } = useCameraAnalysis(userId);
 
   useEffect(() => {
-    if (latestFrame && imageRef.current) {
+    if (latestFrame) {
       // The frame is now an SVG in base64 format
       const frameUrl = `data:image/svg+xml;base64,${latestFrame}`;
-      imageRef.current.src = frameUrl;
+      setImageSrc(frameUrl);
+    } else {
+      setImageSrc("");
     }
   }, [latestFrame]);
+
+  // Ensure the src attribute is always a string
+  useEffect(() => {
+    if (imageRef.current) {
+      imageRef.current.setAttribute('src', imageSrc || "");
+    }
+  }, [imageSrc]);
 
   // Show loading state while authentication is being determined
   if (authLoading) {
     return (
-      <div className="container mx-auto p-6 max-w-4xl bg-slate-900 min-h-screen flex items-center justify-center">
+      <div className="container mx-auto p-6 max-w-4xl min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-slate-300">Checking authentication...</p>
@@ -42,7 +52,7 @@ const CameraAnalysis: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl bg-slate-900 min-h-screen">
+    <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-100 mb-2">Camera Analysis</h1>
         <p className="text-slate-300">Use your camera to analyze your shooting technique in real-time</p>
@@ -50,7 +60,7 @@ const CameraAnalysis: React.FC = () => {
 
       <Card className="border-slate-700 bg-slate-800 text-slate-100">
         <CardHeader>
-          <CardTitle className="text-slate-100">Live Camera Analysis</CardTitle>
+          <h2 className="text-2xl font-semibold text-slate-100">Live Camera Analysis</h2>
           <CardDescription className="text-slate-300">
             Connect to your camera to analyze the video stream in real-time.
           </CardDescription>
@@ -89,7 +99,7 @@ const CameraAnalysis: React.FC = () => {
               onClick={handleToggleAnalysis}
               disabled={!userId && !isAnalyzing}
               variant={isAnalyzing ? 'destructive' : 'default'}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              className={`flex-1 text-white ${!isAnalyzing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}
             >
               {isAnalyzing ? (
                 <>

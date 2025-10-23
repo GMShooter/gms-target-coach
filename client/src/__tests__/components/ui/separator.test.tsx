@@ -6,7 +6,7 @@ describe('Separator Component', () => {
   describe('Horizontal Separator', () => {
     it('renders horizontal separator by default', () => {
       render(<Separator />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toBeInTheDocument();
       expect(separator).toHaveAttribute('orientation', 'horizontal');
       expect(separator).toHaveAttribute('aria-orientation', 'horizontal');
@@ -14,19 +14,19 @@ describe('Separator Component', () => {
 
     it('applies horizontal styles', () => {
       render(<Separator />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveClass('shrink-0', 'bg-border', 'h-[1px]', 'w-full');
     });
 
     it('applies custom className', () => {
       render(<Separator className="custom-separator" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveClass('custom-separator');
     });
 
     it('is decorative by default', () => {
       render(<Separator />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveAttribute('aria-hidden', 'true');
     });
   });
@@ -34,7 +34,7 @@ describe('Separator Component', () => {
   describe('Vertical Separator', () => {
     it('renders vertical separator when orientation is vertical', () => {
       render(<Separator orientation="vertical" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toBeInTheDocument();
       expect(separator).toHaveAttribute('orientation', 'vertical');
       expect(separator).toHaveAttribute('aria-orientation', 'vertical');
@@ -42,13 +42,13 @@ describe('Separator Component', () => {
 
     it('applies vertical styles', () => {
       render(<Separator orientation="vertical" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveClass('shrink-0', 'bg-border', 'h-full', 'w-[1px]');
     });
 
     it('applies custom className with vertical orientation', () => {
       render(<Separator orientation="vertical" className="custom-vertical" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveClass('custom-vertical');
     });
   });
@@ -56,13 +56,13 @@ describe('Separator Component', () => {
   describe('Decorative Property', () => {
     it('is decorative when decorative prop is true', () => {
       render(<Separator decorative={true} />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveAttribute('aria-hidden', 'true');
     });
 
     it('is decorative when decorative prop is not specified (default)', () => {
       render(<Separator />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveAttribute('aria-hidden', 'true');
     });
 
@@ -76,25 +76,25 @@ describe('Separator Component', () => {
   describe('Accessibility', () => {
     it('has proper role attribute', () => {
       render(<Separator />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toBeInTheDocument();
     });
 
     it('has correct aria-orientation for horizontal', () => {
       render(<Separator orientation="horizontal" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveAttribute('aria-orientation', 'horizontal');
     });
 
     it('has correct aria-orientation for vertical', () => {
       render(<Separator orientation="vertical" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveAttribute('aria-orientation', 'vertical');
     });
 
     it('has aria-hidden when decorative', () => {
       render(<Separator decorative={true} />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveAttribute('aria-hidden', 'true');
     });
 
@@ -108,19 +108,19 @@ describe('Separator Component', () => {
   describe('Styling Variations', () => {
     it('applies multiple custom classes', () => {
       render(<Separator className="class1 class2 class3" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveClass('class1', 'class2', 'class3');
     });
 
     it('combines default classes with custom classes', () => {
       render(<Separator className="custom" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveClass('shrink-0', 'bg-border', 'h-[1px]', 'w-full', 'custom');
     });
 
     it('combines vertical default classes with custom classes', () => {
       render(<Separator orientation="vertical" className="custom-vertical" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveClass('shrink-0', 'bg-border', 'h-full', 'w-[1px]', 'custom-vertical');
     });
   });
@@ -172,7 +172,7 @@ describe('Separator Component', () => {
       );
       
       expect(screen.getByText('Item 1')).toBeInTheDocument();
-      expect(screen.getByRole('separator')).toBeInTheDocument();
+      expect(screen.getByRole('separator', { hidden: true })).toBeInTheDocument();
       expect(screen.getByText('Item 2')).toBeInTheDocument();
     });
 
@@ -186,7 +186,7 @@ describe('Separator Component', () => {
       );
       
       expect(screen.getByText('Item 1')).toBeInTheDocument();
-      expect(screen.getByRole('separator')).toBeInTheDocument();
+      expect(screen.getByRole('separator', { hidden: true })).toBeInTheDocument();
       expect(screen.getByText('Item 2')).toBeInTheDocument();
     });
   });
@@ -194,19 +194,19 @@ describe('Separator Component', () => {
   describe('Edge Cases', () => {
     it('handles empty className', () => {
       render(<Separator className="" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveClass('shrink-0', 'bg-border', 'h-[1px]', 'w-full');
     });
 
     it('handles undefined className', () => {
       render(<Separator className={undefined} />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveClass('shrink-0', 'bg-border', 'h-[1px]', 'w-full');
     });
 
     it('handles explicit horizontal orientation', () => {
       render(<Separator orientation="horizontal" />);
-      const separator = screen.getByRole('separator');
+      const separator = screen.getByRole('separator', { hidden: true });
       expect(separator).toHaveAttribute('orientation', 'horizontal');
       expect(separator).toHaveClass('h-[1px]', 'w-full');
     });

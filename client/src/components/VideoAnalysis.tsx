@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
@@ -114,9 +115,9 @@ const VideoAnalysis: React.FC = () => {
       {!videoFile && !isProcessing && !results.length && (
         <Card className="mb-8 border-slate-700 bg-slate-800">
           <CardHeader>
-            <CardTitle className="text-slate-100">Upload Video</CardTitle>
+            <div className="text-2xl font-semibold leading-none tracking-tight text-slate-100" role="heading" aria-level={2}>Upload Video</div>
             <CardDescription className="text-slate-300">
-              Drag and drop your video file here or click to browse
+              Click to browse or drag and drop your video file
             </CardDescription>
           </CardHeader>
           <CardContent>

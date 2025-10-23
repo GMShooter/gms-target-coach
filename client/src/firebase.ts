@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signOut as firebaseSignOut, User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, User, updateProfile } from 'firebase/auth';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -39,6 +39,16 @@ export const signInWithEmail = async (email: string, password: string): Promise<
   }
 };
 
+export const signUpWithEmail = async (email: string, password: string): Promise<User> => {
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    return result.user;
+  } catch (error) {
+    console.error('Error signing up with email:', error);
+    throw error;
+  }
+};
+
 export const signOut = async (): Promise<void> => {
   try {
     await firebaseSignOut(auth);
@@ -54,6 +64,15 @@ export const getCurrentUser = (): User | null => {
 
 export const onAuthStateChanged = (callback: (user: User | null) => void) => {
   return auth.onAuthStateChanged(callback);
+};
+
+export const updateUserProfile = async (user: User, displayName: string): Promise<void> => {
+  try {
+    await updateProfile(user, { displayName });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
 };
 
 export default app;

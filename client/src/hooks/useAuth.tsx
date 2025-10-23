@@ -3,9 +3,11 @@ import { User } from 'firebase/auth';
 import {
   signInWithGoogle,
   signInWithEmail,
+  signUpWithEmail,
   signOut,
   getCurrentUser,
-  onAuthStateChanged
+  onAuthStateChanged,
+  updateUserProfile
 } from '../firebase';
 import { supabase } from '../utils/supabase';
 
@@ -23,6 +25,7 @@ interface AuthContextType {
   error: string | null;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
 }
@@ -169,6 +172,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Handle email sign up
+  const handleEmailSignUp = async (email: string, password: string, name?: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const firebaseUser = await signUpWithEmail(email, password);
+      
+      // Update display name if provided
+      if (name && firebaseUser) {
+        try {
+          await updateUserProfile(firebaseUser, name);
+        } catch (profileError) {
+          console.warn('Failed to update display name:', profileError);
+        }
+      }
+      
+      await syncUserWithSupabase(firebaseUser);
+    } catch (error: any) {
+      console.error('Email sign up error:', error);
+      let errorMessage = 'Failed to create account';
+      
+      // Provide more specific error messages
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'An account with this email already exists';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address';
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = 'Email/password accounts are not enabled';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak. Please choose a stronger password';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many attempts. Please try again later';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handle sign out
   const handleSignOut = async () => {
     try {
@@ -221,6 +267,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     error,
     signInWithGoogle: handleGoogleSignIn,
     signInWithEmail: handleEmailSignIn,
+    signUpWithEmail: handleEmailSignUp,
     signOut: handleSignOut,
     clearError
   };

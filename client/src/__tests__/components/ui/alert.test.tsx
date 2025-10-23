@@ -67,7 +67,7 @@ describe('Alert Components', () => {
       const descriptionElement = screen.getByText('Alert description');
       expect(descriptionElement).toBeInTheDocument();
       expect(descriptionElement.tagName).toBe('DIV');
-      expect(descriptionElement).toHaveClass('text-sm', '&[data-slot=alert-description]:leading-relaxed');
+      expect(descriptionElement).toHaveClass('text-sm', '[&_p]:leading-relaxed');
     });
 
     it('applies custom className', () => {

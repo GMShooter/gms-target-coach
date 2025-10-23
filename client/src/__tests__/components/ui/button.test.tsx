@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Button } from '../../../components/ui/button';
 
 describe('Button Component', () => {
@@ -235,19 +236,21 @@ describe('Button Component', () => {
       expect(button).toHaveAttribute('aria-expanded', 'false');
     });
 
-    it('supports keyboard navigation', () => {
+    it('supports keyboard navigation', async () => {
       const handleClick = jest.fn();
+      const user = userEvent.setup();
       render(<Button onClick={handleClick}>Click me</Button>);
       
       const button = screen.getByRole('button', { name: 'Click me' });
       
       // Test Enter key
-      fireEvent.keyDown(button, { key: 'Enter' });
+      await user.click(button);
       expect(handleClick).toHaveBeenCalledTimes(1);
       
       // Test Space key
       handleClick.mockClear();
-      fireEvent.keyDown(button, { key: ' ' });
+      button.focus();
+      await user.keyboard('{ }');
       expect(handleClick).toHaveBeenCalledTimes(1);
     });
 

@@ -282,6 +282,204 @@ const mockCanvasContext = {
 
 HTMLCanvasElement.prototype.getContext = jest.fn(() => mockCanvasContext);
 
+// Polyfill HTMLFormElement.requestSubmit for Radix UI forms
+if (!HTMLFormElement.prototype.requestSubmit) {
+  HTMLFormElement.prototype.requestSubmit = function(submitter?: HTMLElement | HTMLInputElement | HTMLButtonElement) {
+    if (submitter && (submitter as any).type === 'submit') {
+      const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+      submitter.dispatchEvent(clickEvent);
+    } else {
+      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+      this.dispatchEvent(submitEvent);
+    }
+  };
+}
+
+// Polyfill Element.hasPointerCapture and related pointer capture methods for Radix UI
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = function(pointerId: number): boolean {
+    return false;
+  };
+}
+
+if (!Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = function(pointerId: number): void {
+    // Mock implementation
+  };
+}
+
+if (!Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = function(pointerId: number): void {
+    // Mock implementation
+  };
+}
+
+// Polyfill Element.scrollIntoView for Radix UI
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function(options?: ScrollIntoViewOptions | boolean): void {
+    // Mock implementation - just log that it was called
+    if (process.env.NODE_ENV === 'test') {
+      // Optional: log for debugging
+      // console.log('scrollIntoView called with:', options);
+    }
+  };
+}
+
+// Polyfill getBoundingClientRect for more accurate element positioning
+if (!Element.prototype.getBoundingClientRect) {
+  Element.prototype.getBoundingClientRect = function(): DOMRect {
+    return {
+      bottom: 0,
+      height: 0,
+      left: 0,
+      right: 0,
+      top: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({})
+    };
+  };
+}
+
+// Polyfill getClientRects for Element
+if (!Element.prototype.getClientRects) {
+  Element.prototype.getClientRects = function(): DOMRectList {
+    return {
+      length: 1,
+      item: (index: number) => index === 0 ? this.getBoundingClientRect() : null,
+      [Symbol.iterator]: function*() {
+        yield this.getBoundingClientRect();
+      }
+    } as any;
+  };
+}
+
+// Polyfill Element.matches for Radix UI
+if (!Element.prototype.matches) {
+  Element.prototype.matches = function(selector: string): boolean {
+    // Simple mock implementation
+    return false;
+  };
+}
+
+// Polyfill Element.closest for Radix UI
+if (!Element.prototype.closest) {
+  Element.prototype.closest = function(selector: string): Element | null {
+    let el: Element | null = this;
+    while (el) {
+      if (el.matches && el.matches(selector)) {
+        return el;
+      }
+      el = el.parentElement;
+    }
+    return null;
+  };
+}
+
+// Polyfill Element.contains for Radix UI
+if (!Element.prototype.contains) {
+  Element.prototype.contains = function(other: Node | null): boolean {
+    if (!other) return false;
+    let node: Node | null = this;
+    while (node) {
+      if (node === other) return true;
+      node = node.parentNode;
+    }
+    return false;
+  };
+}
+
+// Polyfill isConnected property for Node
+Object.defineProperty(Node.prototype, 'isConnected', {
+  get: function() {
+    return this.ownerDocument === document && document.contains(this);
+  },
+  configurable: true
+});
+
+// Polyfill document.activeElement for Radix UI
+if (!Object.getOwnPropertyDescriptor(Document.prototype, 'activeElement')) {
+  Object.defineProperty(Document.prototype, 'activeElement', {
+    get: function() {
+      return document.body; // Simple mock
+    },
+    configurable: true
+  });
+}
+
+// Polyfill document.hasFocus for Radix UI
+if (!document.hasFocus) {
+  document.hasFocus = function(): boolean {
+    return true; // Simple mock
+  };
+}
+
+// Polyfill PointerEvent for Radix UI - Fixed approach
+if (!global.PointerEvent) {
+  // Create a simple constructor function that directly returns a MouseEvent with properties
+  const createPointerEvent = function(type: string, eventInitDict: any = {}) {
+    // Create a basic mouse event
+    const event = new MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      ...eventInitDict
+    });
+    
+    // Add properties directly without using Object.defineProperties
+    (event as any).pointerId = eventInitDict?.pointerId || 1;
+    (event as any).width = eventInitDict?.width || 1;
+    (event as any).height = eventInitDict?.height || 1;
+    (event as any).pressure = eventInitDict?.pressure || 0;
+    (event as any).tangentialPressure = eventInitDict?.tangentialPressure || 0;
+    (event as any).tiltX = eventInitDict?.tiltX || 0;
+    (event as any).tiltY = eventInitDict?.tiltY || 0;
+    (event as any).twist = eventInitDict?.twist || 0;
+    (event as any).pointerType = eventInitDict?.pointerType || 'mouse';
+    (event as any).isPrimary = eventInitDict?.isPrimary || false;
+    (event as any).getCoalescedEvents = () => [];
+    (event as any).getPredictedEvents = () => [];
+    
+    return event;
+  };
+  
+  global.PointerEvent = createPointerEvent as any;
+}
+
+// Polyfill for CSS custom properties support
+if (!window.CSS) {
+  window.CSS = {} as any;
+}
+
+if (!window.CSS.supports) {
+  window.CSS.supports = function(property: string, value?: string): boolean {
+    return true;
+  };
+}
+
+// Polyfill for HTMLElement autofocus
+if (!Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'autofocus')) {
+  Object.defineProperty(HTMLElement.prototype, 'autofocus', {
+    get: function() {
+      return this.hasAttribute('autofocus');
+    },
+    set: function(value) {
+      if (value) {
+        this.setAttribute('autofocus', '');
+      } else {
+        this.removeAttribute('autofocus');
+      }
+    },
+    configurable: true
+  });
+}
+
+// Skip HTMLInputElement type polyfill as JSDOM already implements it
+
+// Skip HTMLButtonElement type polyfill as JSDOM already implements it
+
+// Skip HTMLInputElement checked polyfill as JSDOM already implements it
+
 // Mock getUserMedia
 Object.defineProperty(navigator, 'mediaDevices', {
   value: {
