@@ -5,6 +5,9 @@
  * It provides methods for device discovery, session management, and real-time data retrieval.
  */
 
+import { geometricScoring, type Point, type TargetConfig, type ShotResult } from './GeometricScoring';
+import { sequentialShotDetection, type SequentialDetectionConfig, type SessionShotHistory } from './SequentialShotDetection';
+
 export interface PiDevice {
   id: string;
   name: string;
@@ -55,6 +58,17 @@ export interface ShotData {
   scoringZone: string;
   confidence: number;
   imageUrl?: string;
+  // Enhanced scoring data from GeometricScoring
+  rawDistance?: number;
+  correctedDistance?: number;
+  isBullseye?: boolean;
+  angleFromCenter?: number;
+  compensatedScore?: number;
+  analysis?: {
+    precision: number;
+    grouping?: number;
+    trend?: 'improving' | 'declining' | 'stable';
+  };
 }
 
 export interface FrameData {
@@ -96,6 +110,8 @@ export interface SessionStopRequest {
 export class HardwareAPI {
   private devices: Map<string, PiDevice> = new Map();
   private activeSessions: Map<string, SessionData> = new Map();
+  private sessionShots: Map<string, any[]> = new Map(); // Track shots per session for geometric analysis
+  private sequentialSessions: Map<string, boolean> = new Map(); // Track sessions with sequential detection enabled
   private eventListeners: Map<string, Function[]> = new Map();
   private wsConnections: Map<string, WebSocket> = new Map();
 
@@ -295,6 +311,9 @@ export class HardwareAPI {
         };
 
         this.activeSessions.set(request.sessionId, sessionData);
+        this.sessionShots.set(request.sessionId, []); // Initialize shot tracking
+        this.sequentialSessions.set(request.sessionId, true); // Enable sequential detection
+        sequentialShotDetection.initializeSession(request.sessionId); // Initialize sequential detection
         this.emit('sessionStarted', sessionData);
 
         // Establish WebSocket connection for real-time updates
@@ -334,6 +353,12 @@ export class HardwareAPI {
       if (response.success) {
         session.endTime = new Date();
         session.status = 'completed';
+        
+        // Clean up sequential detection for this session
+        if (this.sequentialSessions.get(sessionId)) {
+          sequentialShotDetection.clearSession(sessionId);
+          this.sequentialSessions.delete(sessionId);
+        }
         
         this.emit('sessionEnded', session);
 
@@ -388,11 +413,44 @@ export class HardwareAPI {
       if (response.success) {
         const frameData = this.parseFrameData(response.data);
         
+        // Process frame through sequential shot detection if enabled
+        const session = Array.from(this.activeSessions.values())
+          .find(s => s.deviceId === deviceId && s.status === 'active');
+        
+        if (session && this.sequentialSessions.get(session.sessionId)) {
+          try {
+            // Convert frame data to sequential detection format
+            const seqFrameData = {
+              id: `frame_${frameData.frameNumber}`,
+              timestamp: frameData.timestamp.getTime(),
+              imageData: frameData.imageUrl, // In real implementation, this would be actual image data
+              width: 1920, // Default resolution
+              height: 1080
+            };
+            
+            // Process through sequential detection
+            const sequentialResult = await sequentialShotDetection.processFrame(session.sessionId, seqFrameData);
+            
+            // If sequential detection found a new shot, enhance the frame data
+            if (sequentialResult && sequentialResult.isNewShot) {
+              console.log(`Sequential detection: Shot #${sequentialResult.shotNumber} detected at position (${sequentialResult.position.x}, ${sequentialResult.position.y})`);
+              
+              // Add sequential shot number to existing shot data or create new shot data
+              if (frameData.shotData) {
+                frameData.shotData.shotId = `${frameData.shotData.shotId}_seq${sequentialResult.shotNumber}`;
+                // Store sequential shot number for reference
+                (frameData.shotData as any).sequentialShotNumber = sequentialResult.shotNumber;
+                (frameData.shotData as any).sequentialConfidence = sequentialResult.confidence;
+              }
+            }
+          } catch (seqError) {
+            console.warn('Sequential shot detection failed:', seqError);
+            // Continue with normal processing if sequential detection fails
+          }
+        }
+        
         if (frameData.hasShot && frameData.shotData) {
           // Update session shot count
-          const session = Array.from(this.activeSessions.values())
-            .find(s => s.deviceId === deviceId && s.status === 'active');
-          
           if (session) {
             session.shotCount++;
             this.emit('shotDetected', frameData.shotData);
@@ -500,17 +558,7 @@ export class HardwareAPI {
       timestamp: new Date(data.timestamp || Date.now()),
       imageUrl: data.imageUrl || '',
       hasShot: data.hasShot || false,
-      shotData: data.shotData ? {
-        shotId: data.shotData.shotId || `shot_${Date.now()}`,
-        sessionId: data.shotData.sessionId || '',
-        timestamp: new Date(data.shotData.timestamp || Date.now()),
-        frameNumber: data.shotData.frameNumber || 0,
-        coordinates: data.shotData.coordinates || { x: 50, y: 50 },
-        score: data.shotData.score || 0,
-        scoringZone: data.shotData.scoringZone || 'miss',
-        confidence: data.shotData.confidence || 0,
-        imageUrl: data.shotData.imageUrl
-      } : undefined,
+      shotData: data.shotData ? this.enhanceShotData(data.shotData) : undefined,
       metadata: {
         resolution: data.metadata?.resolution || '1920x1080',
         brightness: data.metadata?.brightness || 50,
@@ -582,16 +630,92 @@ export class HardwareAPI {
   }
 
   /**
-   * Calculate shot score based on coordinates
+   * Enhance shot data with advanced geometric scoring
    */
-  public calculateShotScore(x: number, y: number, scoringZones: ScoringZone[]): { score: number; zone: ScoringZone } {
+  private enhanceShotData(shotData: any): ShotData {
+    const point: Point = {
+      x: shotData.coordinates?.x || 50,
+      y: shotData.coordinates?.y || 50
+    };
+
+    // Get session data for target configuration
+    const session = this.activeSessions.get(shotData.sessionId);
+    if (!session) {
+      // Fallback to basic scoring if session not found
+      const basicScore = this.calculateBasicShotScore(point.x, point.y);
+      return {
+        shotId: shotData.shotId || `shot_${Date.now()}`,
+        sessionId: shotData.sessionId || '',
+        timestamp: new Date(shotData.timestamp || Date.now()),
+        frameNumber: shotData.frameNumber || 0,
+        coordinates: point,
+        score: basicScore.score,
+        scoringZone: basicScore.zone.id,
+        confidence: shotData.confidence || 0,
+        imageUrl: shotData.imageUrl
+      };
+    }
+
+    // Create target configuration for geometric scoring
+    const targetConfig: TargetConfig = {
+      targetDistance: session.settings.targetDistance,
+      targetSize: session.settings.targetSize,
+      targetType: 'circular',
+      scoringZones: session.settings.scoringZones.map(zone => ({
+        ...zone,
+        innerRadius: zone.id === 'bullseye' ? 0 : zone.radius - 5,
+        outerRadius: zone.radius
+      })),
+      cameraAngle: 0, // Could be configured per device
+      lensDistortion: 0 // Could be configured per device
+    };
+
+    // Get previous shots for analysis
+    const previousShots = this.sessionShots.get(shotData.sessionId) || [];
+
+    // Use geometric scoring for enhanced analysis
+    const enhancedResult = geometricScoring.analyzeShot(
+      shotData.shotId || `shot_${Date.now()}`,
+      point,
+      targetConfig,
+      previousShots
+    );
+
+    // Store the enhanced shot for future analysis
+    this.sessionShots.set(shotData.sessionId, [...previousShots, enhancedResult]);
+
+    // Convert enhanced result back to ShotData format
+    return {
+      shotId: enhancedResult.shotId,
+      sessionId: shotData.sessionId || '',
+      timestamp: new Date(shotData.timestamp || Date.now()),
+      frameNumber: shotData.frameNumber || 0,
+      coordinates: enhancedResult.coordinates,
+      score: enhancedResult.score,
+      scoringZone: enhancedResult.scoringZone.id,
+      confidence: enhancedResult.confidence,
+      imageUrl: shotData.imageUrl,
+      rawDistance: enhancedResult.rawDistance,
+      correctedDistance: enhancedResult.correctedDistance,
+      isBullseye: enhancedResult.isBullseye,
+      angleFromCenter: enhancedResult.angleFromCenter,
+      compensatedScore: enhancedResult.compensatedScore,
+      analysis: enhancedResult.analysis
+    };
+  }
+
+  /**
+   * Calculate basic shot score (fallback method)
+   */
+  private calculateBasicShotScore(x: number, y: number): { score: number; zone: ScoringZone } {
     // Calculate distance from center (50, 50)
     const centerX = 50;
     const centerY = 50;
     const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
 
     // Find the appropriate scoring zone - sort by radius (smallest first) to get correct zone
-    const sortedZones = scoringZones.sort((a, b) => a.radius - b.radius);
+    const defaultZones = this.getDefaultScoringZones();
+    const sortedZones = defaultZones.sort((a, b) => a.radius - b.radius);
     
     for (const zone of sortedZones) {
       if (distance <= zone.radius) {
@@ -600,21 +724,108 @@ export class HardwareAPI {
     }
 
     // If no zone matched, it's a miss
-    const missZone = scoringZones.find(z => z.id === 'miss') || scoringZones[scoringZones.length - 1];
+    const missZone = defaultZones.find(z => z.id === 'miss') || defaultZones[defaultZones.length - 1];
     return { score: missZone.points, zone: missZone };
   }
 
   /**
-   * Detect sequential shots by comparing frames
+   * Calculate shot score based on coordinates (legacy method for compatibility)
+   */
+  public calculateShotScore(x: number, y: number, scoringZones: ScoringZone[]): { score: number; zone: ScoringZone } {
+    return this.calculateBasicShotScore(x, y);
+  }
+
+  /**
+   * Detect sequential shots by comparing frames with enhanced logic
    */
   public detectSequentialShot(previousFrame: FrameData, currentFrame: FrameData): boolean {
     if (!previousFrame || !currentFrame) return false;
 
-    // Simple difference detection - in real implementation, this would be more sophisticated
+    // Basic shot detection
     const prevHasShot = previousFrame.hasShot;
     const currHasShot = currentFrame.hasShot;
 
-    return !prevHasShot && currHasShot;
+    // Enhanced detection: check if it's a new shot (not same shot persisting)
+    if (!prevHasShot && currHasShot) {
+      return true;
+    }
+
+    // Additional logic: detect shot sequence based on timing
+    if (prevHasShot && currHasShot &&
+        previousFrame.shotData && currentFrame.shotData &&
+        previousFrame.shotData.shotId !== currentFrame.shotData.shotId) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Get session statistics using geometric scoring
+   */
+  public getSessionStatistics(sessionId: string): any {
+    const shots = this.sessionShots.get(sessionId) || [];
+    if (shots.length === 0) {
+      return null;
+    }
+
+    return geometricScoring.calculateSessionStatistics(shots);
+  }
+
+  /**
+   * Get shooting recommendations for a session
+   */
+  public getSessionRecommendations(sessionId: string): string[] {
+    const stats = this.getSessionStatistics(sessionId);
+    if (!stats) {
+      return ['No shots recorded yet'];
+    }
+
+    return geometricScoring.generateRecommendations(stats);
+  }
+
+  /**
+   * Get shot pattern visualization
+   */
+  public getShotPatternVisualization(sessionId: string): string {
+    const shots = this.sessionShots.get(sessionId) || [];
+    return geometricScoring.generateShotPatternVisualization(shots);
+  }
+
+  /**
+   * Get sequential shot detection statistics for a session
+   */
+  public getSequentialDetectionStatistics(sessionId: string): any {
+    if (!this.sequentialSessions.get(sessionId)) {
+      return null;
+    }
+    
+    return sequentialShotDetection.getSessionStatistics(sessionId);
+  }
+
+  /**
+   * Get sequential shot history for a session
+   */
+  public getSequentialShotHistory(sessionId: string): any[] {
+    if (!this.sequentialSessions.get(sessionId)) {
+      return [];
+    }
+    
+    return sequentialShotDetection.getSessionShots(sessionId);
+  }
+
+  /**
+   * Update sequential detection configuration
+   */
+  public updateSequentialDetectionConfig(config: Partial<SequentialDetectionConfig>): void {
+    sequentialShotDetection.updateConfig(config);
+  }
+
+  /**
+   * Get current sequential detection configuration
+   */
+  public getSequentialDetectionConfig(): SequentialDetectionConfig {
+    return sequentialShotDetection.getConfig();
   }
 
   /**
@@ -628,7 +839,14 @@ export class HardwareAPI {
     // Clear all data
     this.devices.clear();
     this.activeSessions.clear();
+    this.sessionShots.clear();
+    this.sequentialSessions.clear();
     this.eventListeners.clear();
+    
+    // Cleanup sequential detection sessions
+    sequentialShotDetection.getActiveSessions().forEach(sessionId => {
+      sequentialShotDetection.clearSession(sessionId);
+    });
   }
 }
 

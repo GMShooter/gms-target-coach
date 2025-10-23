@@ -2,8 +2,15 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge-2';
+import { QRScanner } from '@/components/QRScanner';
 import { HardwareAPI, type PiDevice, type SessionData, type ShotData, type FrameData } from '@/services/HardwareAPI';
-import { Play, Pause, Square, Settings, Camera, Target, Wifi, WifiOff } from 'lucide-react';
+import { Play, Pause, Square, Settings, Camera, Target, Wifi, WifiOff, QrCode } from 'lucide-react';
+
+// Define ScanResult type to avoid importing qr-scanner in the component
+interface ScanResult {
+  data: string;
+  cornerPoints?: Array<{ x: number; y: number }>;
+}
 
 interface LiveTargetViewProps {
   deviceId?: string;
@@ -26,6 +33,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
   const [streamUrl, setStreamUrl] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [showSettings, setShowSettings] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -151,9 +159,20 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
       const connectedDevice = await hardwareAPIRef.current.connectViaQRCode(qrData);
       setDevice(connectedDevice);
       setIsConnected(true);
+      setShowQRScanner(false); // Close QR scanner after successful connection
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect to hardware');
     }
+  };
+
+  // Handle QR code scan result
+  const handleQRCodeScanned = (result: ScanResult) => {
+    connectToHardware(result.data);
+  };
+
+  // Handle QR scanner close
+  const handleQRScannerClose = () => {
+    setShowQRScanner(false);
   };
 
   // Disconnect from hardware
@@ -296,6 +315,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
               {/* Video stream */}
               <video
                 ref={videoRef}
+                data-testid="video-element"
                 autoPlay
                 playsInline
                 muted
@@ -328,14 +348,23 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
             <div className="flex items-center justify-between mt-4">
               <div className="flex items-center gap-2">
                 {!isConnected ? (
-                  <Button onClick={() => {
-                    // For demo purposes, use a mock QR code
-                    const mockQRCode = 'GMShoot://pi-device-001|Raspberry Pi|192.168.1.100|8080';
-                    connectToHardware(mockQRCode);
-                  }} disabled={false}>
-                    <Play className="h-4 w-4 mr-2" />
-                    Connect Hardware
-                  </Button>
+                  <>
+                    <Button onClick={() => setShowQRScanner(true)} disabled={false}>
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Scan QR Code
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        // For demo purposes, use a mock QR code
+                        const mockQRCode = 'GMShoot://pi-device-001|Raspberry Pi|192.168.1.100|8080';
+                        connectToHardware(mockQRCode);
+                      }}
+                      variant="outline"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Demo Connect
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Button
@@ -479,6 +508,18 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
           </Card>
         )}
       </div>
+
+      {/* QR Scanner Modal */}
+      {showQRScanner && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <QRScanner
+              onScan={handleQRCodeScanned}
+              onClose={handleQRScannerClose}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

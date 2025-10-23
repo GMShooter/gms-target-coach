@@ -1,3 +1,5 @@
+const path = require('path');
+
 module.exports = {
   style: {
     postcss: {
@@ -9,21 +11,13 @@ module.exports = {
   },
   webpack: {
     configure: (webpackConfig) => {
-      // Fix CSS import issues in Jest
-      webpackConfig.module.rules.push({
-        test: /\.css$/i,
-        use: ['style-loader', 'css-loader', 'postcss-loader'],
-        include: /\.module\.css$/,
-      });
-      
-      // Handle regular CSS files
-      webpackConfig.module.rules.push({
-        test: /\.css$/i,
-        use: ['style-loader', 'css-loader', 'postcss-loader'],
-        exclude: /\.module\.css$/,
-      });
+      // Add alias for @
+      webpackConfig.resolve.alias = {
+        ...webpackConfig.resolve.alias,
+        '@': path.resolve(__dirname, 'src')
+      };
       
       return webpackConfig;
-    },
-  },
+    }
+  }
 }
