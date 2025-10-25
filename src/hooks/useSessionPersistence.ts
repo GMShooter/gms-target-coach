@@ -186,9 +186,9 @@ export const useSessionPersistence = (options: SessionPersistenceOptions = {}) =
       isRecoverable: sessionData.status !== 'completed',
       metadata: {
         version: '1.0.0',
-        appVersion: process.env.REACT_APP_VERSION || '2.0.0',
-        deviceInfo: navigator.userAgent,
-        browserInfo: `${navigator.platform} - ${navigator.language}`
+        appVersion: import.meta.env.VITE_APP_VERSION || '2.0.0',
+        deviceInfo: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+        browserInfo: typeof navigator !== 'undefined' ? `${navigator.platform} - ${navigator.language}` : 'Unknown'
       }
     };
 
@@ -246,9 +246,9 @@ export const useSessionPersistence = (options: SessionPersistenceOptions = {}) =
         isRecoverable: sessionData.status !== 'completed',
         metadata: {
           version: '1.0.0',
-          appVersion: process.env.REACT_APP_VERSION || '2.0.0',
-          deviceInfo: navigator.userAgent,
-          browserInfo: `${navigator.platform} - ${navigator.language}`
+          appVersion: import.meta.env.VITE_APP_VERSION || '2.0.0',
+          deviceInfo: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+          browserInfo: typeof navigator !== 'undefined' ? `${navigator.platform} - ${navigator.language}` : 'Unknown'
         }
       };
 

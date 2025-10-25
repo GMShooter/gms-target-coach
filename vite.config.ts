@@ -1,13 +1,15 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react-swc'
-import path from 'path'
+
+// Load environment variables
+const env = loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': './src',
     },
   },
   server: {
@@ -19,5 +21,9 @@ export default defineConfig({
   },
   css: {
     postcss: './postcss.config.js',
+  },
+  // Ensure environment variables are available to client
+  define: {
+    __APP_ENV__: JSON.stringify(env.NODE_ENV || 'development'),
   },
 })

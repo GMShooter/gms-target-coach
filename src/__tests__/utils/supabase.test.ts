@@ -28,12 +28,12 @@ describe('Supabase Utils', () => {
 
     it('throws error when environment variables are missing', () => {
       // Save original env vars
-      const originalUrl = process.env.REACT_APP_SUPABASE_URL;
-      const originalKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+      const originalUrl = import.meta.env.VITE_SUPABASE_URL;
+      const originalKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
       // Temporarily remove env vars
-      delete process.env.REACT_APP_SUPABASE_URL;
-      delete process.env.REACT_APP_SUPABASE_ANON_KEY;
+      delete (import.meta.env as any).VITE_SUPABASE_URL;
+      delete (import.meta.env as any).VITE_SUPABASE_ANON_KEY;
 
       // Test should throw error when module is reloaded without env vars
       // The supabase client is initialized at module load time, so we can't test this way
@@ -42,8 +42,8 @@ describe('Supabase Utils', () => {
       expect(supabase).toBeDefined();
 
       // Restore env vars
-      process.env.REACT_APP_SUPABASE_URL = originalUrl;
-      process.env.REACT_APP_SUPABASE_ANON_KEY = originalKey;
+      (import.meta.env as any).VITE_SUPABASE_URL = originalUrl;
+      (import.meta.env as any).VITE_SUPABASE_ANON_KEY = originalKey;
     });
   });
 

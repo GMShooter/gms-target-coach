@@ -1,81 +1,101 @@
-import React, { forwardRef } from "react"
-import { motion, HTMLMotionProps } from "framer-motion"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/lib/utils"
+import React, { useCallback, useEffect } from "react"
+import { motion, useMotionTemplate, useMotionValue } from "framer-motion"
 
-const cardVariants = cva(
-  "rounded-lg border bg-card text-card-foreground shadow-sm relative overflow-hidden",
-  {
-    variants: {
-      variant: {
-        default: "border-border bg-card",
-        outline: "border-2 border-border bg-background",
-        ghost: "border-transparent bg-transparent shadow-none",
-        gradient: "border-transparent bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950",
-        glass: "border-white/10 bg-white/5 backdrop-blur-md",
-        neon: "border-blue-500/50 bg-blue-950/50 shadow-lg shadow-blue-500/25",
-      },
-      size: {
-        default: "p-6",
-        sm: "p-4",
-        lg: "p-8",
-        xl: "p-10",
-      },
-      hover: {
-        none: "",
-        lift: "hover:shadow-lg hover:-translate-y-1 transition-all duration-200",
-        glow: "hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-200",
-        scale: "hover:scale-105 transition-transform duration-200",
-        border: "hover:border-blue-500 transition-colors duration-200",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-      hover: "none",
-    },
-  },
-)
+import { cn } from "../../lib/utils"
 
-export interface MagicCardProps
-  extends HTMLMotionProps<"div">,
-    VariantProps<typeof cardVariants> {
+interface MagicCardProps {
   children?: React.ReactNode
-  shimmer?: boolean
-  gradientBorder?: boolean
+  className?: string
+  gradientSize?: number
+  gradientColor?: string
+  gradientOpacity?: number
+  gradientFrom?: string
+  gradientTo?: string
 }
 
-const MagicCard = forwardRef<HTMLDivElement, MagicCardProps>(
-  ({ className, variant, size, hover, shimmer = false, gradientBorder = false, children, ...props }, ref) => {
-    return (
-      <motion.div
-        className={cn(cardVariants({ variant, size, hover, className }))}
-        ref={ref}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        whileHover={hover === "lift" ? { y: -4 } : hover === "scale" ? { scale: 1.02 } : undefined}
-        {...props}
-      >
-        {gradientBorder && (
-          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 p-[1px]">
-            <div className="h-full w-full rounded-lg bg-background" />
-          </div>
-        )}
-        
-        {shimmer && (
-          <div className="absolute inset-0 -z-10 overflow-hidden rounded-lg">
-            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
-          </div>
-        )}
-        
-        <div className={cn("relative z-10", gradientBorder && "p-6")}>
-          {children}
-        </div>
-      </motion.div>
-    )
-  },
-)
-MagicCard.displayName = "MagicCard"
+export function MagicCard({
+  children,
+  className,
+  gradientSize = 200,
+  gradientColor = "#262626",
+  gradientOpacity = 0.8,
+  gradientFrom = "#9E7AFF",
+  gradientTo = "#FE8BBB",
+}: MagicCardProps) {
+  const mouseX = useMotionValue(-gradientSize)
+  const mouseY = useMotionValue(-gradientSize)
+  const reset = useCallback(() => {
+    mouseX.set(-gradientSize)
+    mouseY.set(-gradientSize)
+  }, [gradientSize, mouseX, mouseY])
 
-export { MagicCard, cardVariants }
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect()
+      mouseX.set(e.clientX - rect.left)
+      mouseY.set(e.clientY - rect.top)
+    },
+    [mouseX, mouseY]
+  )
+
+  useEffect(() => {
+    reset()
+  }, [reset])
+
+  useEffect(() => {
+    const handleGlobalPointerOut = (e: PointerEvent) => {
+      if (!e.relatedTarget) {
+        reset()
+      }
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") {
+        reset()
+      }
+    }
+
+    window.addEventListener("pointerout", handleGlobalPointerOut)
+    window.addEventListener("blur", reset)
+    document.addEventListener("visibilitychange", handleVisibility)
+
+    return () => {
+      window.removeEventListener("pointerout", handleGlobalPointerOut)
+      window.removeEventListener("blur", reset)
+      document.removeEventListener("visibilitychange", handleVisibility)
+    }
+  }, [reset])
+
+  return (
+    <div
+      className={cn("group relative rounded-[inherit]", className)}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={reset}
+      onPointerEnter={reset}
+    >
+      <motion.div
+        className="bg-border pointer-events-none absolute inset-0 rounded-[inherit] duration-300 group-hover:opacity-100"
+        style={{
+          background: useMotionTemplate`
+          radial-gradient(${gradientSize}px circle at ${mouseX}px ${mouseY}px,
+          ${gradientFrom}, 
+          ${gradientTo}, 
+          var(--border) 100%
+          )
+          `,
+        }}
+      />
+      <div className="bg-background absolute inset-px rounded-[inherit]" />
+      <motion.div
+        className="pointer-events-none absolute inset-px rounded-[inherit] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        style={{
+          background: useMotionTemplate`
+            radial-gradient(${gradientSize}px circle at ${mouseX}px ${mouseY}px, ${gradientColor}, transparent 100%)
+          `,
+          opacity: gradientOpacity,
+        }}
+      />
+      <div className="relative">{children}</div>
+    </div>
+  )
+}

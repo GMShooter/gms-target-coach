@@ -4,9 +4,11 @@ import { Camera, CameraOff, QrCode, CheckCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
+import { useHardwareStore } from '../store/hardwareStore';
+import { hardwareAPI } from '../services/HardwareAPI';
 
 interface QRScannerProps {
-  onScan: (result: QrScanner.ScanResult) => void;
+  onScan?: (result: QrScanner.ScanResult) => void;
   onError?: (error: Error | string) => void;
   onClose?: () => void;
   title?: string;
@@ -34,6 +36,15 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const [scanResult, setScanResult] = useState<string | null>(null);
   const [pairedDevices, setPairedDevices] = useState<PairedDevice[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Zustand store actions
+  const hardwareStore = useHardwareStore();
+  const { 
+    setConnectedDevice, 
+    setNgrokUrl, 
+    setConnectionStatus,
+    isConnected,
+    isConnecting 
+  } = hardwareStore;
 
   // Load paired devices from localStorage on mount
   useEffect(() => {
@@ -91,32 +102,35 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     };
   }, [videoRef.current]);
 
-  const handleScanSuccess = (result: QrScanner.ScanResult) => {
+  const handleScanSuccess = async (result: QrScanner.ScanResult) => {
     setScanResult(result.data);
+    setConnectionStatus(false, true, null); // Set connecting state
     
-    // Parse QR code data
     try {
-      const data = JSON.parse(result.data);
+      // Parse QR code data using HardwareAPI
+      const device = await hardwareAPI.connectViaQRCode(result.data);
       
-      // Validate QR code format for device pairing
-      if (data.type === 'gms-device' && data.id && data.name && data.url) {
+      if (device) {
+        // Store device info in Zustand store
+        setConnectedDevice(device);
+        setNgrokUrl(device.ngrokUrl || device.url);
+        setConnectionStatus(true, false, null);
+        
+        // Update paired devices list
         const newDevice: PairedDevice = {
-          id: data.id,
-          name: data.name,
-          url: data.url,
+          id: device.id,
+          name: device.name,
+          url: device.url,
           lastConnected: new Date()
         };
 
-        // Check if device already exists
-        const existingIndex = pairedDevices.findIndex(d => d.id === data.id);
+        const existingIndex = pairedDevices.findIndex(d => d.id === device.id);
         let updatedDevices: PairedDevice[];
         
         if (existingIndex >= 0) {
-          // Update existing device
           updatedDevices = [...pairedDevices];
           updatedDevices[existingIndex] = newDevice;
         } else {
-          // Add new device
           updatedDevices = [...pairedDevices, newDevice];
         }
 
@@ -129,12 +143,15 @@ export const QRScanner: React.FC<QRScannerProps> = ({
         }
         setIsScanning(false);
         
-        onScan(result);
+        if (onScan) onScan(result);
       } else {
+        setConnectionStatus(false, false, 'Failed to connect to device');
         setError('Invalid QR code format. Please scan a valid GMShooter device QR code.');
       }
-    } catch (e) {
-      setError('Invalid QR code data. Please scan a valid GMShooter device QR code.');
+    } catch (error) {
+      setConnectionStatus(false, false, error instanceof Error ? error.message : 'Connection failed');
+      setError(error instanceof Error ? error.message : 'Invalid QR code data. Please scan a valid GMShooter device QR code.');
+      if (onError) onError(error instanceof Error ? error : new Error('QR scan failed'));
     }
   };
 
@@ -174,20 +191,47 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     setIsScanning(false);
   };
 
-  const connectToDevice = (device: PairedDevice) => {
-    // Create a synthetic scan result for paired device
-    const syntheticResult: QrScanner.ScanResult = {
-      data: JSON.stringify({
-        type: 'gms-device',
-        id: device.id,
-        name: device.name,
-        url: device.url
-      }),
-      cornerPoints: []
-    };
+  const connectToDevice = async (device: PairedDevice) => {
+    setConnectionStatus(false, true, null); // Set connecting state
     
-    onScan(syntheticResult);
-    if (onClose) onClose();
+    try {
+      // Create QR code data for paired device
+      const qrData = `GMShoot://${device.id}|${device.name}|${device.url}|8080`;
+      
+      // Connect using HardwareAPI
+      const connectedDevice = await hardwareAPI.connectViaQRCode(qrData);
+      
+      if (connectedDevice) {
+        // Store device info in Zustand store
+        setConnectedDevice(connectedDevice);
+        setNgrokUrl(connectedDevice.ngrokUrl || connectedDevice.url);
+        setConnectionStatus(true, false, null);
+        
+        // Update last connected time
+        const updatedDevice = { ...device, lastConnected: new Date() };
+        const existingIndex = pairedDevices.findIndex(d => d.id === device.id);
+        let updatedDevices: PairedDevice[];
+        
+        if (existingIndex >= 0) {
+          updatedDevices = [...pairedDevices];
+          updatedDevices[existingIndex] = updatedDevice;
+        } else {
+          updatedDevices = [...pairedDevices, updatedDevice];
+        }
+
+        setPairedDevices(updatedDevices);
+        localStorage.setItem('pairedDevices', JSON.stringify(updatedDevices));
+        
+        if (onClose) onClose();
+      } else {
+        setConnectionStatus(false, false, 'Failed to connect to device');
+        setError('Failed to connect to device');
+      }
+    } catch (error) {
+      setConnectionStatus(false, false, error instanceof Error ? error.message : 'Connection failed');
+      setError(error instanceof Error ? error.message : 'Failed to connect to device');
+      if (onError) onError(error instanceof Error ? error : new Error('Device connection failed'));
+    }
   };
 
   const removeDevice = (deviceId: string) => {

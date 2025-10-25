@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge-2';
-import { QRScanner } from '@/components/QRScanner';
-import { HardwareAPI, type PiDevice, type SessionData, type ShotData, type FrameData } from '@/services/HardwareAPI';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge-2';
+import { QRScanner } from '../components/QRScanner';
+import { HardwareAPI, type PiDevice, type SessionData, type ShotData, type FrameData } from '../services/HardwareAPI';
 import { Play, Pause, Square, Settings, Camera, Target, Wifi, WifiOff, QrCode, Maximize2, Minimize2, RotateCw } from 'lucide-react';
+import { useHardware } from '../hooks/useHardware';
 
-// Define ScanResult type to avoid importing qr-scanner in the component
+// Define ScanResult type to avoid importing qr-scanner in component
 interface ScanResult {
   data: string;
   cornerPoints?: Array<{ x: number; y: number }>;
@@ -25,13 +26,23 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
   onShotDetected,
   onSessionComplete
 }) => {
-  const [device, setDevice] = useState<PiDevice | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [session, setSession] = useState<SessionData | null>(null);
-  const [shots, setShots] = useState<ShotData[]>([]);
-  const [currentFrame, setCurrentFrame] = useState<FrameData | null>(null);
-  const [streamUrl, setStreamUrl] = useState<string>('');
-  const [error, setError] = useState<string>('');
+  // Use our new hardware hook
+  const {
+    connectedDevice: device,
+    isConnected,
+    isConnecting,
+    connectionError: error,
+    activeSession: session,
+    isSessionActive,
+    latestFrame: currentFrame,
+    recentShots: shots,
+    connectToDevice,
+    disconnectDevice,
+    startSession,
+    stopSession
+  } = useHardware();
+
+  // Local UI state
   const [showSettings, setShowSettings] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -40,7 +51,6 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const hardwareAPIRef = useRef<HardwareAPI | null>(null);
 
   // Detect mobile device and orientation
   useEffect(() => {
@@ -68,144 +78,27 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     };
   }, []);
 
-  // Initialize hardware API
+  // Handle shot detection callback
   useEffect(() => {
-    hardwareAPIRef.current = new HardwareAPI();
-    
-    // Cleanup on unmount
-    return () => {
-      if (hardwareAPIRef.current) {
-        hardwareAPIRef.current.cleanup();
-      }
-    };
-  }, []);
-
-  // Handle shot detection with useCallback at component level
-  const handleShotDetected = useCallback(async (shot: ShotData) => {
-    console.log('Shot detected:', shot);
-    
-    // Add shot to local state
-    setShots(prev => [...prev, shot]);
-    
-    // Ingest shot data to Supabase via HardwareAPI
-    if (session && hardwareAPIRef.current) {
-      try {
-        await hardwareAPIRef.current.ingestShotData(session.sessionId, {
-          shotId: shot.shotId,
-          sessionId: session.sessionId,
-          timestamp: shot.timestamp,
-          frameNumber: shot.frameNumber,
-          coordinates: shot.coordinates,
-          score: shot.score,
-          confidence: shot.confidence,
-          imageUrl: shot.imageUrl,
-          sequentialData: shot.sequentialShotNumber ? {
-            shotNumber: shot.sequentialShotNumber,
-            confidence: shot.confidence
-          } : undefined,
-          geometricData: shot.compensatedScore ? {
-            rawDistance: shot.rawDistance,
-            correctedDistance: shot.correctedDistance,
-            isBullseye: shot.isBullseye,
-            angleFromCenter: shot.angleFromCenter,
-            compensatedScore: shot.compensatedScore
-          } : undefined
-        });
-      } catch (error) {
-        console.error('Failed to ingest shot data:', error);
-      }
+    if (shots.length > 0) {
+      const latestShot = shots[shots.length - 1];
+      onShotDetected?.(latestShot);
     }
-    
-    onShotDetected?.(shot);
-  }, [session, onShotDetected]);
+  }, [shots, onShotDetected]);
 
-  // Handle frame updates with useCallback at component level
-  const handleFrameUpdated = useCallback(async (frameData: FrameData) => {
-    console.log('Frame updated:', frameData);
-    
-    // Update video source if frame URL is provided
-    if (frameData.imageUrl && videoRef.current) {
-      videoRef.current.src = frameData.imageUrl;
-    }
-    
-    // Ingest frame data to Supabase via HardwareAPI
-    if (session && hardwareAPIRef.current) {
-      try {
-        await hardwareAPIRef.current.ingestFrameData(session.sessionId, {
-          frameNumber: frameData.frameNumber,
-          frameId: frameData.frameNumber,
-          frameData: frameData.imageUrl || '', // Convert to base64 in production
-          timestamp: frameData.timestamp,
-          predictions: frameData.metadata?.predictions || []
-        });
-      } catch (error) {
-        console.error('Failed to ingest frame data:', error);
-      }
-    }
-    
-    setCurrentFrame(frameData);
-  }, [session]);
-
-  // Handle device connection
+  // Handle session completion
   useEffect(() => {
-    if (!hardwareAPIRef.current) return;
-
-    const handleDeviceConnected = (connectedDevice: PiDevice) => {
-      setDevice(connectedDevice);
-      setIsConnected(connectedDevice.status === 'online');
-      setError('');
-    };
-
-    const handleDeviceDisconnected = () => {
-      setDevice(null);
-      setIsConnected(false);
-      setStreamUrl('');
-      setSession(null);
-    };
-
-    const handleSessionStarted = (sessionData: SessionData) => {
-      setSession(sessionData);
-      setShots([]);
-    };
-
-    const handleSessionEnded = () => {
-      setSession(null);
+    if (session && session.status === 'completed') {
       onSessionComplete?.(shots);
-    };
-
-    const handleError = (errorData: any) => {
-      setError(errorData.message || 'An error occurred');
-    };
-
-    // Register event listeners
-    hardwareAPIRef.current.addEventListener('deviceConnected', handleDeviceConnected);
-    hardwareAPIRef.current.addEventListener('deviceDisconnected', handleDeviceDisconnected);
-    hardwareAPIRef.current.addEventListener('sessionStarted', handleSessionStarted);
-    hardwareAPIRef.current.addEventListener('sessionEnded', handleSessionEnded);
-    hardwareAPIRef.current.addEventListener('shotDetected', handleShotDetected);
-    hardwareAPIRef.current.addEventListener('frameUpdated', handleFrameUpdated);
-    hardwareAPIRef.current.addEventListener('error', handleError);
-    
-    return () => {
-      // Remove event listeners
-      if (hardwareAPIRef.current) {
-        hardwareAPIRef.current.removeEventListener('deviceConnected', handleDeviceConnected);
-        hardwareAPIRef.current.removeEventListener('deviceDisconnected', handleDeviceDisconnected);
-        hardwareAPIRef.current.removeEventListener('sessionStarted', handleSessionStarted);
-        hardwareAPIRef.current.removeEventListener('sessionEnded', handleSessionEnded);
-        hardwareAPIRef.current.removeEventListener('shotDetected', handleShotDetected);
-        hardwareAPIRef.current.removeEventListener('frameUpdated', handleFrameUpdated);
-        hardwareAPIRef.current.removeEventListener('error', handleError);
-      }
-    };
-  }, [handleShotDetected, handleFrameUpdated, onSessionComplete, shots]);
+    }
+  }, [session, shots, onSessionComplete]);
 
   // Initialize video stream
   useEffect(() => {
-    if (!streamUrl || !videoRef.current) return;
+    if (!currentFrame?.imageUrl || !videoRef.current) return;
 
     const video = videoRef.current;
-    video.src = streamUrl;
+    video.src = currentFrame.imageUrl;
     
     video.onloadstart = () => {
       console.log('Loading video stream...');
@@ -222,32 +115,17 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     
     video.onerror = (e) => {
       console.error('Video stream error:', e);
-      setError('Failed to load video stream');
     };
     
     return () => {
       video.src = '';
     };
-  }, [streamUrl]);
-
-  // Connect to hardware via QR code
-  const connectToHardware = async (qrData: string) => {
-    if (!hardwareAPIRef.current) return;
-    
-    try {
-      setError('');
-      const connectedDevice = await hardwareAPIRef.current.connectViaQRCode(qrData);
-      setDevice(connectedDevice);
-      setIsConnected(true);
-      setShowQRScanner(false); // Close QR scanner after successful connection
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect to hardware');
-    }
-  };
+  }, [currentFrame?.imageUrl]);
 
   // Handle QR code scan result
   const handleQRCodeScanned = (result: ScanResult) => {
-    connectToHardware(result.data);
+    connectToDevice(result.data);
+    setShowQRScanner(false); // Close QR scanner after successful connection
   };
 
   // Handle QR scanner close
@@ -256,53 +134,23 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
   };
 
   // Disconnect from hardware
-  const disconnectFromHardware = async () => {
-    if (!hardwareAPIRef.current || !device) return;
-    
-    try {
-      await hardwareAPIRef.current.disconnectDevice(device.id);
-      setStreamUrl('');
-      setSession(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to disconnect from hardware');
+  const handleDisconnectFromHardware = async () => {
+    if (device) {
+      await disconnectDevice(device.id);
     }
   };
 
-  // Start shooting session
-  const startSession = async () => {
-    if (!hardwareAPIRef.current || !device || !sessionId) return;
+  // Handle start session
+  const handleStartSession = async () => {
+    if (!sessionId || !device) return;
     
-    try {
-      setError('');
-      const sessionRequest = {
-        sessionId,
-        userId: 'current-user', // This should come from auth context
-        settings: {
-          targetDistance: 10,
-          targetSize: 1,
-          detectionSensitivity: 0.8
-        }
-      };
-      
-      const sessionData = await hardwareAPIRef.current.startSession(device.id, sessionRequest);
-      setSession(sessionData);
-      setShots([]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start session');
-    }
+    await startSession(device.id, 'current-user'); // This should come from auth context
   };
 
-  // Stop shooting session
-  const stopSession = async () => {
-    if (!hardwareAPIRef.current || !session) return;
-    
-    try {
-      setError('');
-      await hardwareAPIRef.current.stopSession(session.sessionId);
-      setSession(null);
-      onSessionComplete?.(shots);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to stop session');
+  // Handle stop session
+  const handleStopSession = async () => {
+    if (session) {
+      await stopSession(session.sessionId);
     }
   };
 
@@ -469,6 +317,14 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     ctx.fill();
   };
 
+  // Update canvas when shots change
+  useEffect(() => {
+    if (shots.length > 0) {
+      const latestShot = shots[shots.length - 1];
+      drawShotOverlay(latestShot);
+    }
+  }, [shots, drawShotOverlay]);
+
   return (
     <div className={`grid ${isMobile ? 'grid-cols-1' : 'lg:grid-cols-3'} gap-4 ${isMobile ? 'p-2' : 'gap-6'}`}>
       {/* Main video feed */}
@@ -500,7 +356,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                     </>
                   )}
                 </Badge>
-                {session && session.status === 'active' && (
+                {session && isSessionActive && (
                   <Badge variant="warning" className={`animate-pulse ${isMobile ? 'text-xs px-2 py-1' : ''}`}>
                     <Target className={`${isMobile ? 'h-3 w-3' : 'h-3 w-3'} mr-1`} />
                     <span className={`${isMobile ? 'hidden' : ''}`}>Session Active</span>
@@ -529,7 +385,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                 <p className="text-red-600">{error}</p>
               </div>
             )}
-            
+             
             <div className={`relative bg-black rounded-lg overflow-hidden ${isMobile ? 'aspect-video' : ''} ${isFullscreen ? 'flex-1' : ''} ${!isMobile ? 'aspect-video' : ''}`}>
               {/* Video stream */}
               <video
@@ -539,18 +395,18 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                 playsInline
                 muted
                 className={`w-full h-full object-cover ${isMobile ? 'rounded' : ''}`}
-                style={{ display: streamUrl ? 'block' : 'none' }}
+                style={{ display: currentFrame?.imageUrl ? 'block' : 'none' }}
               />
               
               {/* Canvas for shot overlays */}
               <canvas
                 ref={canvasRef}
                 className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                style={{ display: streamUrl ? 'block' : 'none' }}
+                style={{ display: currentFrame?.imageUrl ? 'block' : 'none' }}
               />
               
               {/* Placeholder when no stream */}
-              {!streamUrl && (
+              {!currentFrame?.imageUrl && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center text-white">
                     <Camera className={`${isMobile ? 'h-8 w-8' : 'h-12 w-12'} mx-auto mb-4 opacity-50`} />
@@ -581,7 +437,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                 </div>
               )}
             </div>
-            
+             
             {/* Control buttons */}
             <div className={`flex items-center justify-between mt-4 ${isMobile ? 'flex-wrap gap-2' : ''}`}>
               <div className={`flex items-center ${isMobile ? 'flex-wrap gap-2 flex-1' : 'gap-2'}`}>
@@ -589,7 +445,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                   <>
                     <Button
                       onClick={() => setShowQRScanner(true)}
-                      disabled={false}
+                      disabled={isConnecting}
                       size={isMobile ? "sm" : "default"}
                       className={isMobile ? 'flex-1 min-w-[100px]' : ''}
                     >
@@ -601,7 +457,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                       onClick={() => {
                         // For demo purposes, use a mock QR code
                         const mockQRCode = 'GMShoot://pi-device-001|Raspberry Pi|192.168.1.100|8080';
-                        connectToHardware(mockQRCode);
+                        connectToDevice(mockQRCode);
                       }}
                       variant="outline"
                       size={isMobile ? "sm" : "default"}
@@ -615,13 +471,13 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                 ) : (
                   <>
                     <Button
-                      onClick={session ? stopSession : startSession}
+                      onClick={isSessionActive ? handleStopSession : handleStartSession}
                       disabled={!sessionId}
-                      variant={session ? "destructive" : "default"}
+                      variant={isSessionActive ? "destructive" : "default"}
                       size={isMobile ? "sm" : "default"}
                       className={isMobile ? 'flex-1 min-w-[100px]' : ''}
                     >
-                      {session ? (
+                      {isSessionActive ? (
                         <>
                           <Square className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} mr-2`} />
                           <span className={isMobile ? 'hidden sm:inline' : ''}>Stop Session</span>
@@ -636,7 +492,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                       )}
                     </Button>
                     <Button
-                      onClick={disconnectFromHardware}
+                      onClick={handleDisconnectFromHardware}
                       variant="outline"
                       size={isMobile ? "sm" : "default"}
                       className={isMobile ? 'flex-1 min-w-[100px]' : ''}
@@ -727,7 +583,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Shot Count:</span>
-                  <span className={isMobile ? 'text-xs' : 'text-sm'}>{session.shotCount}</span>
+                  <span className={isMobile ? 'text-xs' : 'text-sm'}>{session.shotCount || shots.length}</span>
                 </div>
               </div>
             </CardContent>

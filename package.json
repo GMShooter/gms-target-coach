@@ -2,6 +2,7 @@
   "name": "client",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "start": "vite",
     "build": "vite build",
@@ -52,6 +53,7 @@
     "framer-motion": "^12.23.24",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
     "puppeteer": "^24.26.0",
     "qr-scanner": "^1.4.2",
     "react": "^19.2.0",
@@ -63,7 +65,8 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.180.0",
     "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "zustand": "^5.0.8"
   },
   "eslintConfig": {
     "extends": [
@@ -115,83 +118,5 @@
     "tailwindcss": "^4.1.15",
     "ts-jest": "^29.2.6",
     "vite": "^7.1.12"
-  },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "jsdom",
-    "setupFilesAfterEnv": [
-      "<rootDir>/src/setupTests.ts"
-    ],
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1",
-      "\\.(css|less|scss|sass)$": "identity-obj-proxy"
-    },
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "transformIgnorePatterns": [
-      "node_modules/(?!(msw|@mswjs|@testing-library)/)"
-    ],
-    "extensionsToTreatAsEsm": [
-      ".ts",
-      ".tsx"
-    ],
-    "testPathIgnorePatterns": [
-      "<rootDir>/src/__tests__/mocks/server.js"
-    ],
-    "testMatch": [
-      "<rootDir>/src/**/__tests__/**/*.(ts|tsx|js)",
-      "<rootDir>/src/**/?(*.)(spec|test).(ts|tsx|js)"
-    ],
-    "collectCoverageFrom": [
-      "src/**/*.(ts|tsx)",
-      "!src/**/*.d.ts",
-      "!src/index.tsx",
-      "!src/reportWebVitals.ts",
-      "!src/setupTests.ts",
-      "!src/**/*.stories.@(js|jsx|ts|tsx)",
-      "!src/**/__tests__/**/*",
-      "!src/**/test-utils.*"
-    ],
-    "coverageReporters": [
-      "text",
-      "lcov",
-      "html",
-      "json-summary"
-    ],
-    "coverageDirectory": "coverage",
-    "coverageThreshold": {
-      "global": {
-        "branches": 80,
-        "functions": 80,
-        "lines": 80,
-        "statements": 80
-      }
-    },
-    "testTimeout": 10000,
-    "globals": {
-      "import.meta": {
-        "env": {
-          "VITE_SUPABASE_URL": "http://localhost:54321",
-          "VITE_SUPABASE_ANON_KEY": "test-key",
-          "VITE_FIREBASE_API_KEY": "test-key",
-          "VITE_FIREBASE_AUTH_DOMAIN": "test-domain",
-          "VITE_FIREBASE_PROJECT_ID": "test-project",
-          "VITE_FIREBASE_MESSAGING_SENDER_ID": "test-sender",
-          "VITE_FIREBASE_APP_ID": "test-app",
-          "VITE_FIREBASE_MEASUREMENT_ID": "test-measurement",
-          "VITE_NGROK_URL": "http://localhost:4040",
-          "VITE_ROBOFLOW_API_KEY": "test-key",
-          "VITE_GEMINI_API_KEY": "test-key"
-        }
-      },
-      "ts-jest": {
-        "tsconfig": {
-          "jsx": "react-jsx",
-          "esModuleInterop": true,
-          "allowSyntheticDefaultImports": true
-        }
-      }
-    }
   }
 }

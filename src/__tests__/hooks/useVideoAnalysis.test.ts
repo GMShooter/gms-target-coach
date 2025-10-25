@@ -44,6 +44,9 @@ describe('useVideoAnalysis Hook', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     
+    // Ensure functions.invoke is properly mocked
+    (supabase as any).functions = { invoke: jest.fn() };
+    
     // Set up default successful mocks
     (supabase.auth.getUser as jest.Mock).mockResolvedValue({
       data: { user: { id: 'test-user' } },

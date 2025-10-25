@@ -5,10 +5,10 @@
  * Cross-platform deployment script for Node.js
  */
 
-const { spawn, exec } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
+import { spawn, exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import readline from 'readline';
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -320,11 +320,11 @@ process.on('SIGINT', () => {
 });
 
 // Run main function
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
 
-module.exports = {
+export {
   checkRequirements,
   setupEnvironment,
   deploySupabase,

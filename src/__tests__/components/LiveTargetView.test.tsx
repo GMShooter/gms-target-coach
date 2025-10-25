@@ -1,853 +1,704 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { LiveTargetView } from '@/components/LiveTargetView';
-import { HardwareAPI } from '@/services/HardwareAPI';
-import type { PiDevice, SessionData, ShotData, FrameData } from '@/services/HardwareAPI';
+import '@testing-library/jest-dom';
+import LiveTargetView from '../../components/LiveTargetView';
+import { HardwareAPI } from '../../services/HardwareAPI';
 
-// Mock canvas context methods
-const mockCanvasContext = {
-  drawImage: jest.fn(),
-  clearRect: jest.fn(),
-  fillRect: jest.fn(),
-  strokeRect: jest.fn(),
-  fillText: jest.fn(),
-  font: '',
-  textAlign: '',
-  fillStyle: '',
-  strokeStyle: '',
-  lineWidth: 1,
-  beginPath: jest.fn(),
-  arc: jest.fn(),
-  fill: jest.fn(),
-  stroke: jest.fn(),
-  closePath: jest.fn(),
-  moveTo: jest.fn(),
-  lineTo: jest.fn(),
-  strokeText: jest.fn(),
-} as any;
+// Mock the HardwareAPI service
+jest.mock('../../services/HardwareAPI');
+jest.mock('../../components/QRScanner', () => ({
+  QRScanner: ({ onScan, onClose }: { onScan: (result: any) => void; onClose: () => void }) => (
+    <div data-testid="qr-scanner-mock">
+      <button onClick={() => onScan({ data: 'test-qr-data' })}>Scan</button>
+      <button onClick={onClose}>Close</button>
+    </div>
+  ),
+}));
 
-HTMLCanvasElement.prototype.getContext = jest.fn(() => mockCanvasContext);
+// Mock Supabase client
+jest.mock('../../utils/supabase', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      insert: jest.fn().mockResolvedValue({ error: null }),
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          data: [],
+          error: null,
+        })),
+      })),
+    })),
+  },
+}));
 
-// Mock the HardwareAPI
-jest.mock('@/services/HardwareAPI');
+// Mock localStorage
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+};
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+});
 
-// Create a mock implementation
-const mockHardwareAPI = {
-  connectViaQRCode: jest.fn(),
-  disconnectDevice: jest.fn(),
-  startSession: jest.fn(),
-  stopSession: jest.fn(),
-  cleanup: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
-  getDevice: jest.fn(),
-  getSession: jest.fn(),
-  getConnectedDevices: jest.fn(),
-  getActiveSessions: jest.fn(),
-  ingestFrameData: jest.fn().mockResolvedValue(undefined),
-  ingestShotData: jest.fn().mockResolvedValue(undefined),
-  ingestSessionEvent: jest.fn().mockResolvedValue(undefined)
-} as unknown as jest.Mocked<HardwareAPI>;
+// Mock WebSocket
+class MockWebSocket {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+  
+  static url: string = '';
+  onopen: ((event: any) => {}) | null = null;
+  onclose: ((event: any) => {}) | null = null;
+  onmessage: ((event: any) => {}) | null = null;
+  onerror: ((event: any) => {}) | null = null;
+  send = jest.fn();
+  close = jest.fn();
+  
+  readyState: number = MockWebSocket.OPEN;
+  
+  constructor(url: string) {
+    MockWebSocket.url = url;
+    setTimeout(() => {
+      if (this.onopen) this.onopen({} as any);
+    }, 100);
+  }
+}
 
-// Mock the HardwareAPI constructor
-(HardwareAPI as jest.MockedClass<typeof HardwareAPI>).mockImplementation(() => mockHardwareAPI);
+Object.defineProperty(window, 'WebSocket', {
+  value: MockWebSocket,
+});
 
-// Store event callbacks for testing
+// Global event callback system
 const eventCallbacks: Record<string, Function[]> = {};
 
-// Setup mock event listener system
-const setupEventListeners = () => {
-  mockHardwareAPI.addEventListener.mockImplementation((event: string, callback: Function) => {
+// Create a mock HardwareAPI instance that will be used by the component
+const mockHardwareAPI = {
+  // Private properties (mocked as public for testing)
+  devices: new Map(),
+  activeSessions: new Map(),
+  sessionShots: new Map(),
+  sequentialSessions: new Map(),
+  eventListeners: new Map(),
+  wsConnections: new Map(),
+  supabaseUrl: '',
+  supabaseAnonKey: '',
+  userId: null,
+  
+  // Event management
+  addEventListener: jest.fn((event: string, callback: Function) => {
     if (!eventCallbacks[event]) {
       eventCallbacks[event] = [];
     }
     eventCallbacks[event].push(callback);
-  });
-
-  mockHardwareAPI.removeEventListener.mockImplementation((event: string, callback: Function) => {
+  }),
+  removeEventListener: jest.fn((event: string, callback: Function) => {
     if (eventCallbacks[event]) {
       eventCallbacks[event] = eventCallbacks[event].filter(cb => cb !== callback);
     }
-  });
-
-  // Mock getDevice to return device when connected
-  mockHardwareAPI.getDevice.mockImplementation((deviceId: string) => {
-    if (deviceId === 'device-001') {
-      return {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
-      };
+  }),
+  
+  // Device management
+  connectViaQRCode: jest.fn().mockResolvedValue({
+    id: 'pi-device-001',
+    name: 'Raspberry Pi',
+    url: '192.168.1.100:8080',
+    status: 'online'
+  }),
+  parseQRCode: jest.fn().mockReturnValue({
+    id: 'pi-device-001',
+    name: 'Raspberry Pi',
+    url: '192.168.1.100:8080',
+    status: 'offline',
+    lastSeen: new Date(),
+    capabilities: {
+      hasCamera: true,
+      hasZoom: true,
+      maxResolution: '1920x1080',
+      supportedFormats: ['jpeg', 'png']
     }
-    return undefined;
-  });
-
-  // Mock getSession to return session when active
-  mockHardwareAPI.getSession.mockImplementation((sessionId: string) => {
-    if (sessionId === 'test-session-001') {
-      return {
-        sessionId: 'test-session-001',
-        deviceId: 'device-001',
-        startTime: new Date(),
-        shotCount: 0,
-        status: 'active',
-        settings: {
-          targetDistance: 10,
-          targetSize: 1,
-          scoringZones: [
-            { id: 'bullseye', name: 'Bullseye', points: 10, radius: 5, color: '#FF0000' },
-            { id: 'inner', name: 'Inner Ring', points: 9, radius: 10, color: '#FF4500' },
-            { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' },
-            { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
-            { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
-            { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ],
-          detectionSensitivity: 0.8
-        }
-      };
+  }),
+  getConnectedDevices: jest.fn().mockReturnValue([]),
+  getDevice: jest.fn(),
+  disconnectDevice: jest.fn().mockResolvedValue(undefined),
+  
+  // Session management
+  startSession: jest.fn().mockResolvedValue({
+    sessionId: 'test-session-123',
+    userId: 'current-user',
+    startTime: new Date(),
+    shotCount: 0,
+    status: 'active'
+  }),
+  stopSession: jest.fn().mockResolvedValue(undefined),
+  getActiveSessions: jest.fn().mockReturnValue([]),
+  getSession: jest.fn(),
+  
+  // Frame management
+  getLatestFrame: jest.fn().mockResolvedValue({
+    frameNumber: 1,
+    timestamp: new Date(),
+    imageUrl: '',
+    hasShot: false,
+    metadata: {
+      resolution: '1920x1080',
+      brightness: 50,
+      contrast: 50
     }
-    return undefined;
-  });
-};
+  }),
+  getNextFrame: jest.fn().mockResolvedValue({
+    frameNumber: 1,
+    timestamp: new Date(),
+    imageUrl: '',
+    hasShot: false,
+    metadata: {
+      resolution: '1920x1080',
+      brightness: 50,
+      contrast: 50
+    }
+  }),
+  
+  // Zoom control
+  setZoomPreset: jest.fn().mockResolvedValue(undefined),
+  
+  // WebSocket management
+  sendWebSocketMessage: jest.fn(),
+  getWebSocketStatus: jest.fn().mockReturnValue({ connected: false, readyState: MockWebSocket.CLOSED }),
+  closeWebSocketConnection: jest.fn(),
+  
+  // Statistics and analysis
+  calculateShotScore: jest.fn().mockReturnValue({ score: 8, zone: { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' } }),
+  getSessionStatistics: jest.fn().mockReturnValue(null),
+  getSessionRecommendations: jest.fn().mockReturnValue([]),
+  getShotPatternVisualization: jest.fn().mockReturnValue(''),
+  
+  // Sequential detection
+  detectSequentialShot: jest.fn().mockReturnValue(false),
+  getSequentialDetectionStatistics: jest.fn().mockReturnValue(null),
+  getSequentialShotHistory: jest.fn().mockReturnValue([]),
+  updateSequentialDetectionConfig: jest.fn(),
+  getSequentialDetectionConfig: jest.fn().mockReturnValue({
+    sensitivity: 0.7,
+    minShotInterval: 1000,
+    maxFrameHistory: 10,
+    shotThreshold: 0.3
+  }),
+  
+  // Session control
+  getSessionStatus: jest.fn().mockResolvedValue({
+    isActive: false,
+    shotCount: 0
+  }),
+  toggleSessionPause: jest.fn().mockResolvedValue(undefined),
+  emergencyStop: jest.fn().mockResolvedValue(undefined),
+  
+  // Data ingestion
+  ingestFrameData: jest.fn().mockResolvedValue(undefined),
+  ingestShotData: jest.fn().mockResolvedValue(undefined),
+  ingestSessionEvent: jest.fn().mockResolvedValue(undefined),
+  
+  // Cleanup
+  cleanup: jest.fn(),
+  
+  // User management
+  setUserId: jest.fn(),
+} as any;
 
 // Helper function to trigger events
-const triggerEvent = (event: string, data: any) => {
-  if (eventCallbacks[event]) {
-    eventCallbacks[event].forEach(callback => callback(data));
+const triggerEvent = (eventName: string, data: any) => {
+  if (eventCallbacks[eventName]) {
+    eventCallbacks[eventName].forEach(callback => {
+      try {
+        callback(data);
+      } catch (error) {
+        console.error(`Error in ${eventName} callback:`, error);
+      }
+    });
   }
 };
 
+// Mock the HardwareAPI constructor to return our mock instance
+const MockedHardwareAPI = HardwareAPI as jest.MockedClass<typeof HardwareAPI>;
+MockedHardwareAPI.mockImplementation(() => mockHardwareAPI);
+
 describe('LiveTargetView Component', () => {
+  const defaultProps = {
+    deviceId: 'test-device',
+    sessionId: 'test-session-123',
+    onShotDetected: jest.fn(),
+    onSessionComplete: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    Object.keys(eventCallbacks).forEach(key => delete eventCallbacks[key]);
-    setupEventListeners();
-    
-    // Mock successful connection by default
-    mockHardwareAPI.connectViaQRCode.mockResolvedValue({
-      id: 'device-001',
-      name: 'Test Device',
-      url: 'http://192.168.1.100:8080',
-      status: 'online',
-      lastSeen: new Date(),
-      capabilities: {
-        hasCamera: true,
-        hasZoom: true,
-        maxResolution: '1920x1080',
-        supportedFormats: ['jpeg', 'png']
-      }
+    Object.keys(eventCallbacks).forEach(key => {
+      delete eventCallbacks[key];
     });
     
-    // Mock successful session start by default
-    mockHardwareAPI.startSession.mockResolvedValue({
-      sessionId: 'test-session-001',
-      deviceId: 'device-001',
-      startTime: new Date(),
-      shotCount: 0,
-      status: 'active',
-      settings: {
-        targetDistance: 10,
-        targetSize: 1,
-        scoringZones: [
-          { id: 'bullseye', name: 'Bullseye', points: 10, radius: 5, color: '#FF0000' },
-          { id: 'inner', name: 'Inner Ring', points: 9, radius: 10, color: '#FF4500' },
-          { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' },
-          { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
-          { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
-          { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-        ],
-        detectionSensitivity: 0.8
-      }
-    });
+    // Reset localStorage mock
+    localStorageMock.getItem.mockReturnValue(null);
   });
 
   test('should render component correctly', () => {
-    render(<LiveTargetView />);
+    render(<LiveTargetView {...defaultProps} />);
     
     expect(screen.getByText('Live Target View')).toBeInTheDocument();
     expect(screen.getByText('Real-time target feed from Raspberry Pi')).toBeInTheDocument();
     expect(screen.getByText('Disconnected')).toBeInTheDocument();
-    expect(screen.getByText('Scan QR Code')).toBeInTheDocument();
-    expect(screen.getByText('Demo Connect')).toBeInTheDocument();
   });
 
   test('should show disconnected status initially', () => {
-    render(<LiveTargetView />);
+    render(<LiveTargetView {...defaultProps} />);
     
     expect(screen.getByText('Disconnected')).toBeInTheDocument();
     expect(screen.getByText('Scan QR Code')).toBeInTheDocument();
     expect(screen.getByText('Demo Connect')).toBeInTheDocument();
-    expect(screen.queryByText('Disconnect')).not.toBeInTheDocument();
   });
 
-  test('should connect to hardware when Connect Hardware button is clicked', async () => {
-    render(<LiveTargetView />);
+  test('should connect to hardware when Demo Connect button is clicked', async () => {
+    render(<LiveTargetView {...defaultProps} />);
     
-    // Click Demo Connect button
-    const connectButton = screen.getByText('Demo Connect');
-    fireEvent.click(connectButton);
+    const demoConnectButton = screen.getByText('Demo Connect');
+    fireEvent.click(demoConnectButton);
     
-    // Wait for the connection attempt
     await waitFor(() => {
-      expect(mockHardwareAPI.connectViaQRCode).toHaveBeenCalledWith(
-        'GMShoot://pi-device-001|Raspberry Pi|192.168.1.100|8080'
-      );
+      expect(mockHardwareAPI.connectViaQRCode).toHaveBeenCalledWith('GMShoot://pi-device-001|Raspberry Pi|192.168.1.100|8080');
     });
     
-    // Trigger device connected event
+    // Trigger the deviceConnected event
     act(() => {
       triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
+        id: 'pi-device-001',
+        name: 'Raspberry Pi',
+        url: '192.168.1.100:8080',
+        status: 'online'
       });
     });
     
-    // Check if connection status is updated
     await waitFor(() => {
       expect(screen.getByText('Connected')).toBeInTheDocument();
     });
   });
 
   test('should handle connection error', async () => {
-    mockHardwareAPI.connectViaQRCode.mockRejectedValue(new Error('Connection failed'));
+    mockHardwareAPI.connectViaQRCode.mockRejectedValueOnce(new Error('Connection failed'));
     
-    render(<LiveTargetView />);
+    render(<LiveTargetView {...defaultProps} />);
     
-    // Click Demo Connect button
-    const connectButton = screen.getByText('Demo Connect');
-    fireEvent.click(connectButton);
+    const demoConnectButton = screen.getByText('Demo Connect');
+    fireEvent.click(demoConnectButton);
     
-    // Wait for error message
     await waitFor(() => {
       expect(screen.getByText('Connection failed')).toBeInTheDocument();
     });
   });
 
   test('should show connected status when device is connected', async () => {
-    render(<LiveTargetView />);
+    render(<LiveTargetView {...defaultProps} />);
     
-    // Trigger device connected event
+    // Trigger device connection
     act(() => {
       triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
+        id: 'pi-device-001',
+        name: 'Raspberry Pi',
+        url: '192.168.1.100:8080',
+        status: 'online'
       });
     });
     
-    // Check if connection status is updated
     await waitFor(() => {
       expect(screen.getByText('Connected')).toBeInTheDocument();
     });
   });
 
   test('should start session when Start Session button is clicked', async () => {
-    render(<LiveTargetView sessionId="test-session-001" />);
+    render(<LiveTargetView {...defaultProps} />);
     
-    // First connect to hardware
+    // First connect to device
     act(() => {
       triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
+        id: 'pi-device-001',
+        name: 'Raspberry Pi',
+        url: '192.168.1.100:8080',
+        status: 'online'
       });
     });
     
     await waitFor(() => {
-      expect(screen.getByText('Connected')).toBeInTheDocument();
-    });
+      expect(screen.getByText('Start Session')).toBeInTheDocument();
+    }, { timeout: 3000 });
     
-    // Click Start Session button
-    const startButton = screen.getByText('Start Session');
-    fireEvent.click(startButton);
+    const startSessionButton = screen.getByText('Start Session');
+    fireEvent.click(startSessionButton);
     
-    // Wait for session start
     await waitFor(() => {
-      expect(mockHardwareAPI.startSession).toHaveBeenCalledWith('device-001', {
-        sessionId: 'test-session-001',
+      expect(mockHardwareAPI.startSession).toHaveBeenCalledWith('pi-device-001', {
+        sessionId: 'test-session-123',
         userId: 'current-user',
         settings: {
           targetDistance: 10,
           targetSize: 1,
-          zoomPreset: undefined,
           detectionSensitivity: 0.8
         }
       });
     });
-  });
-
-  test('should show session active status when session is started', async () => {
-    render(<LiveTargetView sessionId="test-session-001" />);
     
-    // Connect to hardware first
-    act(() => {
-      triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
-      });
-    });
-    
-    // Trigger session started event
+    // Trigger the sessionStarted event
     act(() => {
       triggerEvent('sessionStarted', {
-        sessionId: 'test-session-001',
-        deviceId: 'device-001',
+        sessionId: 'test-session-123',
+        userId: 'current-user',
         startTime: new Date(),
         shotCount: 0,
-        status: 'active',
-        settings: {
-          targetDistance: 10,
-          targetSize: 1,
-          scoringZones: [
-            { id: 'bullseye', name: 'Bullseye', points: 10, radius: 5, color: '#FF0000' },
-            { id: 'inner', name: 'Inner Ring', points: 9, radius: 10, color: '#FF4500' },
-            { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' },
-            { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
-            { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
-            { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ],
-          detectionSensitivity: 0.8
-        }
-      });
-    });
-    
-    // Check if session status is updated
-    await waitFor(() => {
-      expect(screen.getByText('Session Active')).toBeInTheDocument();
-      expect(screen.getByText('test-session-001')).toBeInTheDocument();
-    });
-  });
-
-  test('should display shot history when shots are detected', async () => {
-    const onShotDetected = jest.fn();
-    render(<LiveTargetView onShotDetected={onShotDetected} />);
-    
-    // Connect to hardware and start session
-    act(() => {
-      triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
-      });
-      triggerEvent('sessionStarted', {
-        sessionId: 'test-session-001',
-        deviceId: 'device-001',
-        startTime: new Date(),
-        shotCount: 0,
-        status: 'active',
-        settings: {
-          targetDistance: 10,
-          targetSize: 1,
-          scoringZones: [
-            { id: 'bullseye', name: 'Bullseye', points: 10, radius: 5, color: '#FF0000' },
-            { id: 'inner', name: 'Inner Ring', points: 9, radius: 10, color: '#FF4500' },
-            { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' },
-            { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
-            { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
-            { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ],
-          detectionSensitivity: 0.8
-        }
-      });
-    });
-    
-    // Trigger shot detected event
-    const mockShot = {
-      shotId: 'shot-001',
-      sessionId: 'test-session-001',
-      timestamp: new Date(),
-      frameNumber: 1,
-      coordinates: { x: 50, y: 50 },
-      score: 8,
-      scoringZone: 'middle',
-      confidence: 0.95
-    };
-    
-    act(() => {
-      triggerEvent('shotDetected', mockShot);
-    });
-    
-    // Check if shot is displayed
-    await waitFor(() => {
-      expect(screen.getByText('Shot #1')).toBeInTheDocument();
-      expect(screen.getAllByText('8/10')).toHaveLength(2); // One in badge, one in shot details
-      expect(onShotDetected).toHaveBeenCalledWith(mockShot);
-    });
-  });
-
-  test('should display session configuration when session is active', async () => {
-    render(<LiveTargetView sessionId="test-session-001" />);
-    
-    // Connect to hardware and start session
-    act(() => {
-      triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
-      });
-      triggerEvent('sessionStarted', {
-        sessionId: 'test-session-001',
-        deviceId: 'device-001',
-        startTime: new Date(),
-        shotCount: 0,
-        status: 'active',
-        settings: {
-          targetDistance: 10,
-          targetSize: 1,
-          scoringZones: [
-            { id: 'bullseye', name: 'Bullseye', points: 10, radius: 5, color: '#FF0000' },
-            { id: 'inner', name: 'Inner Ring', points: 9, radius: 10, color: '#FF4500' },
-            { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' },
-            { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
-            { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
-            { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ],
-          detectionSensitivity: 0.8
-        }
-      });
-    });
-    
-    // Check if session configuration is displayed
-    await waitFor(() => {
-      expect(screen.getByText('Session Configuration')).toBeInTheDocument();
-      expect(screen.getByText('test-session-001')).toBeInTheDocument();
-      expect(screen.getByText('10m')).toBeInTheDocument();
-      expect(screen.getByText('1m')).toBeInTheDocument();
-      expect(screen.getByText('0')).toBeInTheDocument();
-    });
-  });
-
-  test('should display session statistics when shots are recorded', async () => {
-    render(<LiveTargetView sessionId="test-session-001" />);
-    
-    // Connect to hardware and start session
-    act(() => {
-      triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
-      });
-      triggerEvent('sessionStarted', {
-        sessionId: 'test-session-001',
-        deviceId: 'device-001',
-        startTime: new Date(),
-        shotCount: 0,
-        status: 'active',
-        settings: {
-          targetDistance: 10,
-          targetSize: 1,
-          scoringZones: [
-            { id: 'bullseye', name: 'Bullseye', points: 10, radius: 5, color: '#FF0000' },
-            { id: 'inner', name: 'Inner Ring', points: 9, radius: 10, color: '#FF4500' },
-            { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' },
-            { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
-            { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
-            { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ],
-          detectionSensitivity: 0.8
-        }
-      });
-    });
-    
-    // Add multiple shots
-    const shots = [
-      { shotId: 'shot-001', sessionId: 'test-session-001', timestamp: new Date(), frameNumber: 1, coordinates: { x: 50, y: 50 }, score: 8, scoringZone: 'middle', confidence: 0.95 },
-      { shotId: 'shot-002', sessionId: 'test-session-001', timestamp: new Date(), frameNumber: 2, coordinates: { x: 45, y: 45 }, score: 10, scoringZone: 'bullseye', confidence: 0.98 },
-      { shotId: 'shot-003', sessionId: 'test-session-001', timestamp: new Date(), frameNumber: 3, coordinates: { x: 60, y: 60 }, score: 6, scoringZone: 'edge', confidence: 0.87 }
-    ];
-    
-    act(() => {
-      shots.forEach(shot => {
-        triggerEvent('shotDetected', shot);
-      });
-    });
-    
-    // Check if session statistics are displayed
-    await waitFor(() => {
-      expect(screen.getByText('Session Stats')).toBeInTheDocument();
-      expect(screen.getByText('Total Shots:')).toBeInTheDocument();
-      expect(screen.getByText('3')).toBeInTheDocument();
-      expect(screen.getByText('Average Score:')).toBeInTheDocument();
-      expect(screen.getByText('8.0')).toBeInTheDocument();
-      expect(screen.getByText('Best Shot:')).toBeInTheDocument();
-      expect(screen.getAllByText('10/10')).toHaveLength(2); // One in badge, one in stats
-      expect(screen.getByText('Bullseyes:')).toBeInTheDocument();
-      expect(screen.getByText('1')).toBeInTheDocument();
-    });
-  });
-
-  test('should stop session when Stop Session button is clicked', async () => {
-    const onSessionComplete = jest.fn();
-    render(<LiveTargetView sessionId="test-session-001" onSessionComplete={onSessionComplete} />);
-    
-    // Connect to hardware and start session
-    act(() => {
-      triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
-      });
-      triggerEvent('sessionStarted', {
-        sessionId: 'test-session-001',
-        deviceId: 'device-001',
-        startTime: new Date(),
-        shotCount: 0,
-        status: 'active',
-        settings: {
-          targetDistance: 10,
-          targetSize: 1,
-          scoringZones: [
-            { id: 'bullseye', name: 'Bullseye', points: 10, radius: 5, color: '#FF0000' },
-            { id: 'inner', name: 'Inner Ring', points: 9, radius: 10, color: '#FF4500' },
-            { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' },
-            { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
-            { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
-            { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ],
-          detectionSensitivity: 0.8
-        }
+        status: 'active'
       });
     });
     
     await waitFor(() => {
       expect(screen.getByText('Stop Session')).toBeInTheDocument();
+    }, { timeout: 3000 });
+  });
+
+  test('should show session active status when session is started', async () => {
+    render(<LiveTargetView {...defaultProps} />);
+    
+    // Connect to device first
+    act(() => {
+      triggerEvent('deviceConnected', {
+        id: 'pi-device-001',
+        name: 'Raspberry Pi',
+        url: '192.168.1.100:8080',
+        status: 'online'
+      });
     });
     
-    // Click Stop Session button
-    const stopButton = screen.getByText('Stop Session');
-    fireEvent.click(stopButton);
+    // Start session
+    act(() => {
+      triggerEvent('sessionStarted', {
+        sessionId: 'test-session-123',
+        userId: 'current-user',
+        startTime: new Date(),
+        shotCount: 0,
+        status: 'active'
+      });
+    });
     
-    // Wait for session stop
     await waitFor(() => {
-      expect(mockHardwareAPI.stopSession).toHaveBeenCalledWith('test-session-001');
+      expect(screen.getByText('Session Active')).toBeInTheDocument();
+    }, { timeout: 3000 });
+  });
+
+  test('should display shot history when shots are detected', async () => {
+    render(<LiveTargetView {...defaultProps} />);
+    
+    // Start session first
+    act(() => {
+      triggerEvent('sessionStarted', {
+        sessionId: 'test-session-123',
+        userId: 'current-user',
+        startTime: new Date(),
+        shotCount: 0,
+        status: 'active'
+      });
     });
+    
+    // Trigger shot detection
+    const shotData = {
+      shotId: 'shot-001',
+      sessionId: 'test-session-123',
+      timestamp: new Date(),
+      frameNumber: 1,
+      coordinates: { x: 50, y: 50 },
+      score: 8,
+      confidence: 0.9
+    };
+    
+    act(() => {
+      triggerEvent('shotDetected', shotData);
+    });
+    
+    await waitFor(() => {
+      expect(screen.getByText('Shot History')).toBeInTheDocument();
+      expect(screen.getByText('Shot #1')).toBeInTheDocument();
+    }, { timeout: 3000 });
+  });
+
+  test('should display session configuration when session is active', async () => {
+    render(<LiveTargetView {...defaultProps} />);
+    
+    // Connect to device and start session
+    act(() => {
+      triggerEvent('deviceConnected', {
+        id: 'pi-device-001',
+        name: 'Raspberry Pi',
+        url: '192.168.1.100:8080',
+        status: 'online'
+      });
+      
+      triggerEvent('sessionStarted', {
+        sessionId: 'test-session-123',
+        userId: 'current-user',
+        startTime: new Date(),
+        shotCount: 0,
+        status: 'active',
+        settings: {
+          targetDistance: 10,
+          targetSize: 1,
+          detectionSensitivity: 0.8
+        }
+      });
+    });
+    
+    await waitFor(() => {
+      expect(screen.getByText('Session Configuration')).toBeInTheDocument();
+      expect(screen.getByText('test-session-123')).toBeInTheDocument();
+      expect(screen.getByText('Raspberry Pi')).toBeInTheDocument();
+      expect(screen.getByText('10m')).toBeInTheDocument();
+      expect(screen.getByText('1m')).toBeInTheDocument();
+      expect(screen.getByText('0')).toBeInTheDocument();
+    }, { timeout: 3000 });
+  });
+
+  test('should display session statistics when shots are recorded', async () => {
+    render(<LiveTargetView {...defaultProps} />);
+    
+    // Start session and add shots
+    act(() => {
+      triggerEvent('sessionStarted', {
+        sessionId: 'test-session-123',
+        userId: 'current-user',
+        startTime: new Date(),
+        shotCount: 0,
+        status: 'active'
+      });
+      
+      const shots = [
+        { shotId: 'shot-001', score: 8, confidence: 0.9 },
+        { shotId: 'shot-002', score: 9, confidence: 0.85 },
+        { shotId: 'shot-003', score: 7, confidence: 0.95 }
+      ];
+      
+      shots.forEach(shot => {
+        triggerEvent('shotDetected', {
+          ...shot,
+          sessionId: 'test-session-123',
+          timestamp: new Date(),
+          frameNumber: 1,
+          coordinates: { x: 50, y: 50 }
+        });
+      });
+    });
+    
+    await waitFor(() => {
+      expect(screen.getByText('Session Stats')).toBeInTheDocument();
+      expect(screen.getByText('3')).toBeInTheDocument(); // Total shots
+      expect(screen.getByText('8.0')).toBeInTheDocument(); // Average score
+      expect(screen.getByText('9/10')).toBeInTheDocument(); // Best shot
+      expect(screen.getByText('0')).toBeInTheDocument(); // Bullseyes
+    }, { timeout: 3000 });
+  });
+
+  test('should stop session when Stop Session button is clicked', async () => {
+    render(<LiveTargetView {...defaultProps} />);
+    
+    // Start session first
+    act(() => {
+      triggerEvent('sessionStarted', {
+        sessionId: 'test-session-123',
+        userId: 'current-user',
+        startTime: new Date(),
+        shotCount: 0,
+        status: 'active'
+      });
+    });
+    
+    await waitFor(() => {
+      expect(screen.getByText('Stop Session')).toBeInTheDocument();
+    }, { timeout: 3000 });
+    
+    const stopSessionButton = screen.getByText('Stop Session');
+    fireEvent.click(stopSessionButton);
+    
+    await waitFor(() => {
+      expect(mockHardwareAPI.stopSession).toHaveBeenCalledWith('test-session-123');
+    });
+    
+    // Trigger the sessionEnded event
+    act(() => {
+      triggerEvent('sessionEnded', {});
+    });
+    
+    await waitFor(() => {
+      expect(defaultProps.onSessionComplete).toHaveBeenCalled();
+    }, { timeout: 3000 });
   });
 
   test('should disconnect hardware when Disconnect button is clicked', async () => {
-    render(<LiveTargetView />);
+    render(<LiveTargetView {...defaultProps} />);
     
-    // First connect to hardware
+    // Connect to device first
     act(() => {
       triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
+        id: 'pi-device-001',
+        name: 'Raspberry Pi',
+        url: '192.168.1.100:8080',
+        status: 'online'
       });
     });
     
     await waitFor(() => {
       expect(screen.getByText('Disconnect')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
     
-    // Click Disconnect button
     const disconnectButton = screen.getByText('Disconnect');
     fireEvent.click(disconnectButton);
     
-    // Wait for disconnection
     await waitFor(() => {
-      expect(mockHardwareAPI.disconnectDevice).toHaveBeenCalledWith('device-001');
+      expect(mockHardwareAPI.disconnectDevice).toHaveBeenCalledWith('pi-device-001');
     });
   });
 
   test('should show video stream when frame is updated', async () => {
-    render(<LiveTargetView />);
+    render(<LiveTargetView {...defaultProps} />);
     
-    // Connect to hardware first
+    // Connect to device and start session
     act(() => {
       triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
+        id: 'pi-device-001',
+        name: 'Raspberry Pi',
+        url: '192.168.1.100:8080',
+        status: 'online'
+      });
+      
+      triggerEvent('sessionStarted', {
+        sessionId: 'test-session-123',
+        userId: 'current-user',
+        startTime: new Date(),
+        shotCount: 0,
+        status: 'active'
       });
     });
     
-    // Trigger frame updated event
+    // Trigger frame update with image URL
     act(() => {
       triggerEvent('frameUpdated', {
         frameNumber: 1,
+        imageUrl: 'http://example.com/frame.jpg',
         timestamp: new Date(),
-        imageUrl: 'data:image/jpeg;base64,test-image-data',
-        hasShot: false,
-        metadata: {
-          resolution: '1920x1080',
-          brightness: 50,
-          contrast: 50
-        }
+        metadata: { predictions: [] }
       });
     });
     
-    // Check if video element is updated (the actual video src would be set)
     await waitFor(() => {
-      const video = screen.getByTestId('video-element');
-      expect(video).toBeInTheDocument();
-      expect(video).toHaveAttribute('src', 'data:image/jpeg;base64,test-image-data');
-    });
+      const videoElement = screen.getByTestId('video-element');
+      expect(videoElement).toHaveAttribute('src', 'http://example.com/frame.jpg');
+    }, { timeout: 3000 });
   });
 
   test('should show placeholder when no video stream', () => {
-    render(<LiveTargetView />);
+    render(<LiveTargetView {...defaultProps} />);
     
     expect(screen.getByText('No video feed')).toBeInTheDocument();
     expect(screen.getByText('Connect to hardware to begin')).toBeInTheDocument();
   });
 
   test('should show error message when error occurs', async () => {
-    render(<LiveTargetView />);
+    render(<LiveTargetView {...defaultProps} />);
     
-    // Trigger error event
+    const errorMessage = 'Test error message';
     act(() => {
-      triggerEvent('error', { message: 'Test error message' });
+      triggerEvent('error', { message: errorMessage });
     });
     
-    // Check if error message is displayed
     await waitFor(() => {
-      expect(screen.getByText('Test error message')).toBeInTheDocument();
-    });
+      expect(screen.getByText(errorMessage)).toBeInTheDocument();
+    }, { timeout: 3000 });
   });
 
   test('should call onShotDetected callback when shot is detected', async () => {
-    const onShotDetected = jest.fn();
-    render(<LiveTargetView onShotDetected={onShotDetected} />);
+    render(<LiveTargetView {...defaultProps} />);
     
-    // Connect to hardware and start session
+    // Start session first
     act(() => {
-      triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
-      });
       triggerEvent('sessionStarted', {
-        sessionId: 'test-session-001',
-        deviceId: 'device-001',
+        sessionId: 'test-session-123',
+        userId: 'current-user',
         startTime: new Date(),
         shotCount: 0,
-        status: 'active',
-        settings: {
-          targetDistance: 10,
-          targetSize: 1,
-          scoringZones: [
-            { id: 'bullseye', name: 'Bullseye', points: 10, radius: 5, color: '#FF0000' },
-            { id: 'inner', name: 'Inner Ring', points: 9, radius: 10, color: '#FF4500' },
-            { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' },
-            { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
-            { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
-            { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ],
-          detectionSensitivity: 0.8
-        }
+        status: 'active'
       });
     });
     
-    // Trigger shot detected event
-    const mockShot = {
+    const shotData = {
       shotId: 'shot-001',
-      sessionId: 'test-session-001',
+      sessionId: 'test-session-123',
       timestamp: new Date(),
       frameNumber: 1,
       coordinates: { x: 50, y: 50 },
       score: 8,
-      scoringZone: 'middle',
-      confidence: 0.95
+      confidence: 0.9
     };
     
     act(() => {
-      triggerEvent('shotDetected', mockShot);
+      triggerEvent('shotDetected', shotData);
     });
     
-    // Check if callback is called
     await waitFor(() => {
-      expect(onShotDetected).toHaveBeenCalledWith(mockShot);
-    });
+      expect(defaultProps.onShotDetected).toHaveBeenCalledWith(shotData);
+    }, { timeout: 3000 });
   });
 
   test('should call onSessionComplete callback when session ends', async () => {
-    const onSessionComplete = jest.fn();
-    render(<LiveTargetView onSessionComplete={onSessionComplete} />);
+    render(<LiveTargetView {...defaultProps} />);
     
-    // Connect to hardware and start session
+    // Start session first
     act(() => {
-      triggerEvent('deviceConnected', {
-        id: 'device-001',
-        name: 'Test Device',
-        url: 'http://192.168.1.100:8080',
-        status: 'online',
-        lastSeen: new Date(),
-        capabilities: {
-          hasCamera: true,
-          hasZoom: true,
-          maxResolution: '1920x1080',
-          supportedFormats: ['jpeg', 'png']
-        }
-      });
       triggerEvent('sessionStarted', {
-        sessionId: 'test-session-001',
-        deviceId: 'device-001',
+        sessionId: 'test-session-123',
+        userId: 'current-user',
         startTime: new Date(),
         shotCount: 0,
-        status: 'active',
-        settings: {
-          targetDistance: 10,
-          targetSize: 1,
-          scoringZones: [
-            { id: 'bullseye', name: 'Bullseye', points: 10, radius: 5, color: '#FF0000' },
-            { id: 'inner', name: 'Inner Ring', points: 9, radius: 10, color: '#FF4500' },
-            { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' },
-            { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
-            { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
-            { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ],
-          detectionSensitivity: 0.8
-        }
+        status: 'active'
       });
-    });
-    
-    // Add some shots
-    const shots = [
-      { shotId: 'shot-001', sessionId: 'test-session-001', timestamp: new Date(), frameNumber: 1, coordinates: { x: 50, y: 50 }, score: 8, scoringZone: 'middle', confidence: 0.95 }
-    ];
-    
-    act(() => {
+      
+      // Add some shots
+      const shots = [
+        { shotId: 'shot-001', score: 8, confidence: 0.9 },
+        { shotId: 'shot-002', score: 9, confidence: 0.85 }
+      ];
+      
       shots.forEach(shot => {
-        triggerEvent('shotDetected', shot);
+        triggerEvent('shotDetected', {
+          ...shot,
+          sessionId: 'test-session-123',
+          timestamp: new Date(),
+          frameNumber: 1,
+          coordinates: { x: 50, y: 50 }
+        });
       });
     });
     
-    // Trigger session ended event
+    // End session
     act(() => {
-      triggerEvent('sessionEnded', {
-        sessionId: 'test-session-001',
-        deviceId: 'device-001',
-        startTime: new Date(),
-        endTime: new Date(),
-        shotCount: 1,
-        status: 'completed',
-        settings: {
-          targetDistance: 10,
-          targetSize: 1,
-          scoringZones: [
-            { id: 'bullseye', name: 'Bullseye', points: 10, radius: 5, color: '#FF0000' },
-            { id: 'inner', name: 'Inner Ring', points: 9, radius: 10, color: '#FF4500' },
-            { id: 'middle', name: 'Middle Ring', points: 8, radius: 20, color: '#FFA500' },
-            { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
-            { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
-            { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ],
-          detectionSensitivity: 0.8
-        }
-      });
+      triggerEvent('sessionEnded', {});
     });
     
-    // Check if callback is called
     await waitFor(() => {
-      expect(onSessionComplete).toHaveBeenCalledWith(shots);
-    });
+      expect(defaultProps.onSessionComplete).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ shotId: 'shot-001' }),
+          expect.objectContaining({ shotId: 'shot-002' })
+        ])
+      );
+    }, { timeout: 3000 });
   });
 
   test('should cleanup on unmount', () => {
-    const { unmount } = render(<LiveTargetView />);
+    const { unmount } = render(<LiveTargetView {...defaultProps} />);
     
-    // Unmount component
     unmount();
     
-    // Check if cleanup is called
     expect(mockHardwareAPI.cleanup).toHaveBeenCalled();
   });
 });

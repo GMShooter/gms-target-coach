@@ -121,8 +121,8 @@ export class HardwareAPI {
   private sequentialSessions: Map<string, boolean> = new Map(); // Track sessions with sequential detection enabled
   private eventListeners: Map<string, Function[]> = new Map();
   private wsConnections: Map<string, WebSocket> = new Map();
-  private supabaseUrl: string = process.env.REACT_APP_SUPABASE_URL || '';
-  private supabaseAnonKey: string = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
+  private supabaseUrl: string = import.meta.env.VITE_SUPABASE_URL || '';
+  private supabaseAnonKey: string = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
   private userId: string | null = null;
 
   constructor() {

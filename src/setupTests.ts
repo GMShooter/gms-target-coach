@@ -60,32 +60,35 @@ jest.mock('./utils/supabase', () => ({
   }
 }));
 
-// Mock import.meta.env for Jest
-const mockImportMeta = {
-  env: {
-    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || 'http://localhost:54321',
-    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || 'test-key',
-    VITE_FIREBASE_API_KEY: process.env.VITE_FIREBASE_API_KEY || 'test-api-key',
-    VITE_FIREBASE_AUTH_DOMAIN: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'test.firebaseapp.com',
-    VITE_FIREBASE_PROJECT_ID: process.env.VITE_FIREBASE_PROJECT_ID || 'test-project',
-    VITE_FIREBASE_STORAGE_BUCKET: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'test-bucket',
-    VITE_FIREBASE_MESSAGING_SENDER_ID: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || 'test-sender',
-    VITE_FIREBASE_APP_ID: process.env.VITE_FIREBASE_APP_ID || 'test-app-id',
-    VITE_FIREBASE_MEASUREMENT_ID: process.env.VITE_FIREBASE_MEASUREMENT_ID || 'test-measurement',
-    VITE_ROBOFLOW_API_KEY: process.env.VITE_ROBOFLOW_API_KEY || 'test-roboflow-key',
-    VITE_NGROK_URL: process.env.VITE_NGROK_URL || 'http://localhost:4040',
-  }
+// Mock environment variables for Jest
+const mockEnvVars = {
+  NODE_ENV: 'test',
+  VITE_SUPABASE_URL: 'http://localhost:54321',
+  VITE_SUPABASE_ANON_KEY: 'test-key',
+  VITE_FIREBASE_API_KEY: 'test-api-key',
+  VITE_FIREBASE_AUTH_DOMAIN: 'test.firebaseapp.com',
+  VITE_FIREBASE_PROJECT_ID: 'test-project',
+  VITE_FIREBASE_STORAGE_BUCKET: 'test-bucket',
+  VITE_FIREBASE_MESSAGING_SENDER_ID: 'test-sender',
+  VITE_FIREBASE_APP_ID: 'test-app-id',
+  VITE_FIREBASE_MEASUREMENT_ID: 'test-measurement',
+  VITE_ROBOFLOW_API_KEY: 'test-roboflow-key',
+  VITE_NGROK_URL: 'http://localhost:4040',
+  VITE_GEMINI_API_KEY: 'test-key',
 };
 
 // Make import.meta available globally
-(global as any).importMeta = mockImportMeta;
+// Make import.meta available globally
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const globalAny = global;
+globalAny.importMeta = { env: mockEnvVars };
 
 // Mock console methods to reduce noise in tests
 const originalConsole = { ...console };
 global.console = {
   ...originalConsole,
   // Suppress console.log in tests unless explicitly needed
-  log: process.env.NODE_ENV === 'test' ? jest.fn() : originalConsole.log,
+  log: mockEnvVars.NODE_ENV === 'test' ? jest.fn() : originalConsole.log,
   // Keep error and warn for debugging
   error: originalConsole.error,
   warn: originalConsole.warn,
@@ -94,19 +97,20 @@ global.console = {
 };
 
 // Mock WebSocket for tests
-global.WebSocket = jest.fn(() => ({
+const mockWebSocket = jest.fn(() => ({
   close: jest.fn(),
   send: jest.fn(),
   addEventListener: jest.fn(),
   removeEventListener: jest.fn(),
   readyState: 1,
-})) as any;
+}));
+globalAny.WebSocket = mockWebSocket;
 
 // Mock getUserMedia for camera tests
 if (!global.navigator) {
-  global.navigator = {} as any;
+  globalAny.navigator = {};
 }
-Object.defineProperty(global.navigator, 'mediaDevices', {
+Object.defineProperty(globalAny.navigator, 'mediaDevices', {
   value: {
     getUserMedia: jest.fn(() => Promise.resolve({
       getTracks: () => [],
@@ -119,7 +123,7 @@ Object.defineProperty(global.navigator, 'mediaDevices', {
 });
 
 // Mock HTMLVideoElement for camera tests
-global.HTMLVideoElement = jest.fn(() => ({
+const mockHTMLVideoElement = jest.fn(() => ({
   play: jest.fn(),
   pause: jest.fn(),
   addEventListener: jest.fn(),
@@ -127,10 +131,11 @@ global.HTMLVideoElement = jest.fn(() => ({
   src: '',
   videoWidth: 640,
   videoHeight: 480,
-})) as any;
+}));
+globalAny.HTMLVideoElement = mockHTMLVideoElement;
 
 // Mock HTMLCanvasElement for drawing tests
-global.HTMLCanvasElement = jest.fn(() => ({
+const mockHTMLCanvasElement = jest.fn(() => ({
   getContext: jest.fn(() => ({
     drawImage: jest.fn(),
     getImageData: jest.fn(() => ({
@@ -153,22 +158,25 @@ global.HTMLCanvasElement = jest.fn(() => ({
   toDataURL: jest.fn(() => 'data:image/png;base64,test'),
   width: 640,
   height: 480,
-})) as any;
+}));
+globalAny.HTMLCanvasElement = mockHTMLCanvasElement;
 
 // Mock URL.createObjectURL for blob handling
-global.URL = global.URL || {};
-global.URL.createObjectURL = jest.fn(() => 'blob:test-url') as any;
+globalAny.URL = globalAny.URL || {};
+const mockCreateObjectURL = jest.fn(() => 'blob:test-url');
+globalAny.URL.createObjectURL = mockCreateObjectURL;
 
 // Mock Blob constructor
-global.Blob = jest.fn((content, options) => ({
+const mockBlob = jest.fn((content, options) => ({
   content,
   options,
   size: content ? content.length : 0,
   type: options?.type || 'application/octet-stream',
-})) as any;
+}));
+globalAny.Blob = mockBlob;
 
 // Mock FileReader for file reading
-global.FileReader = jest.fn(() => ({
+const mockFileReader = jest.fn(() => ({
   readAsDataURL: jest.fn(),
   readAsText: jest.fn(),
   readAsArrayBuffer: jest.fn(),
@@ -177,17 +185,18 @@ global.FileReader = jest.fn(() => ({
   result: null,
   readyState: 0,
   error: null,
-})) as any;
+}));
+globalAny.FileReader = mockFileReader;
 
 // Mock localStorage
 const localStorageMock = (() => {
-  let store: Record<string, string> = {};
+  let store = {};
   return {
-    getItem: jest.fn((key: string) => store[key] || null),
-    setItem: jest.fn((key: string, value: string) => {
+    getItem: jest.fn((key) => store[key] || null),
+    setItem: jest.fn((key, value) => {
       store[key] = value;
     }),
-    removeItem: jest.fn((key: string) => {
+    removeItem: jest.fn((key) => {
       delete store[key];
     }),
     clear: jest.fn(() => {
@@ -196,20 +205,20 @@ const localStorageMock = (() => {
     get length() {
       return Object.keys(store).length;
     },
-    key: jest.fn((index: number) => Object.keys(store)[index] || null),
+    key: jest.fn((index) => Object.keys(store)[index] || null),
   };
 })();
-global.localStorage = localStorageMock as any;
+global.localStorage = localStorageMock;
 
 // Mock sessionStorage
 const sessionStorageMock = (() => {
-  let store: Record<string, string> = {};
+  let store = {};
   return {
-    getItem: jest.fn((key: string) => store[key] || null),
-    setItem: jest.fn((key: string, value: string) => {
+    getItem: jest.fn((key) => store[key] || null),
+    setItem: jest.fn((key, value) => {
       store[key] = value;
     }),
-    removeItem: jest.fn((key: string) => {
+    removeItem: jest.fn((key) => {
       delete store[key];
     }),
     clear: jest.fn(() => {
@@ -218,29 +227,31 @@ const sessionStorageMock = (() => {
     get length() {
       return Object.keys(store).length;
     },
-    key: jest.fn((index: number) => Object.keys(store)[index] || null),
+    key: jest.fn((index) => Object.keys(store)[index] || null),
   };
 })();
-global.sessionStorage = sessionStorageMock as any;
+global.sessionStorage = sessionStorageMock;
 
 // Mock ResizeObserver
-global.ResizeObserver = jest.fn(() => ({
+const mockResizeObserver = jest.fn(() => ({
   observe: jest.fn(),
   unobserve: jest.fn(),
   disconnect: jest.fn(),
-})) as any;
+}));
+globalAny.ResizeObserver = mockResizeObserver;
 
 // Mock IntersectionObserver
-global.IntersectionObserver = jest.fn(() => ({
+const mockIntersectionObserver = jest.fn(() => ({
   observe: jest.fn(),
   unobserve: jest.fn(),
   disconnect: jest.fn(),
-})) as any;
+}));
+globalAny.IntersectionObserver = mockIntersectionObserver;
 
 // Suppress specific warnings that are expected in tests
 const originalWarn = console.warn;
-console.warn = (...args: any[]) => {
-  const message = args.join(' ');
+console.warn = function() {
+  const message = Array.from(arguments).join(' ');
   // Suppress warnings about act() updates
   if (message.includes('act(...) is not supported')) {
     return;
@@ -249,5 +260,5 @@ console.warn = (...args: any[]) => {
   if (message.includes('findDOMNode is deprecated')) {
     return;
   }
-  originalWarn(...args);
+  originalWarn.apply(console, Array.from(arguments));
 };

@@ -5,7 +5,7 @@ import { MagicButton } from './magic-button';
 import { MagicCard } from './magic-card';
 import { TextGradient } from './text-gradient';
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '../../lib/utils';
 
 interface MagicLoginProps {
   onLogin?: (email: string, password: string) => Promise<void>;

@@ -13,10 +13,10 @@ export { default as MagicDock, defaultDockItems } from "./magic-dock"
 // Re-export utilities from magicui index
 export {
   patterns
-} from "@/lib/magicui"
+} from "../../lib/magicui"
 
 // Re-export cn from utils
-export { cn } from "@/lib/utils"
+export { cn } from "../../lib/utils"
 
 // Additional utilities for backward compatibility
 export const animations = {

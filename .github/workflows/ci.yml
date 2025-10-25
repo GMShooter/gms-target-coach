@@ -27,50 +27,42 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd client
         npm ci
 
     - name: Run linting
       run: |
-        cd client
         npm run test:lint
 
     - name: Run type checking
       run: |
-        cd client
         npx tsc --noEmit
 
     - name: Run unit tests
       run: |
-        cd client
         npm run test:unit
 
     - name: Run integration tests
       run: |
-        cd client
         npm run test:integration
 
     - name: Run tests with coverage
       run: |
-        cd client
         npm run test:ci
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        file: ./client/coverage/lcov.info
+        file: ./coverage/lcov.info
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
 
     - name: Build Storybook
       run: |
-        cd client
         npm run build-storybook
 
     - name: Build application
       run: |
-        cd client
         npm run build
 
   e2e-test:
@@ -90,7 +82,6 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd client
         npm ci
 
     - name: Install Chrome
@@ -100,7 +91,6 @@ jobs:
 
     - name: Run E2E tests
       run: |
-        cd client
         npm run test:e2e
       env:
         CYPRESS_baseUrl: http://localhost:3000
@@ -110,14 +100,14 @@ jobs:
       if: failure()
       with:
         name: cypress-screenshots
-        path: client/cypress/screenshots
+        path: cypress/screenshots
 
     - name: Upload E2E videos
       uses: actions/upload-artifact@v3
       if: failure()
       with:
         name: cypress-videos
-        path: client/cypress/videos
+        path: cypress/videos
 
   visual-regression:
     runs-on: ubuntu-latest
@@ -139,17 +129,14 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd client
         npm ci
 
     - name: Build Storybook
       run: |
-        cd client
         npm run build-storybook
 
     - name: Run visual regression tests
       run: |
-        cd client
         npx chromatic --project-token=${{ secrets.CHROMATIC_PROJECT_TOKEN }}
       env:
         CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
@@ -172,17 +159,14 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd client
         npm ci
 
     - name: Build application
       run: |
-        cd client
         npm run build
 
     - name: Deploy to production
       run: |
-        cd client
         npm run deploy:full
       env:
         FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

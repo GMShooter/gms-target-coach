@@ -11,8 +11,8 @@ jest.mock('react-router-dom', () => ({
   useParams: jest.fn(),
 }));
 
-const mockUseParams = useParams as jest.MockedFunction<typeof useParams>;
-const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+const mockUseParams = jest.mocked(useParams);
+const mockSupabase = supabase as any;
 
 // Test wrapper component
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (

@@ -124,6 +124,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // OAuth redirect will handle the rest
+      // Set loading to false after initiating OAuth flow
+      setLoading(false);
     } catch (error: any) {
       console.error('Google sign in error:', error);
       let errorMessage = 'Failed to sign in with Google';
@@ -282,6 +284,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
       if (event === 'SIGNED_IN' && session?.user) {
         const authUser = await syncUserWithSupabase(session.user);
         if (authUser) {

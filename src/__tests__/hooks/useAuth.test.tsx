@@ -56,13 +56,22 @@ describe('useAuth Hook', () => {
       error: null
     });
 
-    (mockSupabase.auth.onAuthStateChange as jest.Mock).mockReturnValue({
-      data: {
-        subscription: {
-          unsubscribe: jest.fn()
+    // Create a mock callback that we can call directly
+    let authStateChangeCallback: ((event: string, session: any) => void) | null = null;
+    
+    (mockSupabase.auth.onAuthStateChange as jest.Mock).mockImplementation((callback) => {
+      authStateChangeCallback = callback;
+      return {
+        data: {
+          subscription: {
+            unsubscribe: jest.fn()
+          }
         }
-      }
+      };
     });
+
+    // Store the callback for use in tests
+    (mockSupabase.auth.onAuthStateChange as any).mockCallback = authStateChangeCallback;
 
     mockSupabase.from = jest.fn().mockReturnValue({
       select: jest.fn().mockReturnValue({
@@ -367,9 +376,9 @@ describe('useAuth Hook', () => {
     it('signs out successfully', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      // First sign in
+      // First sign in with email (sets user directly)
       await act(async () => {
-        await result.current.signInWithGoogle();
+        await result.current.signInWithEmail('test@example.com', 'password123');
       });
 
       expect(result.current.user).toBeTruthy();

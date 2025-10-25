@@ -1,354 +1,321 @@
-# 🎯 GMShooter v2 - Target Coach
+# GMShoot v2 - Hardware-First Analysis Pipeline
 
-<div align="center">
+A modern web application for shooting practice analysis, connecting hardware via QR codes and providing real-time shot analysis with AI-powered target detection.
 
-![GMShooter Logo](public/GMShoot_logo.png)
+## 🎯 Features
 
-**Advanced Shooting Analysis System with Real-time Hardware Integration**
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Firebase](https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
-[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
-
-[Live Demo](https://gms-target-coach.vercel.app) · [Documentation](#documentation) · [Report Bug](#issues) · [Request Feature](#features)
-
-</div>
-
-## 📋 Table of Contents
-
-- [🌟 About](#-about)
-- [✨ Features](#-features)
-- [🚀 Quick Start](#-quick-start)
-- [🛠️ Installation](#️-installation)
-- [📁 Project Structure](#-project-structure)
-- [🔧 Configuration](#-configuration)
-- [🧪 Testing](#-testing)
-- [📚 Documentation](#-documentation)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
-
-## 🌟 About
-
-GMShooter v2 is a cutting-edge shooting analysis platform designed for competitive shooters and firearms enthusiasts. Our system combines real-time hardware integration with advanced computer vision to provide instant feedback on shooting performance, helping users improve their accuracy and consistency.
-
-### 🎯 Mission
-
-To democratize professional-grade shooting analysis by making advanced technology accessible to shooters of all levels, from beginners to competitive athletes.
-
-### 🔥 What's New in v2
-
-- 🔄 **Real-time Hardware Integration** - Direct connection to Raspberry Pi target systems
-- 📱 **Mobile Mirroring** - QR code-based mobile device synchronization
-- 🤖 **AI-Powered Coaching** - Gemini API integration for personalized feedback
-- 🎮 **Gamification System** - XP, achievements, and skill progression
-- 📊 **Advanced Analytics** - SOTA metrics and performance tracking
-- 🎨 **Modern UI/UX** - MagicUI components with stunning animations
-
-## ✨ Features
-
-### 🎯 Core Features
-- **Live Target Analysis** - Real-time shot detection and scoring
-- **Video Analysis** - Upload and analyze shooting videos
-- **Camera Analysis** - Live camera feed processing
-- **Session Management** - Track and organize practice sessions
-- **Performance Reports** - Detailed analytics and insights
-
-### 🔧 Technical Features
-- **Hardware Integration** - WebSocket connection to Raspberry Pi
-- **Geometric Scoring** - Advanced target hit calculation
-- **QR Code Pairing** - Easy device synchronization
-- **Real-time Updates** - Live shot overlay visualization
-- **Mobile Responsive** - Works on all device sizes
-
-### 🎨 UI/UX Features
-- **Modern Design** - Digital Serenity theme with smooth animations
-- **MagicUI Components** - Beautiful, interactive elements
-- **Dark Mode** - Easy on the eyes during extended sessions
-- **Accessibility** - WCAG 2.1 AA compliant
-- **Progressive Web App** - Installable on mobile devices
+- **Hardware Connection**: Connect to Raspberry Pi hardware via QR code scanning
+- **Real-time Analysis**: Live shot detection and analysis using Roboflow AI
+- **Session Management**: Start, stop, and save shooting sessions
+- **Performance Analytics**: Comprehensive statistics and shot distribution visualization
+- **Session History**: Review past sessions with detailed reports
+- **Modern UI**: Built with MagicUI and shadcn/ui components
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ 
-- npm or yarn
-- Firebase account
-- Supabase account
-- Raspberry Pi (for hardware features)
+- Node.js 18+ and npm
+- Supabase account and project
+- Raspberry Pi hardware with GMShoot server (optional for development)
 
-### One-Click Setup
+### Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/GMShooter/gms-target-coach.git
-cd gms-target-coach
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your Firebase and Supabase credentials
-
-# Start development server
-npm start
-```
-
-Visit [http://localhost:3000](http://localhost:3000) to see the application in action!
-
-## 🛠️ Installation
-
-### Step 1: Clone Repository
-
-```bash
-git clone https://github.com/GMShooter/gms-target-coach.git
-cd gms-target-coach
-```
-
-### Step 2: Install Dependencies
-
-```bash
-npm install
-```
-
-### Step 3: Environment Configuration
-
-1. **Firebase Setup**
-   - Create a new Firebase project at [Firebase Console](https://console.firebase.google.com/)
-   - Enable Authentication (Email/Password and Google OAuth)
-   - Enable Hosting
-   - Download service account key
-
-2. **Supabase Setup**
-   - Create a new Supabase project at [Supabase Dashboard](https://app.supabase.com/)
-   - Run the migration scripts in `supabase/migrations/`
-   - Set up storage buckets for videos and frames
-
-3. **Environment Variables**
-   
-   Create `.env` file:
-   ```env
-   # Firebase
-   REACT_APP_FIREBASE_API_KEY=your_api_key
-   REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-   REACT_APP_FIREBASE_PROJECT_ID=your_project_id
-   REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-   REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   REACT_APP_FIREBASE_APP_ID=your_app_id
-
-   # Supabase
-   REACT_APP_SUPABASE_URL=your_supabase_url
-   REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-   # Roboflow (for computer vision)
-   REACT_APP_ROBOFLOW_API_KEY=your_roboflow_api_key
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd gmshooter-v2
    ```
 
-### Step 4: Database Setup
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
+3. **Environment Setup**
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Edit `.env.local` with your configuration:
+   ```env
+   # Supabase Configuration
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   
+   # Roboflow API (handled by Supabase Edge Functions)
+   # ROBOFLOW_API_KEY=your_roboflow_api_key
+   ```
+
+4. **Database Setup**
+   ```bash
+   # Apply database migrations
+   supabase db push
+   ```
+
+5. **Deploy Edge Functions**
+   ```bash
+   # Deploy Supabase Edge Functions
+   supabase functions deploy analyze-frame
+   supabase functions deploy start-session
+   supabase functions deploy end-session
+   supabase functions deploy session-data
+   ```
+
+### Running the Application
+
+**Development Mode**
 ```bash
-# Apply Supabase migrations
-supabase db push
-
-# Start Supabase local development (optional)
-supabase start
+npm run dev
 ```
 
-### Step 5: Run Application
-
+**Production Build**
 ```bash
-# Development mode
-npm start
-
-# Build for production
 npm run build
-
-# Run tests
-npm test
+npm run preview
 ```
 
-## 📁 Project Structure
+## 🏗️ Project Structure
 
 ```
-gms-target-coach/
-├── 📁 public/                 # Static assets
-├── 📁 src/                   # Source code
-│   ├── 📁 components/        # React components
-│   │   ├── 📁 ui/           # Reusable UI components
-│   │   ├── 📁 magicui/      # MagicUI components
-│   │   ├── 📄 LiveTargetView.tsx
-│   │   ├── 📄 VideoAnalysis.tsx
-│   │   └── 📄 CameraAnalysis.tsx
-│   ├── 📁 hooks/            # Custom React hooks
-│   │   ├── 📄 useHardwareAPI.ts
-│   │   ├── 📄 useVideoAnalysis.ts
-│   │   └── 📄 useCameraAnalysis.ts
-│   ├── 📁 services/         # API services
-│   │   └── 📄 HardwareAPI.ts
-│   ├── 📁 utils/            # Utility functions
-│   └── 📁 __tests__/        # Test files
-├── 📁 supabase/             # Supabase configuration
-│   ├── 📁 functions/        # Edge Functions
-│   └── 📁 migrations/       # Database migrations
-├── 📁 cypress/              # E2E tests
-├── 📁 .storybook/           # Storybook configuration
-├── 📄 package.json
-├── 📄 tailwind.config.js
-├── 📄 tsconfig.json
-└── 📄 README.md
+gmshooter-v2/
+├── src/
+│   ├── components/          # React components
+│   │   ├── ui/            # shadcn/ui and MagicUI components
+│   │   ├── layout/         # Layout components
+│   │   └── ...            # Feature components
+│   ├── pages/               # Page components
+│   ├── hooks/               # Custom React hooks
+│   ├── services/            # API services
+│   ├── utils/               # Utility functions
+│   └── store/               # Zustand state management
+├── supabase/
+│   ├── functions/           # Supabase Edge Functions
+│   └── migrations/          # Database schema migrations
+├── cypress/               # E2E tests
+└── public/                 # Static assets
 ```
 
 ## 🔧 Configuration
 
-### Firebase Configuration
+### Environment Variables
 
-Update `src/firebase.ts` with your Firebase config:
+| Variable | Description | Required |
+|----------|-------------|-----------|
+| `VITE_SUPABASE_URL` | Supabase project URL | Yes |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key | Yes |
+| `ROBOFLOW_API_KEY` | Roboflow API key (set in Supabase) | Yes |
 
-```typescript
-const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID
-};
-```
+### Supabase Setup
 
-### Supabase Configuration
+1. **Create Project**: Set up a new project at [supabase.com](https://supabase.com)
+2. **Database**: Run migrations from `supabase/migrations/`
+3. **Edge Functions**: Deploy functions from `supabase/functions/`
+4. **Authentication**: Enable email/password authentication
+5. **RLS Policies**: Security policies are applied via migrations
 
-Update `src/lib/supabase.ts` with your Supabase config:
+### Hardware Setup
 
-```typescript
-import { createClient } from '@supabase/supabase-js'
+For development without physical hardware:
 
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY
+1. **Mock Server**: Use the built-in mock responses in Cypress tests
+2. **Test Data**: Sample QR codes and frame data available in test fixtures
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-```
+For production hardware:
 
-### Hardware Configuration
-
-For Raspberry Pi integration, update `src/services/HardwareAPI.ts`:
-
-```typescript
-const HARDWARE_CONFIG = {
-  WEBSOCKET_URL: 'ws://your-pi-ip:8080',
-  API_BASE_URL: 'http://your-pi-ip:3000',
-  CONNECTION_TIMEOUT: 5000,
-  RECONNECT_INTERVAL: 3000
-};
-```
+1. **Raspberry Pi**: Set up GMShoot server on Raspberry Pi 4
+2. **Network**: Configure ngrok for external access
+3. **QR Code**: Generate QR code with ngrok URL
 
 ## 🧪 Testing
 
-### Run Tests
-
+### Unit Tests
 ```bash
-# Unit and integration tests
-npm test
-
-# E2E tests
-npm run test:e2e
-
-# Test coverage
-npm run test:coverage
-
-# Watch mode
-npm run test:watch
+npm run test
 ```
 
-### Test Structure
+### E2E Tests
+```bash
+npm run test:e2e
+```
 
-- **Unit Tests**: Individual component and function testing
-- **Integration Tests**: Component interaction and API testing
-- **E2E Tests**: Full user workflow testing with Cypress
-- **Visual Tests**: Storybook-based visual regression testing
+### Test Coverage
+```bash
+npm run test:coverage
+```
 
-### Coverage Goals
+## 📊 Architecture
 
-- 🎯 **Overall Coverage**: 90%+
-- 🧩 **Components**: 95%+
-- 🔧 **Utilities**: 100%+
-- 📊 **Services**: 85%+
+### Frontend
+- **React 18+** with TypeScript
+- **Vite** for build tooling
+- **Tailwind CSS** for styling
+- **MagicUI + shadcn/ui** for components
+- **Zustand** for state management
+- **React Router** for navigation
 
-## 📚 Documentation
+### Backend
+- **Supabase** for database and authentication
+- **Edge Functions** for serverless API
+- **PostgreSQL** for data storage
+- **Roboflow** for AI analysis
 
-### API Documentation
+### Hardware Integration
+- **QR Code** scanning for device pairing
+- **WebSocket** for real-time communication
+- **ngrok** for secure tunneling
+- **Raspberry Pi** as hardware server
 
-- [Hardware API Reference](./docs/hardware-api.md)
-- [Supabase Schema](./docs/database-schema.md)
-- [Firebase Integration](./docs/firebase-setup.md)
+## 🔒 Security
 
-### Component Documentation
+- **Row Level Security (RLS)**: All database tables have RLS policies
+- **API Key Protection**: Roboflow API key secured in Edge Functions
+- **Authentication**: Supabase Auth for user management
+- **CORS**: Properly configured for cross-origin requests
 
-- [Storybook](http://localhost:6006) - Interactive component gallery
-- [Component Guide](./docs/components.md)
-- [UI Patterns](./docs/ui-patterns.md)
+## 📈 Performance
 
-### Deployment
+- **Analysis Latency**: < 2 seconds from shot detection to display
+- **Lighthouse Score**: 90+ for Performance and Accessibility
+- **Bundle Size**: Optimized with code splitting
+- **Caching**: Strategic caching for API responses
 
-- [Firebase Hosting](./docs/deployment-firebase.md)
-- [Vercel Deployment](./docs/deployment-vercel.md)
-- [Docker Setup](./docs/docker-setup.md)
+## 🚀 Deployment
+
+### Firebase Hosting (Recommended)
+
+1. **Install Firebase CLI**
+   ```bash
+   npm install -g firebase-tools
+   ```
+
+2. **Initialize Firebase**
+   ```bash
+   firebase init hosting
+   ```
+
+3. **Deploy**
+   ```bash
+   npm run build
+   firebase deploy --only hosting
+   ```
+
+### Alternative Deployment
+
+The application can be deployed to any static hosting service:
+- Vercel
+- Netlify
+- AWS S3 + CloudFront
+- GitHub Pages
+
+## 🔧 Development
+
+### Code Style
+
+- **TypeScript** for type safety
+- **ESLint** for linting
+- **Prettier** for formatting
+- **Husky** for git hooks
+
+### Git Workflow
+
+1. **Feature Branches**: `feature/feature-name`
+2. **Pull Requests**: Required for all changes
+3. **CI/CD**: Automated testing and deployment
+4. **Semantic Versioning**: Follow SemVer for releases
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Build Errors**
+- Check Node.js version (requires 18+)
+- Clear node_modules: `rm -rf node_modules && npm install`
+- Check environment variables in `.env.local`
+
+**Database Connection**
+- Verify Supabase URL and keys
+- Check RLS policies in Supabase dashboard
+- Ensure migrations are applied
+
+**Hardware Connection**
+- Verify ngrok URL is accessible
+- Check Raspberry Pi network connection
+- Ensure QR code contains valid URL
+
+**Analysis Not Working**
+- Check Roboflow API key in Supabase secrets
+- Verify Edge Function deployment
+- Check frame data format from hardware
+
+### Debug Mode
+
+Enable debug logging:
+```bash
+# Development
+VITE_DEBUG=true npm run dev
+
+# Production
+VITE_DEBUG=true npm run build
+```
+
+## 📚 API Reference
+
+### Hardware API
+
+```typescript
+// Start session with hardware
+const session = await HardwareAPI.startSession(ngrokUrl);
+
+// Get latest frame from hardware
+const frame = await HardwareAPI.getLatestFrame(sessionId);
+```
+
+### Supabase Functions
+
+```typescript
+// Analyze frame (proxy to Roboflow)
+const analysis = await supabase.functions.invoke('analyze-frame', {
+  body: { imageData: base64Data }
+});
+
+// Start session
+const session = await supabase.functions.invoke('start-session', {
+  body: { userId, title }
+});
+```
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
+1. **Fork** the repository
+2. **Create** a feature branch
+3. **Make** your changes
+4. **Test** thoroughly
+5. **Submit** a pull request
 
-### Development Process
+### Development Guidelines
 
-1. 🍴 Fork the repository
-2. 🌿 Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. 💾 Commit your changes (`git commit -m 'Add amazing feature'`)
-4. 📤 Push to the branch (`git push origin feature/amazing-feature`)
-5. 🔄 Open a Pull Request
-
-### Code Standards
-
-- ✅ Use TypeScript for all new code
-- ✅ Follow ESLint configuration
-- ✅ Write tests for new features
-- ✅ Use Prettier for code formatting
-- ✅ Follow conventional commit messages
-
-### Reporting Issues
-
-Please use the [issue tracker](https://github.com/GMShooter/gms-target-coach/issues) to report bugs or request features.
+- Follow existing code patterns
+- Add tests for new features
+- Update documentation
+- Ensure TypeScript compliance
+- Check accessibility compliance
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- [React](https://reactjs.org/) - UI framework
-- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
-- [Firebase](https://firebase.google.com/) - Authentication and hosting
-- [Supabase](https://supabase.com/) - Backend as a service
-- [MagicUI](https://magicui.design/) - Beautiful UI components
-- [Radix UI](https://www.radix-ui.com/) - Accessible component primitives
-
 ## 📞 Support
 
-- 📧 Email: support@gmshooter.com
-- 💬 Discord: [Join our community](https://discord.gg/gmshooter)
-- 📖 Documentation: [docs.gmshooter.com](https://docs.gmshooter.com)
-- 🐛 Issues: [GitHub Issues](https://github.com/GMShooter/gms-target-coach/issues)
+- **Documentation**: [Wiki/Docs](link-to-docs)
+- **Issues**: [GitHub Issues](link-to-issues)
+- **Discussions**: [GitHub Discussions](link-to-discussions)
 
----
+## 🗺 Roadmap
 
-<div align="center">
-
-**Made with ❤️ by the GMShooter Team**
-
-[![GitHub stars](https://img.shields.io/github/stars/GMShooter/gms-target-coach?style=social)](https://github.com/GMShooter/gms-target-coach/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/GMShooter/gms-target-coach?style=social)](https://github.com/GMShooter/gms-target-coach/network)
-[![GitHub issues](https://img.shields.io/github/issues/GMShooter/gms-target-coach)](https://github.com/GMShooter/gms-target-coach/issues)
-
-</div>
+- [ ] Mobile app development
+- [ ] Multi-user sessions
+- [ ] Advanced analytics dashboard
+- [ ] Integration with shooting ranges
+- [ ] AI-powered coaching recommendations
+- [ ] Live streaming capabilities

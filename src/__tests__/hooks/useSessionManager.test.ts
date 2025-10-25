@@ -4,7 +4,7 @@ import { hardwareAPI } from '@/services/HardwareAPI';
 
 // Mock the hardwareAPI
 jest.mock('@/services/HardwareAPI');
-const mockHardwareAPI = hardwareAPI as jest.Mocked<typeof hardwareAPI>;
+const mockHardwareAPI = hardwareAPI as any;
 
 // Mock user ID
 const mockUserId = 'test-user-123';
@@ -12,6 +12,17 @@ const mockUserId = 'test-user-123';
 describe('useSessionManager Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Ensure all methods are properly mocked
+    mockHardwareAPI.getDevice = jest.fn();
+    mockHardwareAPI.startSession = jest.fn();
+    mockHardwareAPI.stopSession = jest.fn();
+    mockHardwareAPI.toggleSessionPause = jest.fn();
+    mockHardwareAPI.emergencyStop = jest.fn();
+    mockHardwareAPI.getSessionStatus = jest.fn();
+    mockHardwareAPI.getSessionStatistics = jest.fn();
+    mockHardwareAPI.addEventListener = jest.fn();
+    mockHardwareAPI.removeEventListener = jest.fn();
     
     // Mock default device
     mockHardwareAPI.getDevice.mockReturnValue({
@@ -252,7 +263,7 @@ describe('useSessionManager Hook', () => {
     act(() => {
       // Simulate the deviceDisconnected event being triggered
       const deviceDisconnectedCallback = mockHardwareAPI.addEventListener.mock.calls
-        .find(call => call[0] === 'deviceDisconnected')?.[1];
+        .find((call: any[]) => call[0] === 'deviceDisconnected')?.[1];
       if (deviceDisconnectedCallback) {
         deviceDisconnectedCallback();
       }

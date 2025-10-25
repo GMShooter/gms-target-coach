@@ -9,6 +9,10 @@ import VideoAnalysis from './components/VideoAnalysis';
 import CameraAnalysis from './components/CameraAnalysis';
 import ReportList from './components/ReportList';
 import Report from './components/Report';
+import ReportPage from './pages/ReportPage';
+import { ConnectPage } from './pages/ConnectPage';
+import { SessionPage } from './pages/SessionPage';
+import { HistoryPage } from './pages/HistoryPage';
 import './App.css';
 
 // Dashboard component for logged-in users
@@ -137,6 +141,28 @@ function AppContent() {
       ),
       onClick: () => window.location.href = '/',
       active: location.pathname === '/'
+    },
+    {
+      id: 'connect',
+      label: 'Connect Hardware',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3-3-3m5 0v6m0 0l-3 3m3-3V9m-9 0h6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V9a2 2 0 012-2z" />
+        </svg>
+      ),
+      onClick: () => window.location.href = '/connect',
+      active: location.pathname === '/connect'
+    },
+    {
+      id: 'session',
+      label: 'Live Session',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M9 10l4.553-2.276A1 1 0 0114 8.618v6.764a1 1 0 01-1.447.894L9 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      ),
+      onClick: () => window.location.href = '/session',
+      active: location.pathname === '/session'
     },
     {
       id: 'video-analysis',
@@ -272,6 +298,22 @@ function AppContent() {
         <Route path="/" element={user ? <Dashboard /> : <MagicLandingPage />} />
         <Route path="/login" element={<div>Redirecting to login...</div>} />
         <Route
+          path="/connect"
+          element={
+            <div className={user ? "pt-20" : ""}>
+              {user ? <ConnectPage /> : <Navigate to="/login" replace />}
+            </div>
+          }
+        />
+        <Route
+          path="/session"
+          element={
+            <div className={user ? "pt-20" : ""}>
+              {user ? <SessionPage /> : <Navigate to="/login" replace />}
+            </div>
+          }
+        />
+        <Route
           path="/analysis"
           element={
             <div className={user ? "pt-20" : ""}>
@@ -299,7 +341,7 @@ function AppContent() {
           path="/report/:id"
           element={
             <div className={user ? "pt-20" : ""}>
-              {user ? <Report /> : <Navigate to="/login" replace />}
+              {user ? <ReportPage /> : <Navigate to="/login" replace />}
             </div>
           }
         />
