@@ -105,15 +105,15 @@ const VideoAnalysis: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto p-6 max-w-4xl" data-testid="video-analysis-page">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-100 mb-2">Video Analysis</h1>
+        <h1 className="text-3xl font-bold text-slate-100 mb-2" data-testid="page-title">Video Analysis</h1>
         <p className="text-slate-300">Upload a video of your shooting technique for detailed analysis</p>
       </div>
 
       {/* Upload Area */}
       {!videoFile && !isProcessing && !results.length && (
-        <Card className="mb-8 border-slate-700 bg-slate-800">
+        <Card className="mb-8 border-slate-700 bg-slate-800" data-testid="upload-area">
           <CardHeader>
             <div className="text-2xl font-semibold leading-none tracking-tight text-slate-100" role="heading" aria-level={2}>Upload Video</div>
             <CardDescription className="text-slate-300">
@@ -138,6 +138,7 @@ const VideoAnalysis: React.FC = () => {
                 <button
                   className="text-blue-400 hover:text-blue-300 underline"
                   onClick={() => fileInputRef.current?.click()}
+                  data-testid="video-upload"
                 >
                   browse
                 </button>
@@ -151,6 +152,7 @@ const VideoAnalysis: React.FC = () => {
                 accept="video/*"
                 onChange={handleFileChange}
                 className="hidden"
+                data-testid="video-upload-input"
               />
             </div>
           </CardContent>
@@ -159,6 +161,7 @@ const VideoAnalysis: React.FC = () => {
               variant="outline"
               className="border-slate-600 text-slate-300 hover:bg-slate-700"
               onClick={handleTestFrames}
+              data-testid="test-frames-button"
             >
               <TestTube className="mr-2 h-4 w-4" />
               Test with Sample Frames
@@ -172,7 +175,7 @@ const VideoAnalysis: React.FC = () => {
 
       {/* Processing State */}
       {(isUploading || isProcessing) && (
-        <Card className="mb-8 border-slate-700 bg-slate-800">
+        <Card className="mb-8 border-slate-700 bg-slate-800" data-testid="processing-indicator">
           <CardHeader>
             <CardTitle className="text-slate-100 flex items-center">
               {isUploading ? (
@@ -190,8 +193,8 @@ const VideoAnalysis: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <Progress value={progress} className="h-2" />
-              <p className="text-slate-300 text-center">
+              <Progress value={progress} className="h-2" data-testid="progress-bar" />
+              <p className="text-slate-300 text-center" data-testid="progress-text">
                 {isUploading 
                   ? `Uploading ${videoFile?.name}...` 
                   : `Analyzing video... ${Math.round(progress)}%`
@@ -204,7 +207,7 @@ const VideoAnalysis: React.FC = () => {
 
       {/* Error State */}
       {error && (
-        <Alert className="mb-8 bg-red-900/20 border-red-800 text-red-200">
+        <Alert className="mb-8 bg-red-900/20 border-red-800 text-red-200" data-testid="upload-error">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
@@ -212,7 +215,7 @@ const VideoAnalysis: React.FC = () => {
 
       {/* Results */}
       {results.length > 0 && (
-        <div className="space-y-8">
+        <div className="space-y-8" data-testid="analysis-results">
           {/* Header */}
           <div className="text-center">
             <div className="flex items-center justify-center mb-4">
@@ -225,7 +228,7 @@ const VideoAnalysis: React.FC = () => {
           </div>
 
           {/* Key Performance Indicators */}
-          <Card className="border-slate-700 bg-gradient-to-r from-slate-800 to-slate-900">
+          <Card className="border-slate-700 bg-gradient-to-r from-slate-800 to-slate-900" data-testid="results-summary">
             <CardHeader>
               <CardTitle className="text-slate-100 flex items-center">
                 <BarChart3 className="mr-2 h-5 w-5 text-blue-400" />
@@ -268,7 +271,7 @@ const VideoAnalysis: React.FC = () => {
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Radar Chart */}
-            <Card className="border-slate-700 bg-slate-800">
+            <Card className="border-slate-700 bg-slate-800" data-testid="accuracy-chart">
               <CardHeader>
                 <CardTitle className="text-slate-100 flex items-center">
                   <Target className="mr-2 h-5 w-5 text-purple-400" />
@@ -371,7 +374,7 @@ const VideoAnalysis: React.FC = () => {
 
           {/* Action Button */}
           <div className="text-center">
-            <Button onClick={handleReset} variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
+            <Button onClick={handleReset} variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700" data-testid="reset-button">
               Analyze Another Video
             </Button>
           </div>

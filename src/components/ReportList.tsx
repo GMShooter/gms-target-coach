@@ -93,13 +93,13 @@ const ReportList: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div data-testid="reports-page" className="container mx-auto p-6 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-100 mb-2">Session History</h1>
+        <h1 data-testid="page-title" className="text-3xl font-bold text-slate-100 mb-2">Session History</h1>
         <p className="text-slate-300">Review your past analysis reports and track your progress over time</p>
       </div>
 
-      <Card className="border-slate-700 bg-slate-800">
+      <Card data-testid="reports-list" className="border-slate-700 bg-slate-800">
         <CardHeader>
           <CardTitle className="text-slate-100">Analysis Reports</CardTitle>
           <CardDescription className="text-slate-300">
@@ -108,12 +108,12 @@ const ReportList: React.FC = () => {
         </CardHeader>
         <CardContent>
           {loading && (
-            <div className="flex items-center justify-center py-8">
+            <div data-testid="loading-spinner" className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
             </div>
           )}
           {error && (
-            <Alert className="mb-4 bg-red-900/20 border-red-800 text-red-200">
+            <Alert data-testid="error-message" className="mb-4 bg-red-900/20 border-red-800 text-red-200">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -130,20 +130,20 @@ const ReportList: React.FC = () => {
               <TableBody>
                 {reports.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-slate-400 py-8">
+                    <TableCell data-testid="empty-reports-message" colSpan={4} className="text-center text-slate-400 py-8">
                       No reports found. Complete your first analysis to see reports here.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  reports.map((report) => (
+                  reports.map((report, index) => (
                     <TableRow key={report.id}>
-                      <TableCell className="text-slate-200 font-medium">
+                      <TableCell data-testid={`report-title-${index + 1}`} className="text-slate-200 font-medium">
                         {report.title || `Analysis Report ${report.id.slice(0, 8)}`}
                       </TableCell>
-                      <TableCell className="text-slate-200">
+                      <TableCell data-testid={`report-date-${index + 1}`} className="text-slate-200">
                         {new Date(report.created_at).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="text-slate-200">
+                      <TableCell data-testid={`report-accuracy-${index + 1}`} className="text-slate-200">
                         <span className={`font-medium ${
                           report.overall_accuracy >= 80 ? 'text-green-400' :
                           report.overall_accuracy >= 60 ? 'text-yellow-400' : 'text-red-400'

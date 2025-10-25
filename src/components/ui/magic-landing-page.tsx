@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MagicButton, MagicCard, TextGradient, animations, gradients, glass, patterns } from './magicui';
+import { MagicButton, MagicCard, TextGradient, animations, gradients, glass, patterns, grid } from './magicui';
 
 const MagicLandingPage = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -64,7 +64,7 @@ const MagicLandingPage = () => {
       className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white overflow-hidden relative"
     >
       {/* Animated background pattern */}
-      <div className={`absolute inset-0 ${patterns.grid}`} />
+      <div className={`absolute inset-0 ${grid.subtle}`} />
       
       {/* Mouse-following gradient */}
       <motion.div

@@ -1,22 +1,12 @@
 import React, { useState, useEffect, useContext, createContext, ReactNode, useCallback } from 'react';
-import { User } from 'firebase/auth';
-import {
-  signInWithGoogle,
-  signInWithEmail,
-  signUpWithEmail,
-  signOut,
-  getCurrentUser,
-  onAuthStateChanged,
-  updateUserProfile
-} from '../firebase';
 import { supabase } from '../utils/supabase';
+import { hardwareAPI } from '../services/HardwareAPI';
 
 interface AuthUser {
   id: string;
   email: string;
   displayName?: string;
   photoURL?: string;
-  firebaseUid: string;
 }
 
 interface AuthContextType {
@@ -49,25 +39,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Convert Firebase user to AuthUser format
-  const formatUser = useCallback((firebaseUser: User): AuthUser => ({
-    id: firebaseUser.uid,
-    email: firebaseUser.email || '',
-    displayName: firebaseUser.displayName || undefined,
-    photoURL: firebaseUser.photoURL || undefined,
-    firebaseUid: firebaseUser.uid
-  }), []);
+  // Convert Supabase user to AuthUser format
+  const formatUser = useCallback((supabaseUser: any): AuthUser | null => {
+    if (!supabaseUser) return null;
+    
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      displayName: supabaseUser.user_metadata?.display_name || supabaseUser.user_metadata?.full_name,
+      photoURL: supabaseUser.user_metadata?.avatar_url
+    };
+  }, []);
 
-  // Sync user with Supabase
-  const syncUserWithSupabase = useCallback(async (firebaseUser: User) => {
+  // Sync user with Supabase database
+  const syncUserWithSupabase = useCallback(async (supabaseUser: any) => {
+    if (!supabaseUser) return null;
+    
     try {
-      const authUser = formatUser(firebaseUser);
+      const authUser = formatUser(supabaseUser);
+      if (!authUser) return null;
       
       // Check if user exists in Supabase
       const { data: existingUser } = await supabase
         .from('users')
         .select('*')
-        .eq('firebase_uid', firebaseUser.uid)
+        .eq('id', supabaseUser.id)
         .single();
 
       if (!existingUser) {
@@ -75,9 +71,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { error: insertError } = await supabase
           .from('users')
           .insert({
-            id: firebaseUser.uid,
+            id: authUser.id,
             email: authUser.email,
-            firebase_uid: authUser.firebaseUid,
             display_name: authUser.displayName,
             avatar_url: authUser.photoURL,
             created_at: new Date().toISOString(),
@@ -96,72 +91,87 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             last_login: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
-          .eq('firebase_uid', firebaseUser.uid);
+          .eq('id', supabaseUser.id);
 
         if (updateError) {
           console.error('Error updating user in Supabase:', updateError);
         }
       }
 
-      setUser(authUser);
+      return authUser;
     } catch (error) {
       console.error('Error syncing user with Supabase:', error);
       setError('Failed to sync user data');
+      return null;
     }
   }, [formatUser]);
 
-  // Handle Google sign in
+  // Handle Google sign in (uses Supabase OAuth)
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const firebaseUser = await signInWithGoogle();
-      await syncUserWithSupabase(firebaseUser);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // OAuth redirect will handle the rest
     } catch (error: any) {
       console.error('Google sign in error:', error);
       let errorMessage = 'Failed to sign in with Google';
       
-      // Provide more specific error messages
-      if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign-in popup was closed before completion';
-      } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = 'Sign-in popup was blocked by the browser';
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = 'Sign-in was cancelled';
-      } else if (error.message) {
+      if (error.message) {
         errorMessage = error.message;
       }
       
       setError(errorMessage);
-    } finally {
       setLoading(false);
     }
   };
 
-  // Handle email sign in
+  // Handle email sign in (uses Supabase)
   const handleEmailSignIn = async (email: string, password: string) => {
     try {
       setLoading(true);
       setError(null);
       
-      const firebaseUser = await signInWithEmail(email, password);
-      await syncUserWithSupabase(firebaseUser);
+      // Use Supabase for email authentication
+      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      if (authData.user) {
+        const authUser = await syncUserWithSupabase(authData.user);
+        if (authUser) {
+          setUser(authUser);
+        }
+      }
     } catch (error: any) {
       console.error('Email sign in error:', error);
       let errorMessage = 'Failed to sign in with email';
       
       // Provide more specific error messages
-      if (error.code === 'auth/user-not-found') {
+      if (error.message?.includes('Invalid login credentials')) {
         errorMessage = 'No account found with this email address';
-      } else if (error.code === 'auth/wrong-password') {
+      } else if (error.message?.includes('Invalid password')) {
         errorMessage = 'Incorrect password';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address';
-      } else if (error.code === 'auth/user-disabled') {
-        errorMessage = 'This account has been disabled';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed login attempts. Please try again later';
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = 'Please confirm your email address';
+      } else if (error.message?.includes('Network')) {
+        errorMessage = 'Network error';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -172,39 +182,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Handle email sign up
+  // Handle email sign up (uses Supabase)
   const handleEmailSignUp = async (email: string, password: string, name?: string) => {
     try {
       setLoading(true);
       setError(null);
       
-      const firebaseUser = await signUpWithEmail(email, password);
-      
-      // Update display name if provided
-      if (name && firebaseUser) {
-        try {
-          await updateUserProfile(firebaseUser, name);
-        } catch (profileError) {
-          console.warn('Failed to update display name:', profileError);
+      // Use Supabase for email signup
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: name || '',
+            avatar_url: ''
+          }
+        }
+      });
+
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      if (authData.user) {
+        const authUser = await syncUserWithSupabase(authData.user);
+        if (authUser) {
+          setUser(authUser);
         }
       }
-      
-      await syncUserWithSupabase(firebaseUser);
     } catch (error: any) {
       console.error('Email sign up error:', error);
       let errorMessage = 'Failed to create account';
       
       // Provide more specific error messages
-      if (error.code === 'auth/email-already-in-use') {
+      if (error.message?.includes('User already registered')) {
         errorMessage = 'An account with this email already exists';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address';
-      } else if (error.code === 'auth/operation-not-allowed') {
-        errorMessage = 'Email/password accounts are not enabled';
-      } else if (error.code === 'auth/weak-password') {
+      } else if (error.message?.includes('Password should be at least')) {
         errorMessage = 'Password is too weak. Please choose a stronger password';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many attempts. Please try again later';
+      } else if (error.message?.includes('weak_password')) {
+        errorMessage = 'Password is too weak. Please choose a stronger password';
+      } else if (error.message?.includes('Network')) {
+        errorMessage = 'Network error';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -221,7 +239,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      await signOut();
+      // Sign out from Supabase
+      await supabase.auth.signOut();
       setUser(null);
     } catch (error: any) {
       console.error('Sign out error:', error);
@@ -238,27 +257,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Listen for auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(async (firebaseUser) => {
-      setLoading(true);
-      
-      if (firebaseUser) {
-        await syncUserWithSupabase(firebaseUser);
-      } else {
-        setUser(null);
+    const checkInitialAuth = async () => {
+      try {
+        // Check Supabase auth state
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          const authUser = await syncUserWithSupabase(session.user);
+          if (authUser) {
+            setUser(authUser);
+            // Set user ID for hardware authentication
+            hardwareAPI.setUserId(authUser.id);
+          }
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error checking initial auth state:', error);
+        setLoading(false);
       }
-      
+    };
+
+    checkInitialAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const authUser = await syncUserWithSupabase(session.user);
+        if (authUser) {
+          setUser(authUser);
+          // Set user ID for hardware authentication
+          hardwareAPI.setUserId(authUser.id);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        // Clear hardware authentication on sign out
+        hardwareAPI.setUserId(null as any);
+      }
       setLoading(false);
     });
 
-    // Check current user on mount
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      syncUserWithSupabase(currentUser);
-    } else {
-      setLoading(false);
-    }
-
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, [syncUserWithSupabase]);
 
   const value: AuthContextType = {

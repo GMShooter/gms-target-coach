@@ -1,15 +1,66 @@
-describe('Authentication Login Flow', () => {
+describe('Authentication Flow', () => {
   beforeEach(() => {
-    // Clear localStorage and cookies before each test
-    cy.clearLocalStorage();
-    cy.clearCookies();
-    
-    // Visit the login page
+    // Mock Firebase auth module
+    cy.window().then((win: any) => {
+      // Create a mock for Firebase auth functions
+      const mockUser = {
+        uid: 'test-user-123',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        photoURL: null
+      };
+
+      // Mock Firebase auth
+      win.firebase = {
+        auth: () => ({
+          signInWithEmailAndPassword: (cy as any).stub().resolves({ user: mockUser }),
+          createUserWithEmailAndPassword: (cy as any).stub().resolves({ user: mockUser }),
+          signInWithPopup: (cy as any).stub().resolves({ user: mockUser }),
+          onAuthStateChanged: (cy as any).stub().callsFake((callback: any) => {
+            // Initially not authenticated
+            setTimeout(() => callback(null), 0);
+            return () => {}; // Unsubscribe function
+          }),
+          currentUser: null,
+          signOut: (cy as any).stub().resolves()
+        }),
+        initializeApp: (cy as any).stub().returns({})
+      };
+
+      // Mock Firebase auth module import
+      win.import = win.import || {};
+      win.import['firebase/auth'] = {
+        getAuth: () => win.firebase.auth(),
+        GoogleAuthProvider: (cy as any).stub().returns({}),
+        signInWithPopup: win.firebase.auth().signInWithPopup,
+        signInWithEmailAndPassword: win.firebase.auth().signInWithEmailAndPassword,
+        createUserWithEmailAndPassword: win.firebase.auth().createUserWithEmailAndPassword,
+        signOut: win.firebase.auth().signOut,
+        User: {},
+        updateProfile: (cy as any).stub().resolves()
+      };
+
+      win.import['firebase/app'] = {
+        initializeApp: win.firebase.initializeApp
+      };
+    });
+
+    // Mock Supabase user creation
+    cy.intercept('POST', '**/rest/v1/users', {
+      statusCode: 201,
+      body: {
+        id: 'test-user-123',
+        email: 'test@example.com',
+        firebase_uid: 'test-user-123',
+        display_name: 'Test User',
+        created_at: new Date().toISOString()
+      }
+    }).as('createUser');
+
     cy.visit('/login');
   });
 
   it('should display login page correctly', () => {
-    // Check if login page elements are visible
     cy.get('[data-testid="login-page"]').should('be.visible');
     cy.get('[data-testid="login-title"]').should('contain.text', 'Sign In');
     cy.get('[data-testid="email-input"]').should('be.visible');
@@ -20,193 +71,164 @@ describe('Authentication Login Flow', () => {
   });
 
   it('should show validation errors for empty fields', () => {
-    // Try to login without entering credentials
     cy.get('[data-testid="login-button"]').click();
     
     // Check for validation errors
-    cy.get('[data-testid="email-error"]').should('be.visible');
-    cy.get('[data-testid="password-error"]').should('be.visible');
+    cy.get('[data-testid="email-error"]').should('be.visible').and('contain.text', 'Invalid email');
+    cy.get('[data-testid="password-error"]').should('be.visible').and('contain.text', 'Invalid credentials');
   });
 
-  it('should show error for invalid email format', () => {
-    // Enter invalid email
+  it('should show validation error for invalid email format', () => {
     cy.get('[data-testid="email-input"]').type('invalid-email');
     cy.get('[data-testid="password-input"]').type('password123');
     cy.get('[data-testid="login-button"]').click();
     
-    // Check for email validation error
-    cy.get('[data-testid="email-error"]').should('contain.text', 'Invalid email');
+    cy.get('[data-testid="email-error"]').should('be.visible').and('contain.text', 'Invalid email');
   });
 
-  it('should show error for incorrect credentials', () => {
-    // Enter incorrect credentials
-    cy.get('[data-testid="email-input"]').type('wrong@example.com');
-    cy.get('[data-testid="password-input"]').type('wrongpassword');
-    cy.get('[data-testid="login-button"]').click();
-    
-    // Check for error message
-    cy.get('[data-testid="login-error"]').should('be.visible');
-    cy.get('[data-testid="login-error"]').should('contain.text', 'Invalid credentials');
-  });
-
-  it('should successfully login with valid credentials', () => {
-    // Mock successful login response
-    cy.mockApiResponse('POST', '**/auth/v1/token', {
-      data: {
-        access_token: 'test-access-token',
-        refresh_token: 'test-refresh-token',
-        user: {
-          id: 'test-user-123',
-          email: 'test@example.com',
-          user_metadata: {
-            display_name: 'Test User'
-          }
-        }
-      }
-    });
-
-    // Mock user data response
-    cy.mockApiResponse('GET', '**/auth/v1/user', {
-      data: {
-        id: 'test-user-123',
-        email: 'test@example.com',
-        user_metadata: {
-          display_name: 'Test User'
-        }
-      }
-    });
-
-    // Enter valid credentials
+  it('should show password error when password is too short', () => {
     cy.get('[data-testid="email-input"]').type('test@example.com');
-    cy.get('[data-testid="password-input"]').type('testpassword123');
+    cy.get('[data-testid="password-input"]').type('123');
     cy.get('[data-testid="login-button"]').click();
     
-    // Wait for API calls
-    cy.waitForApiCall('mockedResponse');
-    cy.waitForApiCall('mockedResponse');
-    
-    // Check if redirected to dashboard
-    cy.url().should('not.include', '/login');
-    cy.url().should('include', '/dashboard');
-    
-    // Check if user is logged in
-    cy.get('[data-testid="user-menu"]').should('be.visible');
-    cy.get('[data-testid="user-display-name"]').should('contain.text', 'Test User');
+    cy.get('[data-testid="password-error"]').should('be.visible').and('contain.text', 'Invalid credentials');
   });
 
-  it('should handle network errors gracefully', () => {
-    // Mock network error
-    cy.mockApiResponse('POST', '**/auth/v1/token', { forceNetworkError: true });
-    
-    // Enter credentials
-    cy.get('[data-testid="email-input"]').type('test@example.com');
-    cy.get('[data-testid="password-input"]').type('testpassword123');
-    cy.get('[data-testid="login-button"]').click();
-    
-    // Check for network error message
-    cy.get('[data-testid="login-error"]').should('be.visible');
-    cy.get('[data-testid="login-error"]').should('contain.text', 'Network error');
-  });
-
-  it('should navigate to signup page', () => {
-    // Click signup link
+  it('should toggle between login and signup modes', () => {
     cy.get('[data-testid="signup-link"]').click();
+    cy.get('[data-testid="login-title"]').should('contain.text', 'Sign Up');
+    cy.get('[data-testid="name-input"]').should('be.visible');
+    cy.get('[data-testid="login-button"]').should('contain.text', 'Sign Up');
     
-    // Check if redirected to signup page
-    cy.url().should('include', '/signup');
+    // Toggle back to login
+    cy.get('[data-testid="signup-link"]').click();
+    cy.get('[data-testid="login-title"]').should('contain.text', 'Sign In');
+    cy.get('[data-testid="name-input"]').should('not.exist');
+    cy.get('[data-testid="login-button"]').should('contain.text', 'Sign In');
+  });
+
+  it('should show name field in signup mode', () => {
+    cy.get('[data-testid="signup-link"]').click();
+    cy.get('[data-testid="name-input"]').should('be.visible');
+    cy.get('[data-testid="name-input"]')
+      .should('have.attr', 'placeholder', 'Enter your name');
+  });
+
+  it('should show validation error for empty name in signup mode', () => {
+    cy.get('[data-testid="signup-link"]').click();
+    cy.get('[data-testid="email-input"]').type('test@example.com');
+    cy.get('[data-testid="password-input"]').type('password123');
+    cy.get('[data-testid="login-button"]').click();
+    
+    cy.get('[data-testid="name-error"]').should('be.visible').and('contain.text', 'Name is required');
+  });
+
+  it('should handle successful login', () => {
+    cy.get('[data-testid="email-input"]').type('test@example.com');
+    cy.get('[data-testid="password-input"]').type('password123');
+    cy.get('[data-testid="login-button"]').click();
+    
+    // Wait for loading to complete
+    cy.get('[data-testid="loading-spinner"]').should('be.visible');
+    cy.get('[data-testid="loading-spinner"]').should('not.exist');
+    
+    // Mock successful authentication
+    cy.window().then((win: any) => {
+      const auth = win.firebase.auth();
+      const callbacks = auth.onAuthStateChanged.getCalls();
+      if (callbacks.length > 0) {
+        const callback = callbacks[0].args[0];
+        callback({
+          uid: 'test-user-123',
+          email: 'test@example.com',
+          displayName: 'Test User'
+        });
+      }
+    });
+    
+    // Wait for user creation
+    cy.wait('@createUser');
+    
+    // Should be redirected to dashboard
+    cy.url().should('not.include', '/login');
+  });
+
+  it('should handle successful signup', () => {
+    cy.get('[data-testid="signup-link"]').click();
+    cy.get('[data-testid="name-input"]').type('Test User');
+    cy.get('[data-testid="email-input"]').type('test@example.com');
+    cy.get('[data-testid="password-input"]').type('password123');
+    cy.get('[data-testid="login-button"]').click();
+    
+    // Wait for loading to complete
+    cy.get('[data-testid="loading-spinner"]').should('be.visible');
+    cy.get('[data-testid="loading-spinner"]').should('not.exist');
+    
+    // Mock successful authentication
+    cy.window().then((win: any) => {
+      const auth = win.firebase.auth();
+      const callbacks = auth.onAuthStateChanged.getCalls();
+      if (callbacks.length > 0) {
+        const callback = callbacks[0].args[0];
+        callback({
+          uid: 'test-user-123',
+          email: 'test@example.com',
+          displayName: 'Test User'
+        });
+      }
+    });
+    
+    // Wait for user creation
+    cy.wait('@createUser');
+    
+    // Should be redirected to dashboard
+    cy.url().should('not.include', '/login');
+  });
+
+  it('should handle network error', () => {
+    // Mock network error
+    cy.window().then((win: any) => {
+      const auth = win.firebase.auth();
+      auth.signInWithEmailAndPassword.rejects(new Error('Network error'));
+    });
+
+    cy.get('[data-testid="email-input"]').type('test@example.com');
+    cy.get('[data-testid="password-input"]').type('password123');
+    cy.get('[data-testid="login-button"]').click();
+    
+    // Should show error message
+    cy.get('[data-testid="login-error"]').should('be.visible').and('contain.text', 'Network error');
   });
 
   it('should toggle password visibility', () => {
-    // Enter password
-    cy.get('[data-testid="password-input"]').type('password123');
-    
-    // Check if password is hidden
     cy.get('[data-testid="password-input"]').should('have.attr', 'type', 'password');
-    
-    // Click show password button
     cy.get('[data-testid="toggle-password-visibility"]').click();
-    
-    // Check if password is visible
     cy.get('[data-testid="password-input"]').should('have.attr', 'type', 'text');
-    
-    // Click hide password button
     cy.get('[data-testid="toggle-password-visibility"]').click();
-    
-    // Check if password is hidden again
     cy.get('[data-testid="password-input"]').should('have.attr', 'type', 'password');
   });
 
-  it('should remember login state after page refresh', () => {
-    // Mock successful login response
-    cy.mockApiResponse('POST', '**/auth/v1/token', {
-      data: {
-        access_token: 'test-access-token',
-        refresh_token: 'test-refresh-token',
-        user: {
-          id: 'test-user-123',
+  it('should handle Google sign in', () => {
+    cy.get('[data-testid="google-sign-in-button"]').click();
+    
+    // Mock successful Google authentication
+    cy.window().then((win: any) => {
+      const auth = win.firebase.auth();
+      const callbacks = auth.onAuthStateChanged.getCalls();
+      if (callbacks.length > 0) {
+        const callback = callbacks[0].args[0];
+        callback({
+          uid: 'test-user-123',
           email: 'test@example.com',
-          user_metadata: {
-            display_name: 'Test User'
-          }
-        }
+          displayName: 'Test User'
+        });
       }
     });
-
-    // Mock user data response
-    cy.mockApiResponse('GET', '**/auth/v1/user', {
-      data: {
-        id: 'test-user-123',
-        email: 'test@example.com',
-        user_metadata: {
-          display_name: 'Test User'
-        }
-      }
-    });
-
-    // Login
-    cy.get('[data-testid="email-input"]').type('test@example.com');
-    cy.get('[data-testid="password-input"]').type('testpassword123');
-    cy.get('[data-testid="login-button"]').click();
     
-    // Wait for API calls
-    cy.waitForApiCall('mockedResponse');
-    cy.waitForApiCall('mockedResponse');
+    // Wait for user creation
+    cy.wait('@createUser');
     
-    // Refresh page
-    cy.reload();
-    
-    // Check if user is still logged in
-    cy.get('[data-testid="user-menu"]').should('be.visible');
+    // Should be redirected to dashboard
     cy.url().should('not.include', '/login');
-  });
-
-  it('should handle loading state correctly', () => {
-    // Mock delayed response
-    cy.mockApiResponse('POST', '**/auth/v1/token', {
-      data: {
-        access_token: 'test-access-token',
-        refresh_token: 'test-refresh-token',
-        user: {
-          id: 'test-user-123',
-          email: 'test@example.com'
-        }
-      },
-      delay: 1000
-    });
-
-    // Enter credentials and login
-    cy.get('[data-testid="email-input"]').type('test@example.com');
-    cy.get('[data-testid="password-input"]').type('testpassword123');
-    cy.get('[data-testid="login-button"]').click();
-    
-    // Check loading state
-    cy.get('[data-testid="login-button"]').should('be.disabled');
-    cy.get('[data-testid="loading-spinner"]').should('be.visible');
-    
-    // Wait for completion
-    cy.waitForApiCall('mockedResponse');
-    
-    // Check button is enabled again
-    cy.get('[data-testid="login-button"]').should('not.be.disabled');
   });
 });

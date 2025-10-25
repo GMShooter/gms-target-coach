@@ -71,7 +71,7 @@ Cypress.Commands.add('checkCameraAccess', () => {
 Cypress.Commands.add('createTestUser', () => {
   cy.request({
     method: 'POST',
-    url: `${Cypress.env('NEXT_PUBLIC_SUPABASE_URL')}/auth/v1/signup`,
+    url: `${Cypress.env('VITE_SUPABASE_URL')}/auth/v1/signup`,
     body: {
       email: 'test@example.com',
       password: 'testpassword123',
@@ -80,7 +80,7 @@ Cypress.Commands.add('createTestUser', () => {
       }
     },
     headers: {
-      apikey: Cypress.env('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+      apikey: Cypress.env('VITE_SUPABASE_ANON_KEY'),
       'Content-Type': 'application/json'
     }
   });
@@ -90,12 +90,12 @@ Cypress.Commands.add('createTestUser', () => {
 Cypress.Commands.add('deleteTestUser', () => {
   cy.request({
     method: 'DELETE',
-    url: `${Cypress.env('NEXT_PUBLIC_SUPABASE_URL')}/rest/v1/users`,
+    url: `${Cypress.env('VITE_SUPABASE_URL')}/rest/v1/users`,
     qs: {
       email: 'eq.test@example.com'
     },
     headers: {
-      apikey: Cypress.env('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+      apikey: Cypress.env('VITE_SUPABASE_ANON_KEY'),
       'Content-Type': 'application/json'
     }
   });
@@ -105,7 +105,7 @@ Cypress.Commands.add('deleteTestUser', () => {
 Cypress.Commands.add('createTestSession', (sessionData: any) => {
   cy.request({
     method: 'POST',
-    url: `${Cypress.env('NEXT_PUBLIC_SUPABASE_URL')}/rest/v1/sessions`,
+    url: `${Cypress.env('VITE_SUPABASE_URL')}/rest/v1/sessions`,
     body: {
       user_id: 'test-user-123',
       status: 'completed',
@@ -114,7 +114,7 @@ Cypress.Commands.add('createTestSession', (sessionData: any) => {
       ...sessionData
     },
     headers: {
-      apikey: Cypress.env('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+      apikey: Cypress.env('VITE_SUPABASE_ANON_KEY'),
       'Content-Type': 'application/json',
       Prefer: 'return=representation'
     }
@@ -125,7 +125,7 @@ Cypress.Commands.add('createTestSession', (sessionData: any) => {
 Cypress.Commands.add('createTestReport', (reportData: any) => {
   cy.request({
     method: 'POST',
-    url: `${Cypress.env('NEXT_PUBLIC_SUPABASE_URL')}/rest/v1/reports`,
+    url: `${Cypress.env('VITE_SUPABASE_URL')}/rest/v1/reports`,
     body: {
       user_id: 'test-user-123',
       title: 'Test Report',
@@ -136,7 +136,7 @@ Cypress.Commands.add('createTestReport', (reportData: any) => {
       ...reportData
     },
     headers: {
-      apikey: Cypress.env('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+      apikey: Cypress.env('VITE_SUPABASE_ANON_KEY'),
       'Content-Type': 'application/json',
       Prefer: 'return=representation'
     }

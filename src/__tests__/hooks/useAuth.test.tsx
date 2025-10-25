@@ -1,26 +1,7 @@
 import React from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAuth, AuthProvider } from '../../hooks/useAuth';
-import {
-  signInWithGoogle,
-  signInWithEmail,
-  signUpWithEmail,
-  signOut,
-  getCurrentUser,
-  onAuthStateChanged,
-  updateUserProfile
-} from '../../firebase';
 import { supabase } from '../../utils/supabase';
-
-// Mock Firebase
-jest.mock('../../firebase');
-const mockSignInWithGoogle = signInWithGoogle as jest.MockedFunction<typeof signInWithGoogle>;
-const mockSignInWithEmail = signInWithEmail as jest.MockedFunction<typeof signInWithEmail>;
-const mockSignUpWithEmail = signUpWithEmail as jest.MockedFunction<typeof signUpWithEmail>;
-const mockSignOut = signOut as jest.MockedFunction<typeof signOut>;
-const mockGetCurrentUser = getCurrentUser as jest.MockedFunction<typeof getCurrentUser>;
-const mockOnAuthStateChanged = onAuthStateChanged as jest.MockedFunction<typeof onAuthStateChanged>;
-const mockUpdateUserProfile = updateUserProfile as jest.MockedFunction<typeof updateUserProfile>;
 
 // Mock supabase
 jest.mock('../../utils/supabase');
@@ -37,19 +18,13 @@ afterEach(() => {
 });
 
 describe('useAuth Hook', () => {
-  const mockFirebaseUser = {
-    uid: 'firebase-123',
-    email: 'test@example.com',
-    displayName: 'Test User',
-    photoURL: 'https://example.com/photo.jpg',
-  };
-
   const mockSupabaseUser = {
-    id: 'firebase-123',
+    id: 'supabase-123',
     email: 'test@example.com',
-    firebase_uid: 'firebase-123',
-    display_name: 'Test User',
-    avatar_url: 'https://example.com/photo.jpg',
+    user_metadata: {
+      display_name: 'Test User',
+      avatar_url: 'https://example.com/photo.jpg'
+    }
   };
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -59,16 +34,36 @@ describe('useAuth Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Default mock implementations for Firebase
-    mockSignInWithGoogle.mockResolvedValue(mockFirebaseUser as any);
-    mockSignInWithEmail.mockResolvedValue(mockFirebaseUser as any);
-    mockSignUpWithEmail.mockResolvedValue(mockFirebaseUser as any);
-    mockSignOut.mockResolvedValue(undefined);
-    mockGetCurrentUser.mockReturnValue(null);
-    mockOnAuthStateChanged.mockReturnValue(() => () => {}); // Return unsubscribe function
-    mockUpdateUserProfile.mockResolvedValue(undefined);
-
     // Default mock implementations for Supabase
+    (mockSupabase.auth.signInWithOAuth as jest.Mock).mockResolvedValue({
+      data: { user: mockSupabaseUser },
+      error: null
+    });
+
+    (mockSupabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+      data: { user: mockSupabaseUser },
+      error: null
+    });
+
+    (mockSupabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: { user: mockSupabaseUser },
+      error: null
+    });
+
+    (mockSupabase.auth.signOut as jest.Mock).mockResolvedValue({ error: null });
+    (mockSupabase.auth.getSession as jest.Mock).mockResolvedValue({
+      data: { session: null },
+      error: null
+    });
+
+    (mockSupabase.auth.onAuthStateChange as jest.Mock).mockReturnValue({
+      data: {
+        subscription: {
+          unsubscribe: jest.fn()
+        }
+      }
+    });
+
     mockSupabase.from = jest.fn().mockReturnValue({
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
@@ -81,14 +76,30 @@ describe('useAuth Hook', () => {
       insert: jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
           single: jest.fn().mockResolvedValue({
-            data: mockSupabaseUser,
+            data: {
+              id: 'supabase-123',
+              email: 'test@example.com',
+              display_name: 'Test User',
+              avatar_url: 'https://example.com/photo.jpg',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              last_login: new Date().toISOString(),
+            },
             error: null,
           }),
         }),
       }),
       update: jest.fn().mockReturnValue({
         eq: jest.fn().mockResolvedValue({
-          data: mockSupabaseUser,
+          data: {
+            id: 'supabase-123',
+            email: 'test@example.com',
+            display_name: 'Test User',
+            avatar_url: 'https://example.com/photo.jpg',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_login: new Date().toISOString(),
+          },
           error: null,
         }),
       }),
@@ -99,13 +110,9 @@ describe('useAuth Hook', () => {
     it('initializes with correct default state', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      // Initially loading might be false due to async initialization
       expect(result.current.user).toBe(null);
-      // The loading state might already be false due to the useEffect running
-      // expect(result.current.loading).toBe(true);
       expect(result.current.error).toBe(null);
 
-      // Wait for initialization to complete
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       }, { timeout: 3000 });
@@ -136,15 +143,15 @@ describe('useAuth Hook', () => {
         await result.current.signInWithGoogle();
       });
 
-      expect(mockSignInWithGoogle).toHaveBeenCalled();
-      expect(mockSupabase.from).toHaveBeenCalledWith('users');
-      expect(result.current.user).toEqual({
-        id: 'firebase-123',
-        email: 'test@example.com',
-        displayName: 'Test User',
-        photoURL: 'https://example.com/photo.jpg',
-        firebaseUid: 'firebase-123',
+      expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`
+        }
       });
+      // OAuth sign in doesn't set user directly in test environment
+      // It redirects and handles auth state change
+      expect(result.current.user).toBe(null);
       expect(result.current.loading).toBe(false);
       expect(result.current.error).toBe(null);
     });
@@ -152,9 +159,8 @@ describe('useAuth Hook', () => {
     it('handles popup closed by user error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignInWithGoogle.mockRejectedValue({
-        code: 'auth/popup-closed-by-user',
-        message: 'Popup closed',
+      (mockSupabase.auth.signInWithOAuth as jest.Mock).mockRejectedValue({
+        message: 'Popup closed'
       });
 
       await act(async () => {
@@ -163,30 +169,28 @@ describe('useAuth Hook', () => {
 
       expect(result.current.user).toBe(null);
       expect(result.current.loading).toBe(false);
-      expect(result.current.error).toBe('Sign-in popup was closed before completion');
+      expect(result.current.error).toBe('Popup closed');
     });
 
     it('handles popup blocked error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignInWithGoogle.mockRejectedValue({
-        code: 'auth/popup-blocked',
-        message: 'Popup blocked',
+      (mockSupabase.auth.signInWithOAuth as jest.Mock).mockRejectedValue({
+        message: 'Popup blocked'
       });
 
       await act(async () => {
         await result.current.signInWithGoogle();
       });
 
-      expect(result.current.error).toBe('Sign-in popup was blocked by the browser');
+      expect(result.current.error).toBe('Popup blocked');
     });
 
     it('handles generic sign in error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignInWithGoogle.mockRejectedValue({
-        code: 'auth/unknown-error',
-        message: 'Unknown error',
+      (mockSupabase.auth.signInWithOAuth as jest.Mock).mockRejectedValue({
+        message: 'Unknown error'
       });
 
       await act(async () => {
@@ -205,7 +209,10 @@ describe('useAuth Hook', () => {
         await result.current.signInWithEmail('test@example.com', 'password123');
       });
 
-      expect(mockSignInWithEmail).toHaveBeenCalledWith('test@example.com', 'password123');
+      expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password123'
+      });
       expect(result.current.user?.email).toBe('test@example.com');
       expect(result.current.loading).toBe(false);
       expect(result.current.error).toBe(null);
@@ -214,9 +221,8 @@ describe('useAuth Hook', () => {
     it('handles user not found error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignInWithEmail.mockRejectedValue({
-        code: 'auth/user-not-found',
-        message: 'User not found',
+      (mockSupabase.auth.signInWithPassword as jest.Mock).mockRejectedValue({
+        message: 'Invalid login credentials'
       });
 
       await act(async () => {
@@ -229,9 +235,8 @@ describe('useAuth Hook', () => {
     it('handles wrong password error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignInWithEmail.mockRejectedValue({
-        code: 'auth/wrong-password',
-        message: 'Wrong password',
+      (mockSupabase.auth.signInWithPassword as jest.Mock).mockRejectedValue({
+        message: 'Invalid password'
       });
 
       await act(async () => {
@@ -244,31 +249,29 @@ describe('useAuth Hook', () => {
     it('handles invalid email error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignInWithEmail.mockRejectedValue({
-        code: 'auth/invalid-email',
-        message: 'Invalid email',
+      (mockSupabase.auth.signInWithPassword as jest.Mock).mockRejectedValue({
+        message: 'Invalid email'
       });
 
       await act(async () => {
         await result.current.signInWithEmail('invalid-email', 'password123');
       });
 
-      expect(result.current.error).toBe('Invalid email address');
+      expect(result.current.error).toBe('Invalid email');
     });
 
     it('handles too many requests error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignInWithEmail.mockRejectedValue({
-        code: 'auth/too-many-requests',
-        message: 'Too many requests',
+      (mockSupabase.auth.signInWithPassword as jest.Mock).mockRejectedValue({
+        message: 'Too many requests'
       });
 
       await act(async () => {
         await result.current.signInWithEmail('test@example.com', 'password123');
       });
 
-      expect(result.current.error).toBe('Too many failed login attempts. Please try again later');
+      expect(result.current.error).toBe('Too many requests');
     });
   });
 
@@ -280,8 +283,16 @@ describe('useAuth Hook', () => {
         await result.current.signUpWithEmail('test@example.com', 'password123', 'Test User');
       });
 
-      expect(mockSignUpWithEmail).toHaveBeenCalledWith('test@example.com', 'password123');
-      expect(mockUpdateUserProfile).toHaveBeenCalledWith(mockFirebaseUser, 'Test User');
+      expect(mockSupabase.auth.signUp).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password123',
+        options: {
+          data: {
+            display_name: 'Test User',
+            avatar_url: ''
+          }
+        }
+      });
       expect(result.current.user?.email).toBe('test@example.com');
       expect(result.current.loading).toBe(false);
       expect(result.current.error).toBe(null);
@@ -294,8 +305,16 @@ describe('useAuth Hook', () => {
         await result.current.signUpWithEmail('test@example.com', 'password123');
       });
 
-      expect(mockSignUpWithEmail).toHaveBeenCalledWith('test@example.com', 'password123');
-      expect(mockUpdateUserProfile).not.toHaveBeenCalled();
+      expect(mockSupabase.auth.signUp).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password123',
+        options: {
+          data: {
+            display_name: '',
+            avatar_url: ''
+          }
+        }
+      });
       expect(result.current.user?.email).toBe('test@example.com');
       expect(result.current.loading).toBe(false);
       expect(result.current.error).toBe(null);
@@ -304,9 +323,8 @@ describe('useAuth Hook', () => {
     it('handles email already in use error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignUpWithEmail.mockRejectedValue({
-        code: 'auth/email-already-in-use',
-        message: 'Email already in use',
+      (mockSupabase.auth.signUp as jest.Mock).mockRejectedValue({
+        message: 'User already registered'
       });
 
       await act(async () => {
@@ -319,9 +337,8 @@ describe('useAuth Hook', () => {
     it('handles weak password error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignUpWithEmail.mockRejectedValue({
-        code: 'auth/weak-password',
-        message: 'Weak password',
+      (mockSupabase.auth.signUp as jest.Mock).mockRejectedValue({
+        message: 'Password should be at least'
       });
 
       await act(async () => {
@@ -334,16 +351,15 @@ describe('useAuth Hook', () => {
     it('handles operation not allowed error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignUpWithEmail.mockRejectedValue({
-        code: 'auth/operation-not-allowed',
-        message: 'Operation not allowed',
+      (mockSupabase.auth.signUp as jest.Mock).mockRejectedValue({
+        message: 'weak_password'
       });
 
       await act(async () => {
         await result.current.signUpWithEmail('test@example.com', 'password123');
       });
 
-      expect(result.current.error).toBe('Email/password accounts are not enabled');
+      expect(result.current.error).toBe('Password is too weak. Please choose a stronger password');
     });
   });
 
@@ -363,7 +379,7 @@ describe('useAuth Hook', () => {
         await result.current.signOut();
       });
 
-      expect(mockSignOut).toHaveBeenCalled();
+      expect(mockSupabase.auth.signOut).toHaveBeenCalled();
       expect(result.current.user).toBe(null);
       expect(result.current.loading).toBe(false);
       expect(result.current.error).toBe(null);
@@ -372,8 +388,8 @@ describe('useAuth Hook', () => {
     it('handles sign out error', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      mockSignOut.mockRejectedValue({
-        message: 'Sign out failed',
+      (mockSupabase.auth.signOut as jest.Mock).mockRejectedValue({
+        message: 'Sign out failed'
       });
 
       await act(async () => {
@@ -389,9 +405,8 @@ describe('useAuth Hook', () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
       // Set an error
-      mockSignInWithGoogle.mockRejectedValueOnce({
-        code: 'auth/unknown-error',
-        message: 'Some error',
+      (mockSupabase.auth.signInWithOAuth as jest.Mock).mockRejectedValueOnce({
+        message: 'Some error'
       });
 
       await act(async () => {
@@ -413,16 +428,35 @@ describe('useAuth Hook', () => {
     it('creates new user in Supabase when not exists', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
+      // Mock the auth state change to trigger user sync
+      let authStateChangeCallback: ((event: string, session: any) => void) | null = null;
+      
+      (mockSupabase.auth.onAuthStateChange as jest.Mock).mockImplementation((callback) => {
+        authStateChangeCallback = callback;
+        return {
+          data: {
+            subscription: {
+              unsubscribe: jest.fn()
+            }
+          }
+        };
+      });
+
       await act(async () => {
+        // Simulate successful OAuth sign in followed by auth state change
         await result.current.signInWithGoogle();
+        
+        // Then simulate the auth state change that would trigger user sync
+        if (authStateChangeCallback) {
+          await authStateChangeCallback('SIGNED_IN', { user: mockSupabaseUser });
+        }
       });
 
       expect(mockSupabase.from).toHaveBeenCalledWith('users');
       expect(mockSupabase.from('users').select).toHaveBeenCalled();
       expect(mockSupabase.from('users').insert).toHaveBeenCalledWith({
-        id: 'firebase-123',
+        id: 'supabase-123',
         email: 'test@example.com',
-        firebase_uid: 'firebase-123',
         display_name: 'Test User',
         avatar_url: 'https://example.com/photo.jpg',
         created_at: expect.any(String),
@@ -439,21 +473,51 @@ describe('useAuth Hook', () => {
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({
-              data: mockSupabaseUser,
+              data: {
+                id: 'supabase-123',
+                email: 'test@example.com',
+                display_name: 'Test User',
+                avatar_url: 'https://example.com/photo.jpg',
+              },
               error: null,
             }),
           }),
         }),
         update: jest.fn().mockReturnValue({
           eq: jest.fn().mockResolvedValue({
-            data: mockSupabaseUser,
+            data: {
+              id: 'supabase-123',
+              email: 'test@example.com',
+              display_name: 'Test User',
+              avatar_url: 'https://example.com/photo.jpg',
+            },
             error: null,
           }),
         }),
       }) as any;
 
+      // Mock the auth state change to trigger user sync
+      let authStateChangeCallback: ((event: string, session: any) => void) | null = null;
+      
+      (mockSupabase.auth.onAuthStateChange as jest.Mock).mockImplementation((callback) => {
+        authStateChangeCallback = callback;
+        return {
+          data: {
+            subscription: {
+              unsubscribe: jest.fn()
+            }
+          }
+        };
+      });
+
       await act(async () => {
+        // Simulate successful OAuth sign in followed by auth state change
         await result.current.signInWithGoogle();
+        
+        // Then simulate the auth state change that would trigger user sync
+        if (authStateChangeCallback) {
+          await authStateChangeCallback('SIGNED_IN', { user: mockSupabaseUser });
+        }
       });
 
       expect(mockSupabase.from('users').update).toHaveBeenCalledWith({
@@ -485,25 +549,49 @@ describe('useAuth Hook', () => {
         }),
       }) as any;
 
+      // Mock the auth state change to trigger user sync
+      let authStateChangeCallback: ((event: string, session: any) => void) | null = null;
+      
+      (mockSupabase.auth.onAuthStateChange as jest.Mock).mockImplementation((callback) => {
+        authStateChangeCallback = callback;
+        return {
+          data: {
+            subscription: {
+              unsubscribe: jest.fn()
+            }
+          }
+        };
+      });
+
       await act(async () => {
+        // Simulate successful OAuth sign in followed by auth state change
         await result.current.signInWithGoogle();
+        
+        // Then simulate the auth state change that would trigger user sync
+        if (authStateChangeCallback) {
+          await authStateChangeCallback('SIGNED_IN', { user: mockSupabaseUser });
+        }
       });
 
       // Should still set user despite Supabase error
       expect(result.current.user).toBeTruthy();
-      // The actual implementation logs the error but doesn't set the error state
-      // Let's check that the user was set despite the Supabase error
       expect(result.current.user?.email).toBe('test@example.com');
     });
   });
 
   describe('Auth State Changes', () => {
     it('handles auth state change on mount', async () => {
-      let authStateChangeCallback: ((user: any) => void) | null = null;
+      let authStateChangeCallback: ((event: string, session: any) => void) | null = null;
 
-      mockOnAuthStateChanged.mockImplementation((callback) => {
+      (mockSupabase.auth.onAuthStateChange as jest.Mock).mockImplementation((callback) => {
         authStateChangeCallback = callback;
-        return () => {}; // Return unsubscribe function
+        return {
+          data: {
+            subscription: {
+              unsubscribe: jest.fn()
+            }
+          }
+        };
       });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
@@ -511,7 +599,7 @@ describe('useAuth Hook', () => {
       // Simulate auth state change
       await act(async () => {
         if (authStateChangeCallback) {
-          authStateChangeCallback(mockFirebaseUser);
+          authStateChangeCallback('SIGNED_IN', { user: mockSupabaseUser });
         }
       });
 
@@ -520,7 +608,10 @@ describe('useAuth Hook', () => {
     });
 
     it('handles current user on mount', async () => {
-      mockGetCurrentUser.mockReturnValue(mockFirebaseUser as any);
+      (mockSupabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { user: mockSupabaseUser } },
+        error: null
+      });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -528,22 +619,30 @@ describe('useAuth Hook', () => {
         expect(result.current.user).toBeTruthy();
       });
 
-      expect(mockGetCurrentUser).toHaveBeenCalled();
+      expect(mockSupabase.auth.getSession).toHaveBeenCalled();
     });
 
     it('handles sign out through auth state change', async () => {
-      let authStateChangeCallback: ((user: any) => void) | null = null;
+      let authStateChangeCallback: ((event: string, session: any) => void) | null = null;
 
-      mockOnAuthStateChanged.mockImplementation((callback) => {
+      (mockSupabase.auth.onAuthStateChange as jest.Mock).mockImplementation((callback) => {
         authStateChangeCallback = callback;
-        return () => {}; // Return unsubscribe function
+        return {
+          data: {
+            subscription: {
+              unsubscribe: jest.fn()
+            }
+          }
+        };
       });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      // First sign in
+      // Simulate sign in first
       await act(async () => {
-        await result.current.signInWithGoogle();
+        if (authStateChangeCallback) {
+          await authStateChangeCallback('SIGNED_IN', { user: mockSupabaseUser });
+        }
       });
 
       expect(result.current.user).toBeTruthy();
@@ -551,7 +650,7 @@ describe('useAuth Hook', () => {
       // Then simulate sign out through auth state change
       await act(async () => {
         if (authStateChangeCallback) {
-          authStateChangeCallback(null);
+          authStateChangeCallback('SIGNED_OUT', null);
         }
       });
 

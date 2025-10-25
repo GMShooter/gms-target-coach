@@ -25,6 +25,9 @@ describe('HardwareAPI Service', () => {
     hardwareAPI = new HardwareAPI();
     mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
     jest.clearAllMocks();
+    
+    // Set up authenticated user context for tests
+    hardwareAPI.setUserId('test-user-123');
   });
 
   afterEach(() => {
@@ -274,7 +277,8 @@ describe('HardwareAPI Service', () => {
         settings: {
           targetDistance: 10,
           targetSize: 5,
-          scoringZones: []
+          scoringZones: [],
+          detectionSensitivity: 0.8
         }
       };
 
@@ -591,7 +595,8 @@ describe('HardwareAPI Service', () => {
         settings: {
           targetDistance: 10,
           targetSize: 5,
-          scoringZones: []
+          scoringZones: [],
+          detectionSensitivity: 0.8
         }
       };
 

@@ -254,6 +254,13 @@ function AppContent() {
             <h1 className="text-xl font-bold text-slate-100">GMShoot</h1>
           </div>
           
+          {/* User menu in top-right */}
+          <div className="fixed top-4 right-4 z-40 flex items-center space-x-4" data-testid="user-menu">
+            <div className="text-slate-300 text-sm" data-testid="user-display-name">
+              {user.displayName || user.email}
+            </div>
+          </div>
+          
           {/* MagicDock navigation */}
           <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40">
             <MagicDock items={dockItems} />

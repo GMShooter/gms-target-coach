@@ -23,14 +23,52 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({
+    email: '',
+    password: '',
+    login: ''
+  });
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     name: ''
   });
 
+  const validateForm = () => {
+    const newErrors = {
+      email: '',
+      password: '',
+      login: ''
+    };
+
+    // Email validation
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Invalid email';
+    }
+
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    }
+
+    // Name validation for signup
+    if (!isLogin && !formData.name) {
+      newErrors.login = 'Name is required';
+    }
+
+    setErrors(newErrors);
+    return !newErrors.email && !newErrors.password && !newErrors.login;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
     
     try {
@@ -39,8 +77,17 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
       } else {
         await onSignup?.(formData.email, formData.password, formData.name);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Authentication error:', error);
+      let errorMessage = 'An error occurred';
+      
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid credentials';
+      } else if (error.message?.includes('Network')) {
+        errorMessage = 'Network error';
+      }
+      
+      setErrors(prev => ({ ...prev, login: errorMessage }));
     } finally {
       setIsLoading(false);
     }
@@ -58,7 +105,7 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
   };
 
   return (
-    <div className={cn("min-h-screen flex items-center justify-center p-4", className)}>
+    <div className={cn("min-h-screen flex items-center justify-center p-4", className)} data-testid="login-page">
       {/* Animated Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" />
@@ -70,8 +117,8 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
         <div className="absolute bottom-20 right-20 w-4 h-4 bg-indigo-400 rounded-full animate-pulse delay-300" />
       </div>
 
-      <MagicCard 
-        variant="glass" 
+      <MagicCard
+        variant="glass"
         className="w-full max-w-md p-8 backdrop-blur-xl border-white/10"
         hover="lift"
       >
@@ -82,12 +129,13 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
               <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
             </svg>
           </div>
-          <TextGradient 
-            variant="rainbow" 
-            animation="float"
+          <TextGradient
+            variant="primary"
+            animation="fadeIn"
             className="text-3xl font-bold mb-2"
+            data-testid="login-title"
           >
-            GMShoot
+            {isLogin ? 'Sign In' : 'Sign Up'}
           </TextGradient>
           <p className="text-slate-400 text-sm">
             {isLogin ? 'Welcome back! Sign in to continue' : 'Create your account to get started'}
@@ -110,6 +158,7 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
                 className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 placeholder="Enter your name"
                 required={!isLogin}
+                data-testid="name-input"
               />
             </div>
           )}
@@ -127,7 +176,11 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
               className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
               placeholder="Enter your email"
               required
+              data-testid="email-input"
             />
+            <div className={`text-red-500 text-sm ${errors.email ? 'block' : 'hidden'}`} data-testid="email-error">
+              {errors.email}
+            </div>
           </div>
 
           {/* Password field */}
@@ -144,16 +197,31 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
                 className="w-full px-4 py-3 pr-12 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 placeholder="Enter your password"
                 required
+                data-testid="password-input"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
+                data-testid="toggle-password-visibility"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+            <div className={`text-red-500 text-sm ${errors.password ? 'block' : 'hidden'}`} data-testid="password-error">
+              {errors.password}
+            </div>
           </div>
+
+          {/* Login error */}
+          <div className={`text-red-500 text-sm ${errors.login ? 'block' : 'hidden'}`} data-testid="login-error">
+            {errors.login}
+          </div>
+
+          {/* Loading spinner */}
+          {isLoading && (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto" data-testid="loading-spinner"></div>
+          )}
 
           {/* Submit button */}
           <MagicButton
@@ -163,6 +231,7 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
             disabled={isLoading}
             className="w-full py-3 text-base font-semibold"
             loading={isLoading}
+            data-testid="login-button"
           >
             <div className="flex items-center justify-center gap-2">
               {isLogin ? 'Sign In' : 'Create Account'}
@@ -190,6 +259,7 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
           disabled={isLoading}
           className="w-full py-3 border-slate-700 hover:bg-slate-800/50"
           loading={isLoading}
+          data-testid="google-sign-in-button"
         >
           <div className="flex items-center justify-center gap-3">
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -210,6 +280,7 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
               type="button"
               onClick={() => setIsLogin(!isLogin)}
               className="ml-2 text-purple-400 hover:text-purple-300 font-medium transition-colors"
+              data-testid="signup-link"
             >
               {isLogin ? 'Sign up' : 'Sign in'}
             </button>

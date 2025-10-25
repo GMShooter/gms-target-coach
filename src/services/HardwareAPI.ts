@@ -7,6 +7,7 @@
 
 import { geometricScoring, type Point, type TargetConfig, type ShotResult } from './GeometricScoring';
 import { sequentialShotDetection, type SequentialDetectionConfig, type SessionShotHistory } from './SequentialShotDetection';
+import { hardwareAuth, type HardwareAuthToken } from './HardwareAuth';
 
 export interface PiDevice {
   id: string;
@@ -29,11 +30,13 @@ export interface SessionData {
   startTime: Date;
   endTime?: Date;
   shotCount: number;
-  status: 'active' | 'paused' | 'completed';
+  status: 'active' | 'paused' | 'completed' | 'emergency_stopped';
   settings: {
     targetDistance: number;
     targetSize: number;
     scoringZones: ScoringZone[];
+    zoomPreset?: number;
+    detectionSensitivity: number;
   };
 }
 
@@ -69,6 +72,9 @@ export interface ShotData {
     grouping?: number;
     trend?: 'improving' | 'declining' | 'stable';
   };
+  // Sequential detection data
+  sequentialShotNumber?: number;
+  sequentialConfidence?: number;
 }
 
 export interface FrameData {
@@ -81,6 +87,7 @@ export interface FrameData {
     resolution: string;
     brightness: number;
     contrast: number;
+    predictions?: any[]; // Add predictions for ML analysis
   };
 }
 
@@ -114,9 +121,14 @@ export class HardwareAPI {
   private sequentialSessions: Map<string, boolean> = new Map(); // Track sessions with sequential detection enabled
   private eventListeners: Map<string, Function[]> = new Map();
   private wsConnections: Map<string, WebSocket> = new Map();
+  private supabaseUrl: string = process.env.REACT_APP_SUPABASE_URL || '';
+  private supabaseAnonKey: string = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
+  private userId: string | null = null;
 
   constructor() {
     this.initializeEventListeners();
+    // Load stored credentials for current user
+    this.loadUserCredentials();
   }
 
   /**
@@ -167,6 +179,23 @@ export class HardwareAPI {
   }
 
   /**
+   * Set current user ID for authentication
+   */
+  public setUserId(userId: string): void {
+    this.userId = userId;
+    this.loadUserCredentials();
+  }
+
+  /**
+   * Load stored credentials for current user
+   */
+  private loadUserCredentials(): void {
+    if (this.userId) {
+      hardwareAuth.loadStoredCredentials(this.userId);
+    }
+  }
+
+  /**
    * Parse QR code data to extract Pi server information
    */
   public parseQRCode(qrData: string): PiDevice | null {
@@ -204,14 +233,21 @@ export class HardwareAPI {
    * Connect to Pi device via QR code
    */
   public async connectViaQRCode(qrData: string): Promise<PiDevice> {
+    if (!this.userId) {
+      throw new Error('User must be authenticated to connect to devices');
+    }
+
     const device = this.parseQRCode(qrData);
     if (!device) {
       throw new Error('Invalid QR code data');
     }
 
-    // Test connection to device
     try {
-      const response = await this.makeRequest(device.url, '/ping', 'GET');
+      // Generate API key for this device
+      const apiKey = hardwareAuth.generateApiKey(device.id, this.userId, ['read', 'write', 'session']);
+      
+      // Test connection to device
+      const response = await this.makeAuthenticatedRequest(device.url, '/ping', 'GET', null, device.id);
       if (response.success) {
         device.status = 'online';
         device.lastSeen = new Date();
@@ -306,7 +342,9 @@ export class HardwareAPI {
           settings: {
             targetDistance: request.settings.targetDistance,
             targetSize: request.settings.targetSize,
-            scoringZones: this.getDefaultScoringZones()
+            scoringZones: this.getDefaultScoringZones(),
+            zoomPreset: request.settings.zoomPreset,
+            detectionSensitivity: request.settings.detectionSensitivity
           }
         };
 
@@ -314,6 +352,10 @@ export class HardwareAPI {
         this.sessionShots.set(request.sessionId, []); // Initialize shot tracking
         this.sequentialSessions.set(request.sessionId, true); // Enable sequential detection
         sequentialShotDetection.initializeSession(request.sessionId); // Initialize sequential detection
+        
+        // Register session with Supabase for real-time data ingestion
+        await this.registerSessionWithSupabase(request.sessionId, deviceId, request.userId);
+        
         this.emit('sessionStarted', sessionData);
 
         // Establish WebSocket connection for real-time updates
@@ -505,10 +547,23 @@ export class HardwareAPI {
    * Make HTTP request to Pi server
    */
   private async makeRequest(
-    baseUrl: string, 
-    endpoint: string, 
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', 
+    baseUrl: string,
+    endpoint: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
     data?: any
+  ): Promise<PiServerResponse> {
+    return this.makeAuthenticatedRequest(baseUrl, endpoint, method, data);
+  }
+
+  /**
+   * Make authenticated HTTP request to Pi server
+   */
+  private async makeAuthenticatedRequest(
+    baseUrl: string,
+    endpoint: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+    data?: any,
+    deviceId?: string
   ): Promise<PiServerResponse> {
     const url = `${baseUrl}${endpoint}`;
     const options: RequestInit = {
@@ -518,6 +573,29 @@ export class HardwareAPI {
         'User-Agent': 'GMShooter-Client/1.0'
       }
     };
+
+    // Add authentication header if deviceId is provided
+    if (deviceId && this.userId) {
+      try {
+        const token = hardwareAuth.getToken(deviceId);
+        if (token) {
+          options.headers = {
+            ...options.headers,
+            'Authorization': `Bearer ${token.token}`
+          };
+        } else {
+          // Try to refresh token
+          const refreshedToken = await hardwareAuth.refreshToken(deviceId, this.userId);
+          options.headers = {
+            ...options.headers,
+            'Authorization': `Bearer ${refreshedToken.token}`
+          };
+        }
+      } catch (error) {
+        console.warn('Failed to authenticate request:', error);
+        // Continue without auth for initial connection attempts
+      }
+    }
 
     if (data && method !== 'GET') {
       options.body = JSON.stringify(data);
@@ -549,6 +627,74 @@ export class HardwareAPI {
     }
   }
 
+  private async registerSessionWithSupabase(sessionId: string, deviceId: string, userId: string): Promise<void> {
+    try {
+      const device = this.devices.get(deviceId);
+      if (!device) return;
+
+      // Register device with Supabase for data ingestion
+      const registrationData = {
+        deviceId: device.id,
+        apiKey: 'default-key', // In production, this should be securely generated
+        userId,
+        deviceData: {
+          name: device.name,
+          connectionUrl: device.url,
+          qrCodeData: `GMShoot://${device.id}|${device.name}|${device.url}|8080`,
+          config: device.capabilities
+        }
+      };
+
+      const response = await fetch(`${this.supabaseUrl}/functions/v1/session-data/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.supabaseAnonKey}`
+        },
+        body: JSON.stringify(registrationData)
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to register device with Supabase:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error registering session with Supabase:', error);
+    }
+  }
+
+  private async sendSessionDataToSupabase(
+    sessionId: string,
+    deviceId: string,
+    data: any
+  ): Promise<void> {
+    try {
+      const device = this.devices.get(deviceId);
+      if (!device) return;
+
+      const ingestionData = {
+        sessionId,
+        deviceId,
+        timestamp: new Date().toISOString(),
+        ...data
+      };
+
+      const response = await fetch(`${this.supabaseUrl}/functions/v1/session-data/ingest`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${device.id}:default-key`
+        },
+        body: JSON.stringify(ingestionData)
+      });
+
+      if (!response.ok) {
+        console.error('Failed to send session data to Supabase:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error sending session data to Supabase:', error);
+    }
+  }
+
   /**
    * Parse frame data from Pi server response
    */
@@ -574,7 +720,7 @@ export class HardwareAPI {
     const device = this.devices.get(deviceId);
     if (!device) return;
 
-    const wsUrl = device.ngrokUrl 
+    const wsUrl = device.ngrokUrl
       ? device.ngrokUrl.replace('http', 'ws')
       : device.url.replace('http', 'ws');
     
@@ -582,6 +728,7 @@ export class HardwareAPI {
 
     ws.onopen = () => {
       console.log(`WebSocket connected to device ${deviceId}`);
+      this.emit('websocketConnected', { deviceId, sessionId });
     };
 
     ws.onmessage = (event) => {
@@ -591,28 +738,119 @@ export class HardwareAPI {
         if (data.type === 'frame_update') {
           const frameData = this.parseFrameData(data.payload);
           this.emit('frameUpdated', frameData);
+          
+          // Ingest frame data to Supabase
+          this.ingestFrameData(sessionId, frameData);
         } else if (data.type === 'shot_detected') {
           const shotData = this.parseFrameData(data.payload).shotData;
           if (shotData) {
             this.emit('shotDetected', shotData);
+            
+            // Ingest shot data to Supabase
+            this.ingestShotData(sessionId, shotData);
           }
+        } else if (data.type === 'session_status') {
+          this.emit('sessionStatusChanged', {
+            sessionId,
+            status: data.payload.status
+          });
+        } else if (data.type === 'device_status') {
+          this.emit('deviceStatusChanged', {
+            deviceId,
+            status: data.payload.status
+          });
+        } else if (data.type === 'error') {
+          this.emit('error', {
+            type: 'hardware_error',
+            deviceId,
+            error: data.payload.error
+          });
         }
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error);
+        this.emit('error', {
+          type: 'websocket_parse_error',
+          deviceId,
+          error
+        });
       }
     };
 
     ws.onerror = (error) => {
       console.error(`WebSocket error for device ${deviceId}:`, error);
       this.emit('error', { type: 'websocket_error', deviceId, error });
+      
+      // Attempt to reconnect after delay
+      setTimeout(() => {
+        if (this.activeSessions.has(sessionId)) {
+          console.log(`Attempting to reconnect WebSocket for device ${deviceId}...`);
+          this.establishWebSocketConnection(deviceId, sessionId);
+        }
+      }, 5000); // Reconnect after 5 seconds
     };
 
-    ws.onclose = () => {
-      console.log(`WebSocket disconnected from device ${deviceId}`);
+    ws.onclose = (event) => {
+      console.log(`WebSocket disconnected from device ${deviceId}, code: ${event.code}, reason: ${event.reason}`);
       this.wsConnections.delete(deviceId);
+      this.emit('websocketDisconnected', { deviceId, sessionId, code: event.code, reason: event.reason });
+      
+      // Attempt to reconnect if not a normal closure
+      if (event.code !== 1000 && this.activeSessions.has(sessionId)) {
+        setTimeout(() => {
+          console.log(`Attempting to reconnect WebSocket for device ${deviceId}...`);
+          this.establishWebSocketConnection(deviceId, sessionId);
+        }, 5000); // Reconnect after 5 seconds
+      }
     };
 
     this.wsConnections.set(deviceId, ws);
+  }
+
+  /**
+   * Send message through WebSocket connection
+   */
+  public sendWebSocketMessage(deviceId: string, message: any): void {
+    const ws = this.wsConnections.get(deviceId);
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.warn(`WebSocket not connected to device ${deviceId}`);
+      return;
+    }
+
+    try {
+      ws.send(JSON.stringify(message));
+    } catch (error) {
+      console.error(`Failed to send WebSocket message to device ${deviceId}:`, error);
+      this.emit('error', {
+        type: 'websocket_send_error',
+        deviceId,
+        error
+      });
+    }
+  }
+
+  /**
+   * Get WebSocket connection status
+   */
+  public getWebSocketStatus(deviceId: string): {
+    connected: boolean;
+    readyState: number;
+  } {
+    const ws = this.wsConnections.get(deviceId);
+    return {
+      connected: ws?.readyState === WebSocket.OPEN,
+      readyState: ws?.readyState || WebSocket.CLOSED
+    };
+  }
+
+  /**
+   * Close WebSocket connection
+   */
+  public closeWebSocketConnection(deviceId: string): void {
+    const ws = this.wsConnections.get(deviceId);
+    if (ws) {
+      ws.close(1000, 'Connection closed by client');
+      this.wsConnections.delete(deviceId);
+    }
   }
 
   /**
@@ -829,6 +1067,174 @@ export class HardwareAPI {
   }
 
   /**
+   * Get session status from Pi server
+   */
+  public async getSessionStatus(sessionId: string): Promise<{
+    isActive: boolean;
+    sessionId?: string;
+    shotCount?: number;
+    uptime?: number;
+    isPaused?: boolean;
+  }> {
+    const session = this.activeSessions.get(sessionId);
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    const device = this.devices.get(session.deviceId);
+    if (!device) {
+      throw new Error('Device not found');
+    }
+
+    try {
+      const response = await this.makeRequest(device.url, '/session/status', 'GET');
+      
+      if (response.success) {
+        return {
+          isActive: response.data.isActive || session.status === 'active',
+          sessionId: response.data.sessionId || sessionId,
+          shotCount: response.data.shotCount || session.shotCount,
+          uptime: response.data.uptime || 0,
+          isPaused: response.data.isPaused || session.status === 'paused'
+        };
+      } else {
+        throw new Error(response.error || 'Failed to get session status');
+      }
+    } catch (error) {
+      throw new Error(`Failed to get session status: ${error}`);
+    }
+  }
+
+  /**
+   * Pause/resume session
+   */
+  public async toggleSessionPause(sessionId: string): Promise<void> {
+    const session = this.activeSessions.get(sessionId);
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    const device = this.devices.get(session.deviceId);
+    if (!device) {
+      throw new Error('Device not found');
+    }
+
+    try {
+      const isCurrentlyPaused = session.status === 'paused';
+      const response = await this.makeRequest(device.url, '/session/pause', 'POST', {
+        pause: !isCurrentlyPaused
+      });
+      
+      if (response.success) {
+        // Update local session state
+        session.status = isCurrentlyPaused ? 'active' : 'paused';
+        
+        // Ingest pause/resume event
+        await this.ingestSessionEvent(sessionId, isCurrentlyPaused ? 'session_resumed' : 'session_paused', {
+          timestamp: new Date().toISOString(),
+          previousState: isCurrentlyPaused ? 'paused' : 'active'
+        });
+        
+        this.emit('sessionStatusChanged', { sessionId, status: session.status });
+      } else {
+        throw new Error(response.error || 'Failed to toggle session pause');
+      }
+    } catch (error) {
+      throw new Error(`Failed to toggle session pause: ${error}`);
+    }
+  }
+
+  /**
+   * Emergency stop session
+   */
+  public async emergencyStop(sessionId: string): Promise<void> {
+    const session = this.activeSessions.get(sessionId);
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    const device = this.devices.get(session.deviceId);
+    if (!device) {
+      throw new Error('Device not found');
+    }
+
+    try {
+      // Emergency stop on Pi server
+      const response = await this.makeRequest(device.url, '/session/emergency-stop', 'POST', {});
+      
+      if (response.success) {
+        // Update session status
+        session.status = 'emergency_stopped';
+        session.endTime = new Date();
+        
+        // Ingest emergency stop event
+        await this.ingestSessionEvent(sessionId, 'session_emergency_stopped', {
+          timestamp: new Date().toISOString(),
+          reason: 'emergency_stop'
+        });
+        
+        // Clean up sequential detection
+        if (this.sequentialSessions.get(sessionId)) {
+          sequentialShotDetection.clearSession(sessionId);
+          this.sequentialSessions.delete(sessionId);
+        }
+        
+        // Close WebSocket connection
+        const ws = this.wsConnections.get(session.deviceId);
+        if (ws) {
+          ws.close();
+          this.wsConnections.delete(session.deviceId);
+        }
+        
+        this.emit('sessionEnded', session);
+      } else {
+        throw new Error(response.error || 'Failed to emergency stop session');
+      }
+    } catch (error) {
+      console.error('Error during emergency stop:', error);
+      // Even if Pi server communication fails, ensure local state is updated
+      session.status = 'emergency_stopped';
+      session.endTime = new Date();
+      this.emit('sessionEnded', session);
+      throw error;
+    }
+  }
+
+  /**
+   * Update session in Supabase
+   */
+  private async updateSessionInSupabase(
+    sessionId: string,
+    updates: Partial<{
+      pi_session_id: string;
+      status: string;
+      started_at: string;
+      ended_at: string;
+    }>
+  ): Promise<void> {
+    try {
+      const response = await fetch(`${this.supabaseUrl}/functions/v1/session-data/update-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.supabaseAnonKey}`,
+        },
+        body: JSON.stringify({
+          sessionId,
+          updates,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update session: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error updating session in Supabase:', error);
+      // Don't throw here - session update failures shouldn't stop the flow
+    }
+  }
+
+  /**
    * Cleanup resources
    */
   public cleanup(): void {
@@ -847,6 +1253,86 @@ export class HardwareAPI {
     sequentialShotDetection.getActiveSessions().forEach(sessionId => {
       sequentialShotDetection.clearSession(sessionId);
     });
+  }
+
+  // Enhanced session data ingestion methods
+  public async ingestFrameData(sessionId: string, frameData: any): Promise<void> {
+    const session = this.activeSessions.get(sessionId);
+    if (!session) return;
+
+    // Send to Supabase for real-time storage
+    await this.sendSessionDataToSupabase(sessionId, session.deviceId, {
+      frameData: {
+        frameId: frameData.frameNumber,
+        frameNumber: frameData.frameNumber,
+        frameData: frameData.imageUrl || '', // Convert to base64 in production
+        timestamp: frameData.timestamp.getTime(),
+        predictions: frameData.predictions || []
+      }
+    });
+
+    this.emit('frameUpdated', frameData);
+  }
+
+  public async ingestShotData(sessionId: string, shotData: any): Promise<void> {
+    const session = this.activeSessions.get(sessionId);
+    if (!session) return;
+
+    // Process shot with geometric scoring
+    const enhancedShot = this.enhanceShotData({
+      ...shotData,
+      sessionId
+    });
+    
+    // Add to local session data
+    const shots = this.sessionShots.get(sessionId) || [];
+    shots.push(enhancedShot);
+    this.sessionShots.set(sessionId, shots);
+    
+    // Update session shot count
+    session.shotCount = shots.length;
+
+    // Send to Supabase for real-time storage
+    await this.sendSessionDataToSupabase(sessionId, session.deviceId, {
+      shotData: {
+        shotNumber: enhancedShot.shotId,
+        x: enhancedShot.coordinates.x,
+        y: enhancedShot.coordinates.y,
+        score: enhancedShot.score,
+        confidence: enhancedShot.confidence,
+        frameId: enhancedShot.frameNumber,
+        timestamp: enhancedShot.timestamp.toISOString(),
+        sequentialData: {
+          shotNumber: enhancedShot.shotId,
+          confidence: enhancedShot.confidence
+        },
+        geometricData: {
+          rawDistance: enhancedShot.rawDistance,
+          correctedDistance: enhancedShot.correctedDistance,
+          isBullseye: enhancedShot.isBullseye,
+          angleFromCenter: enhancedShot.angleFromCenter,
+          compensatedScore: enhancedShot.compensatedScore
+        }
+      }
+    });
+
+    this.emit('shotDetected', enhancedShot);
+  }
+
+  public async ingestSessionEvent(sessionId: string, eventType: string, eventData: any): Promise<void> {
+    const session = this.activeSessions.get(sessionId);
+    if (!session) return;
+
+    // Send to Supabase for real-time storage
+    await this.sendSessionDataToSupabase(sessionId, session.deviceId, {
+      eventData: {
+        eventType,
+        eventData,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    this.emit('sessionEvent', { sessionId, eventType, eventData });
   }
 }
 

@@ -43,7 +43,10 @@ const mockHardwareAPI = {
   getDevice: jest.fn(),
   getSession: jest.fn(),
   getConnectedDevices: jest.fn(),
-  getActiveSessions: jest.fn()
+  getActiveSessions: jest.fn(),
+  ingestFrameData: jest.fn().mockResolvedValue(undefined),
+  ingestShotData: jest.fn().mockResolvedValue(undefined),
+  ingestSessionEvent: jest.fn().mockResolvedValue(undefined)
 } as unknown as jest.Mocked<HardwareAPI>;
 
 // Mock the HardwareAPI constructor
@@ -106,7 +109,8 @@ const setupEventListeners = () => {
             { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
             { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
             { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ]
+          ],
+          detectionSensitivity: 0.8
         }
       };
     }
@@ -159,7 +163,8 @@ describe('LiveTargetView Component', () => {
           { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
           { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
           { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-        ]
+        ],
+        detectionSensitivity: 0.8
       }
     });
   });
@@ -342,7 +347,8 @@ describe('LiveTargetView Component', () => {
             { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
             { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
             { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ]
+          ],
+          detectionSensitivity: 0.8
         }
       });
     });
@@ -389,7 +395,8 @@ describe('LiveTargetView Component', () => {
             { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
             { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
             { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ]
+          ],
+          detectionSensitivity: 0.8
         }
       });
     });
@@ -452,7 +459,8 @@ describe('LiveTargetView Component', () => {
             { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
             { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
             { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ]
+          ],
+          detectionSensitivity: 0.8
         }
       });
     });
@@ -501,7 +509,8 @@ describe('LiveTargetView Component', () => {
             { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
             { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
             { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ]
+          ],
+          detectionSensitivity: 0.8
         }
       });
     });
@@ -568,7 +577,8 @@ describe('LiveTargetView Component', () => {
             { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
             { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
             { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ]
+          ],
+          detectionSensitivity: 0.8
         }
       });
     });
@@ -720,7 +730,8 @@ describe('LiveTargetView Component', () => {
             { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
             { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
             { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ]
+          ],
+          detectionSensitivity: 0.8
         }
       });
     });
@@ -782,7 +793,8 @@ describe('LiveTargetView Component', () => {
             { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
             { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
             { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ]
+          ],
+          detectionSensitivity: 0.8
         }
       });
     });
@@ -817,7 +829,8 @@ describe('LiveTargetView Component', () => {
             { id: 'outer', name: 'Outer Ring', points: 7, radius: 30, color: '#FFFF00' },
             { id: 'edge', name: 'Edge', points: 6, radius: 40, color: '#00FF00' },
             { id: 'miss', name: 'Miss', points: 0, radius: 100, color: '#808080' }
-          ]
+          ],
+          detectionSensitivity: 0.8
         }
       });
     });

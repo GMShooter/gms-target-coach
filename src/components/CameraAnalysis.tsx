@@ -52,9 +52,9 @@ const CameraAnalysis: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div data-testid="camera-analysis-page" className="container mx-auto p-6 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-100 mb-2">Camera Analysis</h1>
+        <h1 data-testid="page-title" className="text-3xl font-bold text-slate-100 mb-2">Camera Analysis</h1>
         <p className="text-slate-300">Use your camera to analyze your shooting technique in real-time</p>
       </div>
 
@@ -66,7 +66,7 @@ const CameraAnalysis: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="relative bg-slate-900 rounded-md overflow-hidden aspect-video flex items-center justify-center">
+          <div data-testid="camera-feed" className="relative bg-slate-900 rounded-md overflow-hidden aspect-video flex items-center justify-center">
             {/* Remote camera feed */}
             <img
               ref={imageRef}
@@ -75,7 +75,7 @@ const CameraAnalysis: React.FC = () => {
             />
             
             {isAnalyzing && (
-              <div className="absolute top-2 left-2">
+              <div data-testid="analysis-overlay" className="absolute top-2 left-2">
                 <Badge variant="destructive" size="sm" className="bg-red-600 text-white px-2 py-1">
                   <span className="relative flex h-3 w-3 mr-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -94,8 +94,9 @@ const CameraAnalysis: React.FC = () => {
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div data-testid="camera-controls" className="flex gap-2">
             <Button
+              data-testid={isAnalyzing ? "stop-camera-button" : "start-camera-button"}
               onClick={handleToggleAnalysis}
               disabled={!userId && !isAnalyzing}
               variant={isAnalyzing ? 'destructive' : 'default'}
@@ -117,7 +118,7 @@ const CameraAnalysis: React.FC = () => {
           </div>
 
           {!userId && (
-            <Alert className="bg-amber-900/20 border-amber-800 text-amber-200">
+            <Alert data-testid="camera-status" className="bg-amber-900/20 border-amber-800 text-amber-200">
               <AlertDescription>
                 You need to be authenticated to start camera analysis. Please sign in to access this feature.
               </AlertDescription>
@@ -125,7 +126,7 @@ const CameraAnalysis: React.FC = () => {
           )}
 
           {error && (
-            <Alert className="bg-red-900/20 border-red-800 text-red-200">
+            <Alert data-testid="camera-error" className="bg-red-900/20 border-red-800 text-red-200">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}

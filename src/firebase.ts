@@ -1,15 +1,26 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, User, updateProfile } from 'firebase/auth';
+import { env } from './utils/env';
 
-// Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyClozThfUdOOXnC0gkHz_DCVP1t75B5hro",
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "gmshooter.firebaseapp.com",
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "gmshooter",
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "gmshooter.firebasestorage.app",
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "97079543510",
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:97079543510:web:4db510e1cbfc6256546b77"
+  apiKey: env.VITE_FIREBASE_API_KEY,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: env.VITE_FIREBASE_APP_ID,
+  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID
 };
+
+// Validate Firebase configuration
+if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+  console.error('Firebase configuration is incomplete. Please check environment variables.');
+  console.error('Current config:', {
+    apiKey: firebaseConfig.apiKey ? 'SET' : 'MISSING',
+    authDomain: firebaseConfig.authDomain ? 'SET' : 'MISSING',
+    projectId: firebaseConfig.projectId ? 'SET' : 'MISSING'
+  });
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
