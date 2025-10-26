@@ -3,24 +3,30 @@ import { motion, useMotionTemplate, useMotionValue } from "framer-motion"
 
 import { cn } from "../../lib/utils"
 
-interface MagicCardProps {
+export interface MagicCardProps {
   children?: React.ReactNode
   className?: string
+  variant?: 'glass' | 'glow' | 'default'
+  size?: 'sm' | 'md' | 'lg'
   gradientSize?: number
   gradientColor?: string
   gradientOpacity?: number
   gradientFrom?: string
   gradientTo?: string
+  hover?: 'lift' | 'glow' | 'default'
 }
 
 export function MagicCard({
   children,
   className,
+  variant,
+  size,
   gradientSize = 200,
   gradientColor = "#262626",
   gradientOpacity = 0.8,
   gradientFrom = "#9E7AFF",
   gradientTo = "#FE8BBB",
+  hover,
 }: MagicCardProps) {
   const mouseX = useMotionValue(-gradientSize)
   const mouseY = useMotionValue(-gradientSize)
@@ -66,9 +72,42 @@ export function MagicCard({
     }
   }, [reset])
 
+  const getCardClasses = () => {
+    const classes = [
+      "group relative rounded-[inherit]",
+    ]
+    
+    if (variant === "glass") {
+      classes.push("bg-white/10 backdrop-blur-sm border border-white/20")
+    }
+    if (variant === "glow") {
+      classes.push("shadow-lg shadow-primary/25")
+    }
+    if (size === "sm") {
+      classes.push("p-2")
+    }
+    if (size === "md") {
+      classes.push("p-4")
+    }
+    if (size === "lg") {
+      classes.push("p-6")
+    }
+    if (hover === "lift") {
+      classes.push("hover:-translate-y-1 hover:shadow-lg transition-all duration-300")
+    }
+    if (hover === "glow") {
+      classes.push("hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300")
+    }
+    if (className) {
+      classes.push(className)
+    }
+    
+    return classes.join(" ")
+  }
+
   return (
     <div
-      className={cn("group relative rounded-[inherit]", className)}
+      className={getCardClasses()}
       onPointerMove={handlePointerMove}
       onPointerLeave={reset}
       onPointerEnter={reset}
@@ -91,7 +130,7 @@ export function MagicCard({
         style={{
           background: useMotionTemplate`
             radial-gradient(${gradientSize}px circle at ${mouseX}px ${mouseY}px, ${gradientColor}, transparent 100%)
-          `,
+            `,
           opacity: gradientOpacity,
         }}
       />

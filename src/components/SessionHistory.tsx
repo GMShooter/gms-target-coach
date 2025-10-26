@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+
+import { hardwareAPI, type SessionData } from '../services/HardwareAPI';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge-2';
 import { Alert, AlertDescription } from './ui/alert';
-import { hardwareAPI, type SessionData } from '../services/HardwareAPI';
 
 interface SessionHistoryProps {
   onSessionSelect?: (session: SessionData) => void;
@@ -48,7 +50,8 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
 
   // Handle session resume
   const handleResumeSession = async (session: SessionData) => {
-    if (!confirm(`Are you sure you want to resume session ${session.sessionId}?`)) {
+    const shouldResume = window.confirm(`Are you sure you want to resume session ${session.sessionId}?`);
+    if (!shouldResume) {
       return;
     }
 
@@ -78,7 +81,8 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
 
   // Handle session deletion
   const handleDeleteSession = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to delete this session? This action cannot be undone.')) {
+    const shouldDelete = window.confirm('Are you sure you want to delete this session? This action cannot be undone.');
+    if (!shouldDelete) {
       return;
     }
 

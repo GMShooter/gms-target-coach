@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useContext, createContext, ReactNode, useCallback } from 'react';
+
 import { supabase } from '../utils/supabase';
 import { hardwareAPI } from '../services/HardwareAPI';
+import { env } from '../utils/env';
 
 interface AuthUser {
   id: string;
@@ -112,6 +114,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
       
+      // Check if we're using mock authentication
+      if (env.VITE_USE_MOCK_AUTH === 'true' || env.VITE_USE_MOCK_HARDWARE === 'true') {
+        // Mock Google sign-in for testing
+        const mockUser: AuthUser = {
+          id: 'mock-user-id',
+          email: 'mockuser@example.com',
+          displayName: 'Mock User',
+          photoURL: undefined
+        };
+        setUser(mockUser);
+        setLoading(false);
+        return;
+      }
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -144,6 +160,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Check if we're using mock hardware
+      if (env.VITE_USE_MOCK_HARDWARE === 'true') {
+        // Mock authentication for testing
+        const mockUser: AuthUser = {
+          id: 'mock-user-id',
+          email: email,
+          displayName: email.split('@')[0],
+          photoURL: undefined
+        };
+        setUser(mockUser);
+        setLoading(false);
+        return;
+      }
       
       // Use Supabase for email authentication
       const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -189,6 +219,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Check if we're using mock authentication
+      if (env.VITE_USE_MOCK_AUTH === 'true' || env.VITE_USE_MOCK_HARDWARE === 'true') {
+        // Mock email sign-up for testing
+        const mockUser: AuthUser = {
+          id: 'mock-user-id',
+          email: email,
+          displayName: name || 'Mock User',
+          photoURL: undefined
+        };
+        setUser(mockUser);
+        setLoading(false);
+        return;
+      }
       
       // Use Supabase for email signup
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
@@ -261,6 +305,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkInitialAuth = async () => {
       try {
+        // Check if we're using mock authentication
+        if (env.VITE_USE_MOCK_AUTH === 'true' || env.VITE_USE_MOCK_HARDWARE === 'true') {
+          // In mock mode, set a mock user immediately
+          const mockUser: AuthUser = {
+            id: 'mock-user-id',
+            email: 'mockuser@example.com',
+            displayName: 'Mock User',
+            photoURL: undefined
+          };
+          setUser(mockUser);
+          hardwareAPI.setUserId(mockUser.id);
+          setLoading(false);
+          return;
+        }
+
         // Check Supabase auth state
         const { data: { session } } = await supabase.auth.getSession();
         

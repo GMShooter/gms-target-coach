@@ -25,6 +25,14 @@ export default defineConfig({
       FIREBASE_APP_ID: process.env.FIREBASE_APP_ID || '1:123456789:web:abcdef',
     },
     setupNodeEvents(on, config) {
+      // Skip Deno-based services for Windows compatibility
+      if (process.platform === 'win32') {
+        config.env.SKIP_DENO_SERVICES = 'true';
+        // Disable video recording on Windows to avoid Deno issues
+        config.video = false;
+        // Use Node.js instead of Deno for Edge Functions
+        config.env.DENO_DISABLED = 'true';
+      }
       // implement node event listeners here
     },
   },

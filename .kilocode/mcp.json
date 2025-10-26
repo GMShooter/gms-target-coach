@@ -28,7 +28,10 @@
         "@modelcontextprotocol/server-puppeteer"
       ],
       "alwaysAllow": [
-        "puppeteer_navigate"
+        "puppeteer_navigate",
+        "puppeteer_click",
+        "puppeteer_screenshot",
+        "puppeteer_evaluate"
       ]
     },
     "github": {
@@ -73,6 +76,54 @@
         "name": "Magic UI Design MCP",
         "description": "Official Magic UI Design MCP server.",
         "author": "Magic UI Design"
+      }
+    },
+    "eslint": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@eslint/mcp@latest"
+      ],
+      "alwaysAllow": [
+        "lint_file",
+        "fix_file",
+        "get_config"
+      ],
+      "meta": {
+        "name": "ESLint MCP",
+        "description": "Lints and auto-fixes code using ESLint through MCP.",
+        "author": "ESLint Team"
+      }
+    },
+    "eslint_prettier": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "prettier-eslint"
+      ],
+      "alwaysAllow": [
+        "format_file",
+        "analyze_file"
+      ],
+      "meta": {
+        "name": "Prettier + ESLint MCP",
+        "description": "Formats JS/TS/React files with Prettier, then fixes via ESLint --fix.",
+        "author": "prettier-eslint"
+      }
+    },
+    "style_prettier": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "prettier-stylelint"
+      ],
+      "alwaysAllow": [
+        "format_file"
+      ],
+      "meta": {
+        "name": "Prettier + Stylelint MCP",
+        "description": "Formats CSS/SCSS/LESS/JSON styles with Prettier, then fixes via Stylelint --fix.",
+        "author": "prettier-stylelint"
       }
     }
   }

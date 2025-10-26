@@ -1,6 +1,12 @@
 "use client";
 
+import { Eye, EyeOff, User, Lock, Mail } from "lucide-react";
+import { useState } from "react";
+
+import { useAuth } from "../../hooks/useAuth";
+
 import { Button } from "./button";
+import { MagicButton } from "./magic-button";
 import {
   Card,
   CardContent,
@@ -9,9 +15,7 @@ import {
 } from "./card";
 import { Input } from "./input";
 import { Label } from "./label";
-import { Eye, EyeOff, User, Lock, Mail } from "lucide-react";
-import { useState } from "react";
-import { useAuth } from "../../hooks/useAuth";
+
 
 const GMShootLogo = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -198,9 +202,10 @@ export default function LoginSignupForm() {
               </div>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-[1.02]"
+            <MagicButton
+              variant="gradient"
+              size="lg"
+              className="w-full"
               onClick={handleSubmit}
               disabled={loading}
             >
@@ -215,7 +220,7 @@ export default function LoginSignupForm() {
               ) : (
                 isLogin ? "Sign In" : "Create Account"
               )}
-            </Button>
+            </MagicButton>
 
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
@@ -226,15 +231,16 @@ export default function LoginSignupForm() {
               </div>
             </div>
 
-            <Button
+            <MagicButton
               variant="outline"
-              className="w-full bg-slate-700/50 border-slate-600/50 text-white hover:bg-slate-700/70 hover:border-slate-500/50 transition-all duration-300"
+              size="lg"
+              className="w-full"
               onClick={handleGoogleSignIn}
               disabled={loading}
             >
               <GoogleIcon className="w-4 h-4 mr-2" />
               Sign in with Google
-            </Button>
+            </MagicButton>
           </CardContent>
 
           <CardFooter className="flex justify-center border-t border-slate-700 py-4">

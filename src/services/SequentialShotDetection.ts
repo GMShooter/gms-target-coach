@@ -179,7 +179,7 @@ export class SequentialShotDetection {
         const numRegions = Math.min(Math.floor(changedPixels / 1000), 5); // Max 5 regions
         for (let i = 0; i < numRegions; i++) {
           // Ensure area is within acceptable range for shot detection
-          let area = Math.min(this.config.maxShotArea, Math.max(this.config.minShotArea, changedPixels / numRegions));
+          const area = Math.min(this.config.maxShotArea, Math.max(this.config.minShotArea, changedPixels / numRegions));
           // Use deterministic position based on frame ID and region index
           const positionHash = this.hashString(`${frame2.id}-${i}`);
           changedRegions.push({

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { SessionData } from '@/services/HardwareAPI';
+
+import { SessionData } from '../services/HardwareAPI';
 
 interface SessionTimeoutOptions {
   maxSessionDuration?: number; // Maximum session duration in minutes (default: 60)

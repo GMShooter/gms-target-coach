@@ -1,15 +1,25 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+
 import './index.css';
+import './App.css';
+import './sentry';
+import './logrocketService';
+
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
-// Ensure Tailwind CSS is loaded
-import './App.css';
+// Initialize Sentry and LogRocket in production
+import { initSentry } from './sentry';
+import { initLogRocket } from './logrocketService';
+
+initSentry();
+initLogRocket();
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
+
 root.render(
   <React.StrictMode>
     <App />

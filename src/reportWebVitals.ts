@@ -1,4 +1,5 @@
-import { ReportHandler } from 'web-vitals';
+// Define the ReportHandler type locally to avoid import issues
+type ReportHandler = (metric: any) => void;
 
 const reportWebVitals = (onPerfEntry?: ReportHandler) => {
   if (onPerfEntry && onPerfEntry instanceof Function) {

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Authentication</title>
+    <script>
+        // Test if authentication is working
+        fetch('http://localhost:3000')
+            .then(response => response.text())
+            .then(html => {
+                document.body.innerHTML = '<h1>App is accessible</h1><pre>' + html.substring(0, 500) + '...</pre>';
+            })
+            .catch(error => {
+                document.body.innerHTML = '<h1>Error accessing app</h1><p>' + error.message + '</p>';
+            });
+    </script>
+</head>
+<body>
+    <p>Loading...</p>
+</body>
+</html>

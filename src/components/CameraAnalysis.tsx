@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Loader2, Camera, CameraOff } from 'lucide-react';
+
 import { useCameraAnalysis } from '../hooks/useCameraAnalysis';
 import { useAuth } from '../hooks/useAuth';
+
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
-import { Loader2, Camera, CameraOff } from 'lucide-react';
 import { Badge } from './ui/badge-2';
 
 const CameraAnalysis: React.FC = () => {

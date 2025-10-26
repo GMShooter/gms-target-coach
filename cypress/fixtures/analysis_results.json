@@ -1,0 +1,7 @@
+[
+  { "frameId": 1, "score": 9.8, "location": { "x": 320, "y": 240 }, "confidence": 0.95 },
+  { "frameId": 2, "score": 8.5, "location": { "x": 315, "y": 245 }, "confidence": 0.87 },
+  { "frameId": 3, "score": 7.2, "location": { "x": 340, "y": 230 }, "confidence": 0.92 },
+  { "frameId": 4, "score": 6.9, "location": { "x": 315, "y": 255 }, "confidence": 0.88 },
+  { "frameId": 5, "score": 8.1, "location": { "x": 335, "y": 245 }, "confidence": 0.91 }
+]

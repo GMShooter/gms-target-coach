@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge-2';
-import { QRScanner } from '../components/QRScanner';
-import { HardwareAPI, type PiDevice, type SessionData, type ShotData, type FrameData } from '../services/HardwareAPI';
 import { Play, Pause, Square, Settings, Camera, Target, Wifi, WifiOff, QrCode, Maximize2, Minimize2, RotateCw } from 'lucide-react';
+
+import { HardwareAPI, type PiDevice, type SessionData, type ShotData, type FrameData } from '../services/HardwareAPI';
 import { useHardware } from '../hooks/useHardware';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge-2";
+import { QRScanner } from "./QRScanner";
 
 // Define ScanResult type to avoid importing qr-scanner in component
 interface ScanResult {
@@ -36,6 +38,8 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     isSessionActive,
     latestFrame: currentFrame,
     recentShots: shots,
+    analysisResult,
+    isAnalyzing,
     connectToDevice,
     disconnectDevice,
     startSession,
@@ -381,7 +385,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
           </CardHeader>
           <CardContent className={`${isMobile ? 'p-2' : ''} ${isFullscreen ? 'h-full flex flex-col' : ''}`}>
             {error && (
-              <div className={`mb-4 p-3 bg-red-50 border border-red-200 rounded-md ${isMobile ? 'text-xs' : ''}`}>
+              <div className={`mb-4 p-3 bg-red-50 border border-red-200 rounded-md ${isMobile ? 'text-xs' : ''}`} data-testid="error-message">
                 <p className="text-red-600">{error}</p>
               </div>
             )}
@@ -401,9 +405,20 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
               {/* Canvas for shot overlays */}
               <canvas
                 ref={canvasRef}
+                data-testid="analysis-canvas"
                 className="absolute top-0 left-0 w-full h-full pointer-events-none"
                 style={{ display: currentFrame?.imageUrl ? 'block' : 'none' }}
               />
+              
+              {/* Loading State Overlay */}
+              {isAnalyzing && (
+                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center" data-testid="loading-overlay">
+                  <div className="text-white text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                    <p>Analyzing frame...</p>
+                  </div>
+                </div>
+              )}
               
               {/* Placeholder when no stream */}
               {!currentFrame?.imageUrl && (
@@ -448,6 +463,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                       disabled={isConnecting}
                       size={isMobile ? "sm" : "default"}
                       className={isMobile ? 'flex-1 min-w-[100px]' : ''}
+                      data-testid="scan-qr-button"
                     >
                       <QrCode className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} mr-2`} />
                       <span className={isMobile ? 'hidden sm:inline' : ''}>Scan QR Code</span>
@@ -476,6 +492,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                       variant={isSessionActive ? "destructive" : "default"}
                       size={isMobile ? "sm" : "default"}
                       className={isMobile ? 'flex-1 min-w-[100px]' : ''}
+                      data-testid="start-session-button"
                     >
                       {isSessionActive ? (
                         <>
@@ -523,6 +540,48 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
       
       {/* Side panel */}
       <div className={`${isMobile ? 'space-y-3' : 'space-y-6'} ${isMobile ? 'col-span-1' : ''}`}>
+        {/* Analysis Results */}
+        {analysisResult && (
+          <Card className={isMobile ? 'shadow-sm' : ''}>
+            <CardHeader className={isMobile ? 'pb-2' : ''}>
+              <CardTitle className={isMobile ? 'text-sm' : ''}>Analysis Results</CardTitle>
+              <CardDescription className={isMobile ? 'text-xs' : ''}>
+                {isMobile ? 'Frame analysis' : 'Current frame analysis results'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className={isMobile ? 'p-2' : ''}>
+              <div className={`space-y-${isMobile ? '2' : '3'}`}>
+                <div className="flex justify-between">
+                  <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Shots Detected:</span>
+                  <span className={isMobile ? 'text-xs' : 'text-sm'}>{analysisResult.shots.length}</span>
+                </div>
+                {analysisResult.shots.length > 0 && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Avg Score:</span>
+                      <span className={isMobile ? 'text-xs' : 'text-sm'}>
+                        {(analysisResult.shots.reduce((sum: number, shot: any) => sum + shot.score, 0) / analysisResult.shots.length).toFixed(1)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Best Shot:</span>
+                      <span className={isMobile ? 'text-xs' : 'text-sm'}>
+                        {Math.max(...analysisResult.shots.map((s: any) => s.score))}/10
+                      </span>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between">
+                  <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Confidence:</span>
+                  <span className={isMobile ? 'text-xs' : 'text-sm'}>
+                    {Math.round((analysisResult.confidence || 0) * 100)}%
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
         {/* Shot history */}
         <Card className={isMobile ? 'shadow-sm' : ''}>
           <CardHeader className={isMobile ? 'pb-2' : ''}>

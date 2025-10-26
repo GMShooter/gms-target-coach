@@ -1,7 +1,4 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge-2';
 import {
   AlertTriangle,
   CheckCircle,
@@ -28,6 +25,10 @@ import {
   Lightbulb,
   Cpu
 } from 'lucide-react';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge-2';
 
 interface TroubleshootingStep {
   id: string;

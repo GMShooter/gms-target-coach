@@ -85,10 +85,24 @@
 ### Functional Requirements
 
 - **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
+- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]
 - **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
+
+### GMShoot v2 Constitution Compliance Requirements
+
+- **FR-HW-001**: System MUST support hardware integration with proper abstraction for real and mock implementations
+- **FR-HW-002**: System MUST handle QR code scanning for device pairing
+- **FR-RT-001**: System MUST maintain real-time analysis pipeline with <2s latency
+- **FR-RT-002**: System MUST persist analysis results immediately for session continuity
+- **FR-SEC-001**: System MUST implement Row Level Security (RLS) policies for all user data
+- **FR-SEC-002**: System MUST secure API keys in Supabase Edge Functions
+- **FR-SEC-003**: System MUST use Supabase Auth with proper session management
+- **FR-COMP-001**: System MUST follow component hierarchy: atomic → composite → pages → layouts
+- **FR-COMP-002**: System MUST use React hooks for local state and Zustand for global state
+- **FR-TEST-001**: System MUST have comprehensive unit, integration, and E2E tests
+- **FR-PERF-001**: System MUST achieve 90+ Lighthouse score for Performance and Accessibility
 
 *Example of marking unclear requirements:*
 

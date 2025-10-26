@@ -1,12 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge-2';
-import { Progress } from './ui/progress';
-import { Separator } from './ui/separator';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { useSessionPersistence, StoredSession } from '../hooks/useSessionPersistence';
-import { SessionData } from '../services/HardwareAPI';
 import { 
   Save, 
   Upload, 
@@ -22,6 +14,17 @@ import {
   RotateCcw,
   HardDrive
 } from 'lucide-react';
+
+import { useSessionPersistence, StoredSession } from '../hooks/useSessionPersistence';
+import { SessionData } from '../services/HardwareAPI';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge-2';
+import { Progress } from './ui/progress';
+import { Separator } from './ui/separator';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+
 
 interface SessionPersistenceManagerProps {
   currentSession?: SessionData | null;

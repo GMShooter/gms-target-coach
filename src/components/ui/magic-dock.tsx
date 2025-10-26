@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
-import { cn } from '../../lib/utils'
 import { 
   Home, 
   Video, 
@@ -14,6 +13,8 @@ import {
   Target,
   BarChart3
 } from 'lucide-react'
+
+import { cn } from '../../lib/utils'
 
 interface DockItem {
   id: string

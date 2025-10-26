@@ -1,11 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge-2';
-import { LiveTargetView } from '../components/LiveTargetView';
-import { SessionAnalyticsDashboard } from '../components/SessionAnalyticsDashboard';
-import { useHardware } from '../hooks/useHardware';
 import { 
   Camera, 
   CameraOff, 
@@ -17,6 +11,13 @@ import {
   Activity,
   Clock
 } from 'lucide-react';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge-2';
+import { LiveTargetView } from '../components/LiveTargetView';
+import { SessionAnalyticsDashboard } from '../components/SessionAnalyticsDashboard';
+import { useHardware } from '../hooks/useHardware';
 
 export const SessionPage: React.FC = () => {
   const navigate = useNavigate();

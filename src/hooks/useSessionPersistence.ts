@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+
 import { SessionData, ShotData, FrameData } from '../services/HardwareAPI';
 
 export interface SessionPersistenceOptions {

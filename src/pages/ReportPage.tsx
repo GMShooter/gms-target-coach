@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Download, Share2, Target, TrendingUp, Clock, Crosshair } from 'lucide-react';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge-2';
-import { ArrowLeft, Download, Share2, Target, TrendingUp, Clock, Crosshair } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../utils/supabase';
 import { MagicCard } from '../components/ui/magic-card';
