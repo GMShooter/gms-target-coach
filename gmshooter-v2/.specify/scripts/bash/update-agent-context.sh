@@ -84,25 +84,28 @@ NEW_PROJECT_TYPE=""
 
 #==============================================================================
 # Utility Functions
-#==============================================================================
+# log_info echoes an informational message prefixed with "INFO:" to stdout.
 
 log_info() {
     echo "INFO: $1"
 }
 
+# log_success echoes a success message prefixed with a checkmark.
 log_success() {
     echo "✓ $1"
 }
 
+# log_error prints an error message prefixed with "ERROR:" to stderr.
 log_error() {
     echo "ERROR: $1" >&2
 }
 
+# log_warning writes a warning message prefixed with "WARNING:" to stderr.
 log_warning() {
     echo "WARNING: $1" >&2
 }
 
-# Cleanup function for temporary files
+# cleanup removes temporary files created by the script and exits with the script's current exit status.
 cleanup() {
     local exit_code=$?
     rm -f /tmp/agent_update_*_$$
@@ -115,7 +118,9 @@ trap cleanup EXIT INT TERM
 
 #==============================================================================
 # Validation Functions
-#==============================================================================
+# validate_environment verifies the current feature/branch, ensures plan.md exists, and warns if the agent template is missing; exits with status 1 when the branch or plan cannot be determined.
+# 
+# Logs informative messages guiding how to set a feature branch or SPECIFY_FEATURE and notes that creating new agent files will fail when the template is absent.
 
 validate_environment() {
     # Check if we have a current branch/feature (git or non-git)
@@ -148,7 +153,7 @@ validate_environment() {
 
 #==============================================================================
 # Plan Parsing Functions
-#==============================================================================
+# extract_plan_field extracts the first non-empty, non-"NEEDS CLARIFICATION", non-"N/A" value for a bolded field (e.g., **Language/Version**:) from a plan file and echoes it or an empty string if no valid value is found.
 
 extract_plan_field() {
     local field_pattern="$1"
@@ -162,6 +167,8 @@ extract_plan_field() {
         grep -v "^N/A$" || echo ""
 }
 
+# parse_plan_data parses the specified plan file and extracts project metadata into global variables NEW_LANG, NEW_FRAMEWORK, NEW_DB, and NEW_PROJECT_TYPE; it logs discovered fields and returns non-zero if the file is missing or not readable.
+# plan_file is the path to the plan.md to parse.
 parse_plan_data() {
     local plan_file="$1"
     
@@ -202,6 +209,7 @@ parse_plan_data() {
     fi
 }
 
+# format_technology_stack builds a concise technology stack string from a language and framework, joining non-empty, non-placeholder values (omitting "NEEDS CLARIFICATION" and "N/A") with " + ".
 format_technology_stack() {
     local lang="$1"
     local framework="$2"
@@ -228,7 +236,7 @@ format_technology_stack() {
 
 #==============================================================================
 # Template and Content Generation Functions
-#==============================================================================
+# get_project_structure returns a directory-structure template for the given project type; if the type contains "web" it yields "backend/, frontend/, tests/", otherwise it yields "src/, tests/".
 
 get_project_structure() {
     local project_type="$1"
@@ -240,6 +248,7 @@ get_project_structure() {
     fi
 }
 
+# get_commands_for_language provides a shell command string suitable for running tests and linters for the specified language.
 get_commands_for_language() {
     local lang="$1"
     
@@ -259,11 +268,14 @@ get_commands_for_language() {
     esac
 }
 
+# get_language_conventions returns a short, human-readable conventions note for the specified programming language.
 get_language_conventions() {
     local lang="$1"
     echo "$lang: Follow standard conventions"
 }
 
+# create_new_agent_file creates a new agent context file from the template and writes it to a temporary path.
+# It substitutes placeholders (project name, date, extracted technologies, project structure, language commands and conventions, and recent changes) with current plan-derived values and converts escaped newline sequences to real newlines.
 create_new_agent_file() {
     local target_file="$1"
     local temp_file="$2"
@@ -357,6 +369,7 @@ create_new_agent_file() {
 
 
 
+# update_existing_agent_file updates an existing agent context file atomically by adding new active technologies and a recent change entry (if applicable), preserving up to two existing recent changes, updating the "Last updated" date, and returning 0 on success or 1 on failure.
 update_existing_agent_file() {
     local target_file="$1"
     local current_date="$2"
@@ -499,7 +512,7 @@ update_existing_agent_file() {
 }
 #==============================================================================
 # Main Agent File Update Function
-#==============================================================================
+# update_agent_file creates or updates the agent context file at the given path for the specified agent, ensuring the target directory exists and performing atomic writes from a template or in-place updates.
 
 update_agent_file() {
     local target_file="$1"
@@ -573,7 +586,8 @@ update_agent_file() {
 
 #==============================================================================
 # Agent Selection and Processing
-#==============================================================================
+# update_specific_agent dispatches updating of the appropriate agent context file based on the provided agent type.
+# update_specific_agent takes a single argument `agent_type` (e.g., claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, roo, codebuddy, amp, q); on unrecognized values it logs an error and exits with status 1.
 
 update_specific_agent() {
     local agent_type="$1"
@@ -629,6 +643,8 @@ update_specific_agent() {
     esac
 }
 
+# update_all_existing_agents checks known agent file paths and updates each present agent context file.
+# If no agent files are found, it creates a default Claude context file.
 update_all_existing_agents() {
     local found_agent=false
     
@@ -699,6 +715,7 @@ update_all_existing_agents() {
         update_agent_file "$CLAUDE_FILE" "Claude Code"
     fi
 }
+# print_summary prints a brief summary of any newly detected language, framework, or database and displays the script usage line.
 print_summary() {
     echo
     log_info "Summary of changes:"
@@ -722,7 +739,8 @@ print_summary() {
 
 #==============================================================================
 # Main Execution
-#==============================================================================
+# main orchestrates environment validation, parses the plan file, updates agent context files (either all existing agents or a specified agent), prints a summary, and exits with status 0 on success or 1 on failure.
+# Uses the globals CURRENT_BRANCH, NEW_PLAN, and AGENT_TYPE to determine behavior and logs progress.
 
 main() {
     # Validate environment before proceeding
@@ -769,4 +787,3 @@ main() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
-

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Common functions and variables for all scripts
 
-# Get repository root, with fallback for non-git repositories
+# get_repo_root returns the repository root path: the Git top-level when inside a repo, otherwise the directory three levels above this script's location.
 get_repo_root() {
     if git rev-parse --show-toplevel >/dev/null 2>&1; then
         git rev-parse --show-toplevel
@@ -12,7 +12,7 @@ get_repo_root() {
     fi
 }
 
-# Get current branch, with fallback for non-git repositories
+# get_current_branch determines the current feature or branch name, preferring SPECIFY_FEATURE, then Git, then the latest three-digit-prefixed directory under specs/, and finally "main".
 get_current_branch() {
     # First check if SPECIFY_FEATURE environment variable is set
     if [[ -n "${SPECIFY_FEATURE:-}" ]]; then
@@ -57,11 +57,15 @@ get_current_branch() {
     echo "main"  # Final fallback
 }
 
-# Check if we have git available
+# has_git determines whether the current directory is inside a Git repository.
 has_git() {
     git rev-parse --show-toplevel >/dev/null 2>&1
 }
 
+# check_feature_branch validates a branch name matches the three-digit-prefix convention when running inside a Git repository; if no Git repo is detected it emits a warning and returns success.
+# @param branch the branch name to validate.
+# @param has_git_repo set to "true" if the environment is a Git repository; any other value is treated as not a Git repo.
+# @returns 0 if the branch is valid or Git is not present, 1 if the branch does not start with a three-digit prefix followed by a dash (e.g., 001-feature-name).
 check_feature_branch() {
     local branch="$1"
     local has_git_repo="$2"
@@ -81,10 +85,11 @@ check_feature_branch() {
     return 0
 }
 
+# get_feature_dir constructs and echoes the path to a feature directory under the given repository root; arguments are the repository root and the feature name (e.g., `001-feature`).
 get_feature_dir() { echo "$1/specs/$2"; }
 
 # Find feature directory by numeric prefix instead of exact branch match
-# This allows multiple branches to work on the same spec (e.g., 004-fix-bug, 004-add-feature)
+# find_feature_dir_by_prefix finds the spec directory under the repository's specs/ that matches the three-digit numeric prefix of a branch name, falling back to specs/<branch_name> when no prefix or no unique match is found and emitting an error on ambiguous matches.
 find_feature_dir_by_prefix() {
     local repo_root="$1"
     local branch_name="$2"
@@ -124,6 +129,8 @@ find_feature_dir_by_prefix() {
     fi
 }
 
+# get_feature_paths prints a block of KEY='value' assignments describing repository and feature paths for the current branch.
+# It determines repo root, current branch, and whether Git is available, resolves the feature directory using prefix-based lookup, and emits REPO_ROOT, CURRENT_BRANCH, HAS_GIT, FEATURE_DIR, FEATURE_SPEC, IMPL_PLAN, TASKS, RESEARCH, DATA_MODEL, QUICKSTART, and CONTRACTS_DIR.
 get_feature_paths() {
     local repo_root=$(get_repo_root)
     local current_branch=$(get_current_branch)
@@ -151,6 +158,7 @@ CONTRACTS_DIR='$feature_dir/contracts'
 EOF
 }
 
+# check_file tests whether the file at PATH exists and echoes "  ✓ LABEL" if it does or "  ✗ LABEL" if it does not; arguments are PATH (file path to check) and LABEL (text shown after the status).
 check_file() { [[ -f "$1" ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
+# check_dir checks whether the given directory exists and contains at least one entry and echoes "  ✓ <label>" on success or "  ✗ <label>" on failure.
 check_dir() { [[ -d "$1" && -n $(ls -A "$1" 2>/dev/null) ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
-
