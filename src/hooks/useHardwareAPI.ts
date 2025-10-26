@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  HardwareAPI, 
-  PiDevice, 
-  SessionData, 
-  ShotData, 
-  FrameData, 
-  ScoringZone,
+
+import {
+  HardwareAPI,
+  PiDevice,
+  SessionData,
+  ShotData,
+  FrameData,
   SessionStartRequest,
   SessionStopRequest
-} from '@/services/HardwareAPI';
+} from '../services/HardwareAPI';
 
 export interface UseHardwareAPIState {
   isConnected: boolean;

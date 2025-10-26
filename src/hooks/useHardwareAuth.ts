@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+
 import { hardwareAuth, type HardwareAuthToken, type HardwareCredentials } from '../services/HardwareAuth';
 import { hardwareAPI, type PiDevice } from '../services/HardwareAPI';
 

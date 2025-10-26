@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
+
 import { useHardwareStore } from '../store/hardwareStore';
-import { hardwareAPI } from '../services/HardwareAPI';
-import { PiDevice, SessionData, FrameData, ShotData } from '../services/HardwareAPI';
+import { hardwareAPI , PiDevice, SessionData, FrameData, ShotData } from '../services/HardwareAPI';
+import { mockHardwareAPI } from '../services/MockHardwareAPI';
 import { supabase } from '../utils/supabase';
 
 export interface UseHardwareReturn {
@@ -18,6 +19,8 @@ export interface UseHardwareReturn {
   // Real-time data
   latestFrame: FrameData | null;
   recentShots: ShotData[];
+  analysisResult: any | null;
+  isAnalyzing: boolean;
   
   // Actions
   connectToDevice: (qrData: string) => Promise<PiDevice | null>;
@@ -31,12 +34,15 @@ export interface UseHardwareReturn {
 export const useHardware = (): UseHardwareReturn => {
   const store = useHardwareStore();
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Choose API based on environment variable
+  const api = import.meta.env.VITE_USE_MOCK_HARDWARE === 'true' ? mockHardwareAPI : hardwareAPI;
 
   // Connect to device via QR code
   const connectToDevice = useCallback(async (qrData: string): Promise<PiDevice | null> => {
     try {
       store.setConnectionStatus(false, true, null);
-      const device = await hardwareAPI.connectViaQRCode(qrData);
+      const device = await api.connectViaQRCode(qrData);
       
       if (device) {
         store.setConnectedDevice(device);
@@ -57,7 +63,7 @@ export const useHardware = (): UseHardwareReturn => {
   // Disconnect from device
   const disconnectDevice = useCallback(async (deviceId: string): Promise<void> => {
     try {
-      await hardwareAPI.disconnectDevice(deviceId);
+      await api.disconnectDevice(deviceId);
       store.setConnectedDevice(null);
       store.setNgrokUrl(null);
       store.setConnectionStatus(false, false, null);
@@ -102,7 +108,7 @@ export const useHardware = (): UseHardwareReturn => {
         }
       };
 
-      const sessionData = await hardwareAPI.startSession(deviceId, sessionRequest);
+      const sessionData = await api.startSession(deviceId, sessionRequest);
       
       if (sessionData) {
         // Create combined session data
@@ -136,7 +142,7 @@ export const useHardware = (): UseHardwareReturn => {
   const stopSession = useCallback(async (sessionId: string): Promise<void> => {
     try {
       // Stop hardware session first
-      await hardwareAPI.stopSession(sessionId);
+      await api.stopSession(sessionId);
       
       // Update session in Supabase to mark as completed
       const { error: updateError } = await supabase
@@ -185,12 +191,64 @@ export const useHardware = (): UseHardwareReturn => {
   const pollForFrames = useCallback((deviceId: string, sessionId: string): void => {
     const poll = async () => {
       try {
-        const frame = await hardwareAPI.getLatestFrame(deviceId);
+        const frame = await api.getLatestFrame(deviceId);
         store.setLatestFrame(frame);
         
         // If frame has shot data, add to recent shots
         if (frame.hasShot && frame.shotData) {
           store.addShot(frame.shotData);
+        }
+        
+        // If frame has shot data, call analysis function
+        if (frame.hasShot && frame.shotData) {
+          // Skip Edge Function call in mock mode - use client-side analysis
+          if (import.meta.env.VITE_USE_MOCK_HARDWARE === 'true') {
+            // Use client-side mock analysis
+            const { generateMockAnalysis } = await import('../services/MockAnalysisService');
+            const mockAnalysis = generateMockAnalysis(frame.frameNumber);
+            
+            // Transform mock result to match expected format
+            const transformedResult = {
+              frameId: mockAnalysis.frameId,
+              shots: [{
+                x: mockAnalysis.location.x,
+                y: mockAnalysis.location.y,
+                score: mockAnalysis.score,
+                confidence: mockAnalysis.confidence
+              }],
+              confidence: mockAnalysis.confidence,
+              timestamp: new Date().toISOString()
+            };
+            
+            store.setAnalysisResult(transformedResult);
+            store.setAnalyzing(false);
+          } else {
+            // Call Supabase Edge Function for analysis
+            try {
+              store.setAnalyzing(true);
+              const { data, error } = await supabase.functions.invoke('analyze-frame', {
+                body: {
+                  frameBase64: frame.imageUrl // Pass frame data for analysis
+                }
+              });
+             
+              if (error) {
+                console.error('Analysis failed:', error);
+              } else if (data) {
+                // Store analysis result in state for UI display
+                store.setAnalysisResult({
+                  frameId: Math.random().toString(36).substring(7),
+                  shots: data.shots || [],
+                  confidence: data.confidence || 0,
+                  timestamp: new Date().toISOString()
+                });
+              }
+            } catch (analysisError) {
+              console.error('Failed to call analysis function:', analysisError);
+            } finally {
+              store.setAnalyzing(false);
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to poll for frames:', error);
@@ -243,6 +301,8 @@ export const useHardware = (): UseHardwareReturn => {
     // Real-time data
     latestFrame: store.latestFrame,
     recentShots: store.recentShots,
+    analysisResult: store.analysisResult,
+    isAnalyzing: store.isAnalyzing,
     
     // Actions
     connectToDevice,

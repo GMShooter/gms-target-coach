@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { QrCode, Wifi, WifiOff, ArrowRight } from 'lucide-react';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge-2';
 import { QRScanner } from '../components/QRScanner';
-import { QrCode, Wifi, WifiOff, ArrowRight } from 'lucide-react';
 import { useHardware } from '../hooks/useHardware';
 
 // Define ScanResult type to avoid importing qr-scanner in component

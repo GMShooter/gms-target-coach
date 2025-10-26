@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
+
 import LoginSignupForm from './login-signup';
 
 const meta: Meta<typeof LoginSignupForm> = {
@@ -38,25 +39,28 @@ export const Signup: Story = {
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-slate-300 text-sm font-medium">Full Name</label>
+                  <label htmlFor="full-name" className="text-slate-300 text-sm font-medium">Full Name</label>
                   <input
+                    id="full-name"
                     type="text"
                     placeholder="Enter your full name"
                     className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-slate-300 text-sm font-medium">Email Address</label>
+                  <label htmlFor="email-address" className="text-slate-300 text-sm font-medium">Email Address</label>
                   <input
+                    id="email-address"
                     type="email"
                     placeholder="Enter your email"
                     className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-slate-300 text-sm font-medium">Password</label>
+                  <label htmlFor="password" className="text-slate-300 text-sm font-medium">Password</label>
                   <div className="relative">
                     <input
+                      id="password"
                       type="password"
                       placeholder="Enter your password"
                       className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md pr-10"
@@ -106,16 +110,18 @@ export const WithError: Story = {
                   Invalid email or password. Please try again.
                 </div>
                 <div className="space-y-2">
-                  <label className="text-slate-300 text-sm font-medium">Email Address</label>
+                  <label htmlFor="error-email" className="text-slate-300 text-sm font-medium">Email Address</label>
                   <input
+                    id="error-email"
                     type="email"
                     placeholder="Enter your email"
                     className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-slate-300 text-sm font-medium">Password</label>
+                  <label htmlFor="error-password" className="text-slate-300 text-sm font-medium">Password</label>
                   <input
+                    id="error-password"
                     type="password"
                     placeholder="Enter your password"
                     className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md"

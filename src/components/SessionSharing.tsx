@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge-2';
-import { SessionData, ShotData } from '@/services/HardwareAPI';
-import { 
-  Share2, 
-  Download, 
-  Upload, 
-  Link, 
-  Mail, 
-  MessageCircle, 
-  FileText, 
-  Image, 
+
+import {
+  Share2,
+  Download,
+  Upload,
+  Link,
+  Mail,
+  MessageCircle,
+  FileText,
+  Image,
   BarChart3,
   Users,
   Globe,
@@ -25,6 +22,11 @@ import {
   Settings,
   QrCode
 } from 'lucide-react';
+
+import { SessionData, ShotData } from '../services/HardwareAPI';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge-2';
 
 interface SessionSharingProps {
   session: SessionData | null;
@@ -315,8 +317,8 @@ ${shareData.customMessage || ''}
         <CardContent className="space-y-4">
           {/* Share Type */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Share Method</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <label id="share-method-label" className="text-sm font-medium mb-2 block">Share Method</label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2" role="radiogroup" aria-labelledby="share-method-label">
               {[
                 { value: 'link', label: 'Share Link', icon: <Link className="h-4 w-4" /> },
                 { value: 'email', label: 'Email', icon: <Mail className="h-4 w-4" /> },
@@ -338,8 +340,8 @@ ${shareData.customMessage || ''}
 
           {/* Export Format */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Export Format</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <label id="export-format-label" className="text-sm font-medium mb-2 block">Export Format</label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2" role="radiogroup" aria-labelledby="export-format-label">
               {[
                 { value: 'json', label: 'JSON', icon: <FileText className="h-4 w-4" /> },
                 { value: 'csv', label: 'CSV', icon: <BarChart3 className="h-4 w-4" /> },
@@ -361,8 +363,8 @@ ${shareData.customMessage || ''}
 
           {/* Privacy Settings */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Privacy</label>
-            <div className="grid grid-cols-3 gap-2">
+            <label id="privacy-label" className="text-sm font-medium mb-2 block">Privacy</label>
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="privacy-label">
               {[
                 { value: 'public', label: 'Public', icon: <Globe className="h-4 w-4" />, description: 'Anyone can view' },
                 { value: 'private', label: 'Private', icon: <Lock className="h-4 w-4" />, description: 'Only you can view' },
@@ -384,8 +386,9 @@ ${shareData.customMessage || ''}
 
           {/* Include Options */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2">
+            <label htmlFor="include-analytics" className="flex items-center gap-2">
               <input
+                id="include-analytics"
                 type="checkbox"
                 checked={shareData.includeAnalytics}
                 onChange={(e) => setShareData(prev => ({ ...prev, includeAnalytics: e.target.checked }))}
@@ -394,8 +397,9 @@ ${shareData.customMessage || ''}
               <span className="text-sm">Include analytics and statistics</span>
             </label>
             
-            <label className="flex items-center gap-2">
+            <label htmlFor="include-images" className="flex items-center gap-2">
               <input
+                id="include-images"
                 type="checkbox"
                 checked={shareData.includeImages}
                 onChange={(e) => setShareData(prev => ({ ...prev, includeImages: e.target.checked }))}
@@ -407,8 +411,9 @@ ${shareData.customMessage || ''}
 
           {/* Custom Message */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Custom Message (Optional)</label>
+            <label htmlFor="custom-message" className="text-sm font-medium mb-2 block">Custom Message (Optional)</label>
             <textarea
+              id="custom-message"
               value={shareData.customMessage || ''}
               onChange={(e) => setShareData(prev => ({ ...prev, customMessage: e.target.value }))}
               placeholder="Add a personal message to share with your session..."

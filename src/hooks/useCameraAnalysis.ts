@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+
 import { supabase } from '../utils/supabase';
 
 export const useCameraAnalysis = (userId: string | null) => {

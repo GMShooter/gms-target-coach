@@ -31,7 +31,25 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+### Required Gates (GMShoot v2 Constitution)
+
+- **Hardware-First Development**: Does this feature consider hardware integration from the start? Are hardware APIs properly abstracted?
+- **Real-Time Analysis Pipeline**: Does this feature maintain <2s analysis latency? Is the real-time pipeline preserved?
+- **Test-Driven Development**: Are comprehensive tests planned (unit, integration, E2E)? Is TDD approach followed?
+- **Component Architecture**: Are components independently testable and reusable? Is proper state management planned?
+- **Security & Privacy First**: Are RLS policies considered? Are API keys properly secured? Is authentication properly implemented?
+
+### Technical Standards Compliance
+
+- **Technology Stack**: Does this use React 18+ with TypeScript, Vite, Tailwind CSS, and Supabase?
+- **Performance Requirements**: Does this meet <2s analysis latency and 90+ Lighthouse score requirements?
+- **Code Quality Standards**: Does this follow TypeScript strict mode, functional components, and proper error handling?
+
+### Development Workflow Compliance
+
+- **Spec-Driven Development**: Is this following the complete Spec-Kit workflow?
+- **Incremental Delivery**: Can this be delivered in small, independently testable increments?
+- **Quality Gates**: Are automated tests, code review, and documentation updates planned?
 
 ## Project Structure
 

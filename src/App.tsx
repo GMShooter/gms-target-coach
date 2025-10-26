@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+
 import { Button } from './components/ui/button';
 import MagicLandingPage from './components/ui/magic-landing-page';
 import MagicLogin from './components/ui/magic-login';

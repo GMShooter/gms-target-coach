@@ -1,7 +1,8 @@
 import React from 'react';
+import { Target, TrendingUp, BarChart3 } from 'lucide-react';
+
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge-2';
-import { Target, TrendingUp, BarChart3 } from 'lucide-react';
 
 interface ShotData {
   id: string;

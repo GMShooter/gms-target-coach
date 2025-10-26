@@ -42,4 +42,8 @@ export const env = {
   
   // Gemini
   VITE_GEMINI_API_KEY: getEnvVar('VITE_GEMINI_API_KEY'),
+  
+  // Mock Hardware
+  VITE_USE_MOCK_HARDWARE: getEnvVar('VITE_USE_MOCK_HARDWARE'),
+  VITE_USE_MOCK_AUTH: getEnvVar('VITE_USE_MOCK_AUTH'),
 };

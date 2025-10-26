@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge-2';
-import { useSessionTimeout } from '@/hooks/useSessionTimeout';
-import { SessionData } from '@/services/HardwareAPI';
-import { 
-  Clock, 
-  AlertTriangle, 
-  Timer, 
-  Play, 
-  Pause, 
+
+import {
+  Clock,
+  AlertTriangle,
+  Timer,
+  Play,
+  Pause,
   RotateCcw,
   Plus,
   Settings,
   X
 } from 'lucide-react';
+
+import { useSessionTimeout } from '../hooks/useSessionTimeout';
+import { SessionData } from '../services/HardwareAPI';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge-2';
 
 interface SessionTimeoutManagerProps {
   session: SessionData | null;
@@ -220,9 +222,10 @@ export const SessionTimeoutManager: React.FC<SessionTimeoutManagerProps> = ({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium">Max Session Duration</label>
+                <label htmlFor="max-duration" className="text-sm font-medium">Max Session Duration</label>
                 <div className="flex items-center gap-2 mt-1">
                   <input
+                    id="max-duration"
                     type="number"
                     value={maxSessionDuration}
                     disabled
@@ -233,9 +236,10 @@ export const SessionTimeoutManager: React.FC<SessionTimeoutManagerProps> = ({
               </div>
               
               <div>
-                <label className="text-sm font-medium">Warning Threshold</label>
+                <label htmlFor="warning-threshold" className="text-sm font-medium">Warning Threshold</label>
                 <div className="flex items-center gap-2 mt-1">
                   <input
+                    id="warning-threshold"
                     type="number"
                     value={warningThreshold}
                     disabled
@@ -246,9 +250,10 @@ export const SessionTimeoutManager: React.FC<SessionTimeoutManagerProps> = ({
               </div>
               
               <div>
-                <label className="text-sm font-medium">Extension Time</label>
+                <label htmlFor="extension-time" className="text-sm font-medium">Extension Time</label>
                 <div className="flex items-center gap-2 mt-1">
                   <input
+                    id="extension-time"
                     type="number"
                     value={extendMinutes}
                     onChange={(e) => setExtendMinutes(Math.max(1, parseInt(e.target.value) || 1))}
@@ -262,12 +267,13 @@ export const SessionTimeoutManager: React.FC<SessionTimeoutManagerProps> = ({
               
               <div className="flex items-center gap-2">
                 <input
+                  id="auto-extend"
                   type="checkbox"
                   checked={autoExtendOnActivity}
                   disabled
                   className="rounded"
                 />
-                <label className="text-sm font-medium">Auto-extend on activity</label>
+                <label htmlFor="auto-extend" className="text-sm font-medium">Auto-extend on activity</label>
               </div>
             </div>
             

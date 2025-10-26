@@ -1,11 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Badge } from './ui/badge-2';
-import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Progress } from './ui/progress';
-import { Separator } from './ui/separator';
-import { useHardwareErrorHandler, HardwareError } from '../hooks/useHardwareErrorHandler';
 import { 
   AlertTriangle, 
   Wifi, 
@@ -17,6 +10,15 @@ import {
   AlertCircle,
   XCircle
 } from 'lucide-react';
+
+import { useHardwareErrorHandler, HardwareError } from '../hooks/useHardwareErrorHandler';
+
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Badge } from './ui/badge-2';
+import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Progress } from './ui/progress';
+import { Separator } from './ui/separator';
 
 interface HardwareErrorDisplayProps {
   onRetryAll?: () => void;

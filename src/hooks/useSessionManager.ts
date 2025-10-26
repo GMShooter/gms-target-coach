@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+
 import { hardwareAPI, type SessionData, type PiDevice } from '../services/HardwareAPI';
 
 export interface SessionManagerState {
@@ -127,7 +128,7 @@ export const useSessionManager = (deviceId?: string): SessionManagerState & Sess
 
   // Emergency stop
   const emergencyStop = useCallback(async (sessionId: string) => {
-    if (!confirm('Are you sure you want to emergency stop the session? This will immediately terminate all operations.')) {
+    if (!window.confirm('Are you sure you want to emergency stop the session? This will immediately terminate all operations.')) {
       return;
     }
 

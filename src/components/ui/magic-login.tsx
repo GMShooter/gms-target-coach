@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState } from 'react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight } from 'lucide-react';
+
+import { cn } from '../../lib/utils';
+
 import { MagicButton } from './magic-button';
 import { MagicCard } from './magic-card';
 import { TextGradient } from './text-gradient';
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight } from 'lucide-react';
-import { cn } from '../../lib/utils';
 
 interface MagicLoginProps {
   onLogin?: (email: string, password: string) => Promise<void>;
@@ -147,11 +149,13 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
           {/* Name field for signup */}
           {!isLogin && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <label htmlFor="name" className="text-sm font-medium text-slate-300 flex items-center gap-2">
                 <User className="w-4 h-4" />
                 Name
               </label>
               <input
+                id="name"
+                name="name"
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -165,11 +169,13 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
 
           {/* Email field */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+            <label htmlFor="email" className="text-sm font-medium text-slate-300 flex items-center gap-2">
               <Mail className="w-4 h-4" />
               Email
             </label>
             <input
+              id="email"
+              name="email"
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -185,12 +191,14 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
 
           {/* Password field */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+            <label htmlFor="password" className="text-sm font-medium text-slate-300 flex items-center gap-2">
               <Lock className="w-4 h-4" />
               Password
             </label>
             <div className="relative">
               <input
+                id="password"
+                name="password"
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}

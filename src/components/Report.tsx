@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Loader2, ArrowLeft } from 'lucide-react';
+
 import { supabase } from '../utils/supabase';
+
 import { Card, CardContent, CardHeader, CardFooter } from './ui/card';
 import { Button } from './ui/button';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Loader2, ArrowLeft } from 'lucide-react';
 // import { Progress } from "./ui/progress";
 
 interface ReportData {

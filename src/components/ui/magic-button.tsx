@@ -1,6 +1,7 @@
 import React, { forwardRef } from "react"
-import { motion, HTMLMotionProps } from "framer-motion"
+import { motion } from "framer-motion"
 import { cva, type VariantProps } from "class-variance-authority"
+
 import { cn } from "../../lib/utils"
 
 const buttonVariants = cva(
@@ -16,7 +17,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         gradient: "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700",
         glow: "bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
-        shimmer: "bg-primary text-primary-foreground before:absolute before:inset-0 before:h-full before:w-full before:translate-x-full before:skew-x-12 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:animate-shimmer",
+        shimmer: "bg-primary text-primary-foreground before:absolute before:inset-0 before:h-full before:w-full before:translate-x-full before:skew-x-12 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:animate-shimmer relative overflow-hidden",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -34,7 +35,7 @@ const buttonVariants = cva(
 )
 
 export interface MagicButtonProps
-  extends Omit<HTMLMotionProps<"button">, "whileTap" | "whileHover" | "children">,
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children">,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
   loading?: boolean
@@ -52,7 +53,7 @@ const MagicButton = forwardRef<HTMLButtonElement, MagicButtonProps>(
         whileTap={{ scale: 0.95 }}
         whileHover={{ scale: 1.02 }}
         transition={{ type: "spring", stiffness: 400, damping: 17 }}
-        {...props}
+        {...(props as any)}
       >
         {loading && (
           <motion.div

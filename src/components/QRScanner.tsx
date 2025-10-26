@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QrScanner from 'qr-scanner';
 import { Camera, CameraOff, QrCode, CheckCircle } from 'lucide-react';
+
+import { useHardwareStore } from '../store/hardwareStore';
+import { hardwareAPI } from '../services/HardwareAPI';
+
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
-import { useHardwareStore } from '../store/hardwareStore';
-import { hardwareAPI } from '../services/HardwareAPI';
 
 interface QRScannerProps {
   onScan?: (result: QrScanner.ScanResult) => void;

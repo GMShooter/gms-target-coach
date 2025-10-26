@@ -47,6 +47,9 @@ export const patterns = {
     secondary: 'bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent',
     tertiary: 'bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent',
     quaternary: 'bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent',
+    ocean: 'bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent',
+    cosmic: 'bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent',
+    unset: 'bg-gradient-to-r from-orange-400 to-pink-600 bg-clip-text text-transparent',
   }
 };
 

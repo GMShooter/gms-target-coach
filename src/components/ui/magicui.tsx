@@ -68,6 +68,9 @@ export const textGradient = {
   primary: 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent',
   secondary: 'bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent',
   accent: 'bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent',
+  ocean: 'bg-gradient-to-r from-cyan-400 to-blue-600 bg-clip-text text-transparent',
+  cosmic: 'bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent',
+  sunset: 'bg-gradient-to-r from-orange-400 to-pink-600 bg-clip-text text-transparent',
 }
 
 // Additional pattern for grid background

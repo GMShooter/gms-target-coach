@@ -1,11 +1,12 @@
 import React, { useRef, useState } from 'react';
+import { Upload, Play, TestTube, AlertCircle, CheckCircle, Target, TrendingUp, Award, BarChart3, Eye } from 'lucide-react';
+
+import { useVideoAnalysis } from '../hooks/useVideoAnalysis';
 
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription } from './ui/alert';
-import { useVideoAnalysis } from '../hooks/useVideoAnalysis';
-import { Upload, Play, TestTube, AlertCircle, CheckCircle, Target, TrendingUp, Award, BarChart3, Eye } from 'lucide-react';
 import { BullseyeRadarChart, SessionScoreLineChart } from './ui/charts';
 
 const VideoAnalysis: React.FC = () => {

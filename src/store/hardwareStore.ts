@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import { PiDevice, SessionData, FrameData, ShotData } from '../services/HardwareAPI';
 
 export interface HardwareState {
@@ -13,6 +14,8 @@ export interface HardwareState {
   // Real-time data
   latestFrame: FrameData | null;
   recentShots: ShotData[];
+  analysisResult: any | null;
+  isAnalyzing: boolean;
   
   // Connection status
   isConnected: boolean;
@@ -28,6 +31,8 @@ export interface HardwareState {
   addShot: (shot: ShotData) => void;
   setConnectionStatus: (connected: boolean, connecting?: boolean, error?: string | null) => void;
   clearHardwareState: () => void;
+  setAnalysisResult: (result: any) => void;
+  setAnalyzing: (analyzing: boolean) => void;
 }
 
 export const useHardwareStore = create<HardwareState>((set, get) => ({
@@ -38,6 +43,8 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
   isSessionActive: false,
   latestFrame: null,
   recentShots: [],
+  analysisResult: null,
+  isAnalyzing: false,
   isConnected: false,
   isConnecting: false,
   connectionError: null,
@@ -63,6 +70,10 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
     connectionError: error
   }),
   
+  setAnalysisResult: (result) => set({ analysisResult: result }),
+  
+  setAnalyzing: (analyzing) => set({ isAnalyzing: analyzing }),
+  
   clearHardwareState: () => set({
     connectedDevice: null,
     ngrokUrl: null,
@@ -70,6 +81,8 @@ export const useHardwareStore = create<HardwareState>((set, get) => ({
     isSessionActive: false,
     latestFrame: null,
     recentShots: [],
+    analysisResult: null,
+    isAnalyzing: false,
     isConnected: false,
     isConnecting: false,
     connectionError: null

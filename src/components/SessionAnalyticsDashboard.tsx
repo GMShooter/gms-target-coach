@@ -1,11 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge-2';
-import { Button } from './ui/button';
-import { Progress } from './ui/progress';
-import { Separator } from './ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { SessionData, ShotData } from '../services/HardwareAPI';
 import {
   TrendingUp,
   TrendingDown,
@@ -25,6 +18,15 @@ import {
   Filter,
   RefreshCw
 } from 'lucide-react';
+
+import { SessionData, ShotData } from '../services/HardwareAPI';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge-2';
+import { Button } from './ui/button';
+import { Progress } from './ui/progress';
+import { Separator } from './ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 interface SessionAnalyticsDashboardProps {
   sessions: SessionData[];

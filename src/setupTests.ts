@@ -3,6 +3,7 @@
 
 require('@testing-library/jest-dom');
 const { TextEncoder: UtilTextEncoder, TextDecoder: UtilTextDecoder } = require('util');
+
 const { fetch: fetchPolyfill } = require('whatwg-fetch');
 
 // Setup TextEncoder/TextDecoder for JSDOM
@@ -28,6 +29,60 @@ jest.mock('./utils/env', () => ({
     VITE_NGROK_URL: 'http://localhost:4040',
     VITE_GEMINI_API_KEY: 'test-key',
   }
+}));
+
+// Mock HardwareAPI to avoid import.meta issues
+jest.mock('./services/HardwareAPI', () => ({
+  hardwareAPI: {
+    connectViaQRCode: jest.fn(),
+    disconnectDevice: jest.fn(),
+    startSession: jest.fn(),
+    stopSession: jest.fn(),
+    getLatestFrame: jest.fn(),
+    getNextFrame: jest.fn(),
+    setZoomPreset: jest.fn(),
+    getActiveSessions: jest.fn(),
+    getSession: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    sendWebSocketMessage: jest.fn(),
+    getWebSocketStatus: jest.fn(),
+    closeWebSocketConnection: jest.fn(),
+    calculateShotScore: jest.fn(),
+    detectSequentialShot: jest.fn(),
+    getSessionStatistics: jest.fn(),
+    getSessionRecommendations: jest.fn(),
+    getShotPatternVisualization: jest.fn(),
+    getSequentialDetectionStatistics: jest.fn(),
+    getSequentialShotHistory: jest.fn(),
+    updateSequentialDetectionConfig: jest.fn(),
+    getSequentialDetectionConfig: jest.fn(),
+    getSessionStatus: jest.fn(),
+    toggleSessionPause: jest.fn(),
+    emergencyStop: jest.fn(),
+    cleanup: jest.fn(),
+    ingestFrameData: jest.fn(),
+    ingestShotData: jest.fn(),
+    ingestSessionEvent: jest.fn()
+  }
+}));
+
+// Mock useHardware hook to avoid import.meta issues
+jest.mock('./hooks/useHardware', () => ({
+  useHardware: jest.fn(() => ({
+    isConnected: false,
+    isSessionActive: false,
+    currentSession: null,
+    shots: [],
+    analysisResult: null,
+    isAnalyzing: false,
+    connectToDevice: jest.fn(),
+    disconnectDevice: jest.fn(),
+    startSession: jest.fn(),
+    stopSession: jest.fn(),
+    pollForFrames: jest.fn(),
+    stopPolling: jest.fn()
+  }))
 }));
 
 // Mock Supabase client
@@ -82,6 +137,15 @@ const mockEnvVars = {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const globalAny = global;
 globalAny.importMeta = { env: mockEnvVars };
+
+// Mock import.meta.env for any module that uses it directly
+Object.defineProperty(globalAny, 'import', {
+  value: {
+    meta: { env: mockEnvVars }
+  },
+  writable: true,
+  configurable: true
+});
 
 // Mock console methods to reduce noise in tests
 const originalConsole = { ...console };

@@ -1,10 +1,12 @@
 import React from 'react';
+
+import { useSessionManager } from '../hooks/useSessionManager';
+import type { PiDevice } from '../services/HardwareAPI';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge-2';
 import { Alert, AlertDescription } from './ui/alert';
-import { useSessionManager } from '../hooks/useSessionManager';
-import type { PiDevice } from '../services/HardwareAPI';
 
 interface SessionManagerProps {
   deviceId: string;

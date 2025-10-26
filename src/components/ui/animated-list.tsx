@@ -4,16 +4,16 @@ import React, {
   useMemo,
   useState,
 } from "react"
-import { AnimatePresence, motion, MotionProps } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 
 import { cn } from "../../lib/utils"
 
 export function AnimatedListItem({ children }: { children: React.ReactNode }) {
-  const animations: MotionProps = {
+  const animations = {
     initial: { scale: 0, opacity: 0 },
     animate: { scale: 1, opacity: 1, originY: 0 },
     exit: { scale: 0, opacity: 0 },
-    transition: { type: "spring", stiffness: 350, damping: 40 },
+    transition: { type: "spring" as const, stiffness: 350, damping: 40 },
   }
 
   return (

@@ -1,3 +1,8 @@
+/**
+ * Jest transformer for TypeScript files
+ * Handles environment variable replacement and ES module compatibility
+ */
+
 const ts = require('typescript');
 
 module.exports = {

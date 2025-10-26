@@ -1,12 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge-2';
-import { Button } from './ui/button';
-import { Progress } from './ui/progress';
-import { Separator } from './ui/separator';
-import { HardwareAPI, PiDevice } from '../services/HardwareAPI';
-import { useHardwareErrorHandler } from '../hooks/useHardwareErrorHandler';
-import { useWebSocket } from '../hooks/useWebSocket';
 import { 
   Wifi, 
   WifiOff, 
@@ -24,6 +16,17 @@ import {
   Router,
   Battery
 } from 'lucide-react';
+
+import { HardwareAPI, PiDevice } from '../services/HardwareAPI';
+import { useHardwareErrorHandler } from '../hooks/useHardwareErrorHandler';
+import { useWebSocket } from '../hooks/useWebSocket';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge-2';
+import { Button } from './ui/button';
+import { Progress } from './ui/progress';
+import { Separator } from './ui/separator';
+
 
 interface HardwareStatusMonitorProps {
   hardwareAPI: HardwareAPI;
