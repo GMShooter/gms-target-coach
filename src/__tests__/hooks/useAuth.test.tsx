@@ -6,31 +6,23 @@ import { env } from '../../utils/env';
 
 // Mock AuthService
 jest.mock('../../services/AuthService');
-import { AuthService } from '../../services/AuthService';
 
 // Mock env utility
 jest.mock('../../utils/env');
 const mockEnv = env as jest.Mocked<typeof env>;
 
 // Mock console methods to reduce noise in tests
-const originalConsoleError = console.error;
+const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
 beforeEach(() => {
-  console.error = jest.fn();
+  consoleSpy.mockClear();
 });
 
 afterEach(() => {
-  console.error = originalConsoleError;
+  consoleSpy.mockRestore();
 });
 
 describe('useAuth Hook', () => {
-  const mockSupabaseUser = {
-    id: 'supabase-123',
-    email: 'test@example.com',
-    user_metadata: {
-      display_name: 'Test User',
-      avatar_url: 'https://example.com/photo.jpg'
-    }
-  };
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <AuthProvider>{children}</AuthProvider>
@@ -43,16 +35,19 @@ describe('useAuth Hook', () => {
     mockEnv.VITE_USE_MOCK_HARDWARE = 'false';
     mockEnv.VITE_USE_MOCK_AUTH = 'false';
 
-    // Default mock implementations for AuthService
-    const mockAuthService = AuthService as jest.MockedClass<typeof AuthService>;
-    
-    // Create a mock instance
-    const mockInstance = {
+    // Mock AuthService with a simpler approach
+    const mockAuthService = {
       signIn: jest.fn().mockResolvedValue({ success: true }),
       signUp: jest.fn().mockResolvedValue({ success: true }),
       signOut: jest.fn().mockResolvedValue({ success: true }),
       resetPassword: jest.fn().mockResolvedValue({ success: true }),
+      updateProfile: jest.fn().mockResolvedValue({ success: true }),
       getCurrentUser: jest.fn().mockResolvedValue(null),
+      getUser: jest.fn().mockReturnValue(null),
+      getSession: jest.fn().mockReturnValue(null),
+      isAuthenticated: jest.fn().mockReturnValue(false),
+      getSessionToken: jest.fn().mockResolvedValue(null),
+      refreshSession: jest.fn().mockResolvedValue(false),
       onAuthStateChange: jest.fn().mockImplementation((callback) => {
         return jest.fn(); // Return unsubscribe function
       }),
@@ -63,15 +58,18 @@ describe('useAuth Hook', () => {
         user: null,
         isLoading: false,
         error: null,
-        session: null
-      }),
-      isLoading: false,
-      error: null,
-      user: null,
-      session: null
+        session: null,
+        isAuthenticated: false
+      })
     };
     
-    mockAuthService.mockImplementation(() => mockInstance);
+    // Mock the AuthService module
+    jest.doMock('../../services/AuthService', () => ({
+      AuthService: jest.fn(() => mockAuthService),
+      authService: mockAuthService,
+      __esModule: true,
+      default: mockAuthService
+    }));
   });
 
   describe('Initial State', () => {

@@ -149,7 +149,7 @@ describe('VideoAnalysis Component', () => {
         </TestWrapper>
       );
 
-      const dropArea = screen.getByText(/Drag and drop your video file here, or/).closest('div');
+      const dropArea = screen.getByText(/Drag and drop your video file here, or/).parentElement;
       
       if (dropArea) {
         // Create a proper FileList object
@@ -198,8 +198,8 @@ describe('VideoAnalysis Component', () => {
         </TestWrapper>
       );
 
-      // Find the hidden file input directly
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      // Find the browse button instead
+      const browseButton = screen.getByRole('button', { name: /browse/i });
       
       // Create a proper FileList object
       const fileList = {
@@ -246,8 +246,8 @@ describe('VideoAnalysis Component', () => {
         </TestWrapper>
       );
 
-      // Find the hidden file input directly
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      // Find the browse button instead
+      const browseButton = screen.getByRole('button', { name: /browse/i });
       
       // Create a proper FileList object
       const fileList = {

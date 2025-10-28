@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Square, Settings, Camera, Target, Wifi, WifiOff, QrCode, Maximize2, Minimize2, RotateCw } from 'lucide-react';
+import { Play, Square, Settings, Camera, Target, Wifi, WifiOff, QrCode, Maximize2, Minimize2 } from 'lucide-react';
 
-import { HardwareAPI, type PiDevice, type SessionData, type ShotData, type FrameData } from '../services/HardwareAPI';
+import { type ShotData } from '../services/HardwareAPI';
 import { useHardware } from '../hooks/useHardware';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -105,11 +105,11 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     video.src = currentFrame.imageUrl;
     
     video.onloadstart = () => {
-      console.log('Loading video stream...');
+      // Loading video stream...
     };
     
     video.onloadeddata = () => {
-      console.log('Video stream loaded');
+      // Video stream loaded
       // Set canvas dimensions to match video
       if (canvasRef.current) {
         canvasRef.current.width = video.videoWidth;
@@ -118,7 +118,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     };
     
     video.onerror = (e) => {
-      console.error('Video stream error:', e);
+      // Video stream error occurred
     };
     
     return () => {
@@ -164,13 +164,13 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
       document.documentElement.requestFullscreen().then(() => {
         setIsFullscreen(true);
       }).catch(err => {
-        console.error('Error attempting to enable fullscreen:', err);
+        // Error attempting to enable fullscreen
       });
     } else {
       document.exitFullscreen().then(() => {
         setIsFullscreen(false);
       }).catch(err => {
-        console.error('Error attempting to exit fullscreen:', err);
+        // Error attempting to exit fullscreen
       });
     }
   };
