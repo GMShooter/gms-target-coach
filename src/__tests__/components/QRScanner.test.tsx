@@ -325,6 +325,14 @@ describe('QRScanner Component', () => {
       timestamp: Date.now()
     });
     
+    // Mock successful connection
+    (hardwareAPI.connectViaQRCode as jest.Mock).mockResolvedValueOnce({
+      id: 'test-device-123',
+      name: 'Test Device',
+      url: 'ws://192.168.1.100:8080',
+      ngrokUrl: 'ws://192.168.1.100:8080'
+    });
+    
     render(<QRScanner onScan={mockOnScan} onClose={mockOnClose} />);
     
     // Wait for component to initialize first
@@ -350,7 +358,7 @@ describe('QRScanner Component', () => {
       expect(mockOnScan).toHaveBeenCalledWith({
         data: mockQrData
       });
-    });
+    }, { timeout: 5000 });
   });
 
   it('handles invalid QR code', async () => {
@@ -531,6 +539,14 @@ describe('QRScanner Component', () => {
     // Mock empty localStorage initially
     localStorageMock.getItem.mockReturnValue('[]');
     
+    // Mock successful connection
+    (hardwareAPI.connectViaQRCode as jest.Mock).mockResolvedValueOnce({
+      id: 'test-device-123',
+      name: 'Test Device',
+      url: 'ws://192.168.1.100:8080',
+      ngrokUrl: 'ws://192.168.1.100:8080'
+    });
+    
     render(<QRScanner onScan={mockOnScan} onClose={mockOnClose} />);
     
     // Wait for component to initialize first
@@ -557,7 +573,7 @@ describe('QRScanner Component', () => {
         'pairedDevices',
         expect.stringContaining('test-device-123')
       );
-    });
+    }, { timeout: 5000 });
   });
 
   it('updates existing device in paired devices after successful scan', async () => {

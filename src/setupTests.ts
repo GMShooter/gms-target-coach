@@ -2,6 +2,7 @@
 // This file runs before any tests and sets up environment
 
 require('@testing-library/jest-dom');
+
 const { TextEncoder: UtilTextEncoder, TextDecoder: UtilTextDecoder } = require('util');
 const { fetch: fetchPolyfill } = require('whatwg-fetch');
 
@@ -160,9 +161,9 @@ jest.mock('./services/HardwareAPI', () => {
       if (!device) throw new Error('Invalid QR code data');
       
       // Check if fetch is mocked to return error for failure tests
-      const mockFetch = global.fetch as any;
-      if (mockFetch.mock && mockFetch.mock.results.length > 0) {
-        const lastResult = mockFetch.mock.results[mockFetch.mock.results.length - 1];
+      const mockFetch = global.fetch as jest.Mock;
+      if (mockFetch && mockFetch.mock.results.length > 0) {
+        const lastResult = mockFetch.mock.results[mockFetch.mock.results.length - 1] as any;
         if (lastResult.type === 'rejected') {
           throw lastResult.value;
         }

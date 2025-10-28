@@ -1,5 +1,5 @@
+/* eslint-disable import/order */
 import { renderHook, act, waitFor } from '@testing-library/react';
-
 import { useVideoAnalysis } from '../../hooks/useVideoAnalysis';
 
 // Import mocked modules
@@ -222,9 +222,11 @@ describe('useVideoAnalysis Hook', () => {
         if (table === 'analysis_sessions') {
           return {
             insert: jest.fn().mockReturnValue({
-              select: jest.fn().mockReturnValue({ 
-                data: null, 
-                error: { message: 'Database error' } 
+              select: jest.fn().mockReturnValue({
+                single: jest.fn().mockResolvedValue({
+                  data: null,
+                  error: { message: 'Database error' }
+                })
               })
             })
           };

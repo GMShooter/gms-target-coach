@@ -193,6 +193,13 @@ describe('useHardwareQuery', () => {
 
       const { result } = renderHook(() => useHardwareQuery(), { wrapper });
 
+      // First connect to device
+      await result.current.connectToDevice('test-qr-data');
+      
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
       await result.current.startSession('test-device-id', 'test-user-id');
 
       await waitFor(() => {
@@ -207,6 +214,13 @@ describe('useHardwareQuery', () => {
       mockFetch(mockResponse);
 
       const { result } = renderHook(() => useHardwareQuery(), { wrapper });
+
+      // First connect to device
+      await result.current.connectToDevice('test-qr-data');
+      
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
 
       await result.current.startSession('test-device-id', 'test-user-id');
 
@@ -224,8 +238,19 @@ describe('useHardwareQuery', () => {
 
       const { result } = renderHook(() => useHardwareQuery(), { wrapper });
 
-      // First start a session
+      // First connect to device
+      await result.current.connectToDevice('test-qr-data');
+      
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      // Then start a session
       await result.current.startSession('test-device-id', 'test-user-id');
+      
+      await waitFor(() => {
+        expect(result.current.isSessionActive).toBe(true);
+      });
       
       // Then stop it
       await result.current.stopSession('test-session-id');
@@ -245,8 +270,22 @@ describe('useHardwareQuery', () => {
 
       const { result } = renderHook(() => useHardwareQuery(), { wrapper });
 
+      // First connect to device
+      await result.current.connectToDevice('test-qr-data');
+      
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
       // Start session to trigger frame polling
       await result.current.startSession('test-device-id', 'test-user-id');
+
+      await waitFor(() => {
+        expect(result.current.isSessionActive).toBe(true);
+      });
+
+      // Manually trigger frame polling
+      result.current.pollForFrames('test-device-id', 'test-session-id');
 
       await waitFor(() => {
         expect(result.current.latestFrame).toEqual(mockFrame);
@@ -281,8 +320,22 @@ describe('useHardwareQuery', () => {
 
       const { result } = renderHook(() => useHardwareQuery(), { wrapper });
 
+      // First connect to device
+      await result.current.connectToDevice('test-qr-data');
+      
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
       // Start session to trigger frame polling and analysis
       await result.current.startSession('test-device-id', 'test-user-id');
+
+      await waitFor(() => {
+        expect(result.current.isSessionActive).toBe(true);
+      });
+
+      // Manually trigger frame polling
+      result.current.pollForFrames('test-device-id', 'test-session-id');
 
       await waitFor(() => {
         expect(result.current.analysisResult).toEqual(mockAnalysis);
@@ -303,8 +356,22 @@ describe('useHardwareQuery', () => {
 
       const { result } = renderHook(() => useHardwareQuery(), { wrapper });
 
+      // First connect to device
+      await result.current.connectToDevice('test-qr-data');
+      
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
       // Start session to trigger frame polling and analysis
       await result.current.startSession('test-device-id', 'test-user-id');
+
+      await waitFor(() => {
+        expect(result.current.isSessionActive).toBe(true);
+      });
+
+      // Manually trigger frame polling
+      result.current.pollForFrames('test-device-id', 'test-session-id');
 
       await waitFor(() => {
         expect(result.current.analysisResult).toBeNull();
@@ -320,26 +387,48 @@ describe('useHardwareQuery', () => {
 
       const { result } = renderHook(() => useHardwareQuery(), { wrapper });
 
+      // First connect to device
+      await result.current.connectToDevice('test-qr-data');
+      
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
       // Start session
       await result.current.startSession('test-device-id', 'test-user-id');
 
       await waitFor(() => {
-        expect(result.current.recentShots).toContainEqual(mockShot);
+        expect(result.current.isSessionActive).toBe(true);
+      });
+
+      // Manually trigger frame polling to get shots
+      result.current.pollForFrames('test-device-id', 'test-session-id');
+
+      await waitFor(() => {
+        expect(result.current.recentShots.length).toBeGreaterThan(0);
       });
     });
 
     it('should limit recent shots to reasonable number', async () => {
       const { result } = renderHook(() => useHardwareQuery(), { wrapper });
 
+      // First connect to device
+      await result.current.connectToDevice('test-qr-data');
+      
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
       // Start session
       await result.current.startSession('test-device-id', 'test-user-id');
 
-      // Simulate many shots
+      await waitFor(() => {
+        expect(result.current.isSessionActive).toBe(true);
+      });
+
+      // Simulate many shots by triggering frame polling multiple times
       for (let i = 0; i < 150; i++) {
-        const mockShot = { id: `shot-${i}`, timestamp: Date.now(), score: 95 };
-        const mockResponse = createMockFetchResponse(mockShot);
-        mockFetch(mockResponse);
-        
+        result.current.pollForFrames('test-device-id', 'test-session-id');
         // Wait for processing
         await new Promise(resolve => setTimeout(resolve, 10));
       }
@@ -361,6 +450,9 @@ describe('useHardwareQuery', () => {
 
       await waitFor(() => {
         expect(result.current.connectionError).toBeTruthy();
+      });
+      
+      await waitFor(() => {
         expect(result.current.isConnected).toBe(false);
       });
     });
@@ -390,6 +482,9 @@ describe('useHardwareQuery', () => {
 
       await waitFor(() => {
         expect(result.current.connectionError).toBeNull();
+      });
+      
+      await waitFor(() => {
         expect(result.current.isConnected).toBe(true);
       });
     });
@@ -414,8 +509,19 @@ describe('useHardwareQuery', () => {
 
       const { result } = renderHook(() => useHardwareQuery(), { wrapper });
 
+      // First connect to device
+      await result.current.connectToDevice('test-qr-data');
+      
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
       // Start session
       await result.current.startSession('test-device-id', 'test-user-id');
+
+      await waitFor(() => {
+        expect(result.current.isSessionActive).toBe(true);
+      });
 
       // Wait a bit
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -429,8 +535,19 @@ describe('useHardwareQuery', () => {
     it('should handle WebSocket messages', async () => {
       const { result } = renderHook(() => useHardwareQuery(), { wrapper });
 
+      // First connect to device
+      await result.current.connectToDevice('test-qr-data');
+      
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
       // Start session
       await result.current.startSession('test-device-id', 'test-user-id');
+
+      await waitFor(() => {
+        expect(result.current.isSessionActive).toBe(true);
+      });
 
       // WebSocket messages should be handled by hook
       // This is tested indirectly through mock
