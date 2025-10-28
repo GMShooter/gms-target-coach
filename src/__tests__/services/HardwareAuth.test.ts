@@ -32,14 +32,27 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock
 });
 
-// Mock crypto.getRandomValues
+// Mock crypto.getRandomValues and crypto.subtle
 const mockCrypto = {
   getRandomValues: jest.fn().mockImplementation((array: Uint8Array) => {
     for (let i = 0; i < array.length; i++) {
       array[i] = Math.floor(Math.random() * 256);
     }
     return array;
-  })
+  }),
+  subtle: {
+    generateKey: jest.fn().mockResolvedValue({
+      algorithm: { name: 'AES-GCM', length: 256 },
+      extractable: true,
+      type: 'secret'
+    }),
+    encrypt: jest.fn().mockResolvedValue(
+      new ArrayBuffer(16) // Mock encrypted data
+    ),
+    decrypt: jest.fn().mockResolvedValue(
+      new TextEncoder().encode('decrypted-api-key').buffer
+    )
+  }
 };
 
 Object.defineProperty(global, 'crypto', {
@@ -65,12 +78,15 @@ describe('HardwareAuth', () => {
       expect(apiKey.length).toBeGreaterThan(20); // Should be a reasonably long key
     });
 
-    it('should store credentials in localStorage', () => {
+    it('should store credentials in localStorage', async () => {
       const deviceId = 'test-device-2';
       const userId = 'user-456';
       const permissions = ['read'];
 
       hardwareAuth.generateApiKey(deviceId, userId, permissions);
+      
+      // Wait for async storeCredentials to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         `hw_auth_${deviceId}:${userId}`,
@@ -78,11 +94,14 @@ describe('HardwareAuth', () => {
       );
     });
 
-    it('should use default permissions if none provided', () => {
+    it('should use default permissions if none provided', async () => {
       const deviceId = 'test-device-3';
       const userId = 'user-789';
 
       hardwareAuth.generateApiKey(deviceId, userId);
+      
+      // Wait for async storeCredentials to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         `hw_auth_${deviceId}:${userId}`,
@@ -177,10 +196,13 @@ describe('HardwareAuth', () => {
   });
 
   describe('revokeAccess', () => {
-    it('should revoke access and remove credentials', () => {
+    it('should revoke access and remove credentials', async () => {
       const deviceId = 'test-device-9';
       const userId = 'user-pqr';
       const apiKey = hardwareAuth.generateApiKey(deviceId, userId);
+      
+      // Wait for async storeCredentials to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // Verify credential was stored during generation
       expect(localStorageMock.setItem).toHaveBeenCalledWith(

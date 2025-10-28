@@ -1,9 +1,14 @@
 // Jest setup file to handle Vite environment variables
 // This file runs before any tests and sets up environment
 
+// Make this file a module
+export {};
+
 require('@testing-library/jest-dom');
 
+
 const { TextEncoder: UtilTextEncoder, TextDecoder: UtilTextDecoder } = require('util');
+
 const { fetch: fetchPolyfill } = require('whatwg-fetch');
 
 // Setup TextEncoder/TextDecoder for JSDOM
@@ -456,6 +461,89 @@ const mockSupabaseClient = {
 
 jest.mock('./utils/supabase', () => ({
   supabase: mockSupabaseClient
+}));
+
+// Mock AuthService
+jest.mock('./services/AuthService', () => {
+  // Create a mock AuthService class
+  const mockAuthService = {
+    signIn: jest.fn().mockResolvedValue({ success: true }),
+    signUp: jest.fn().mockResolvedValue({ success: true }),
+    signOut: jest.fn().mockResolvedValue({ success: true }),
+    resetPassword: jest.fn().mockResolvedValue({ success: true }),
+    getCurrentUser: jest.fn().mockResolvedValue(null), // Initially no user
+    onAuthStateChange: jest.fn().mockImplementation((callback) => {
+      // Don't call immediately - let tests control when to call
+      return jest.fn(); // Return unsubscribe function
+    }),
+    subscribe: jest.fn().mockImplementation((callback) => {
+      // Don't call immediately - let tests control when to call
+      return jest.fn(); // Return unsubscribe function
+    }),
+    getState: jest.fn().mockReturnValue({
+      user: null, // Initially no user
+      isLoading: false,
+      error: null,
+      session: null
+    }),
+    isLoading: false,
+    error: null,
+    user: null, // Initially no user
+    session: null // Initially no session
+  };
+
+  // Mock constructor function
+  const MockAuthService = jest.fn().mockImplementation(() => mockAuthService);
+  
+  return {
+    AuthService: MockAuthService,
+    authService: mockAuthService
+  };
+});
+
+// Mock AnalysisService
+jest.mock('./services/AnalysisService', () => ({
+  AnalysisService: jest.fn().mockImplementation(() => ({
+    analyzeFrame: jest.fn().mockResolvedValue({
+      frameId: 'test-frame-1',
+      timestamp: new Date(),
+      detections: [
+        {
+          class: 'target',
+          confidence: 0.95,
+          bbox: { x: 100, y: 100, width: 50, height: 50 }
+        }
+      ],
+      hasShot: false,
+      shotData: undefined,
+      analysisTime: 150
+    }),
+    analyzeBatch: jest.fn().mockResolvedValue([
+      {
+        frameId: 'test-frame-1',
+        timestamp: new Date(),
+        detections: [
+          {
+            class: 'target',
+            confidence: 0.95,
+            bbox: { x: 100, y: 100, width: 50, height: 50 }
+          }
+        ],
+        hasShot: false,
+        shotData: undefined,
+        analysisTime: 150
+      }
+    ]),
+    calculateStatistics: jest.fn().mockResolvedValue({
+      totalFrames: 10,
+      shotsDetected: 5,
+      averageScore: 85.5,
+      accuracy: 0.8,
+      averageAnalysisTime: 120
+    }),
+    isMockMode: false,
+    setMockMode: jest.fn()
+  }))
 }));
 
 // Mock environment variables for Jest

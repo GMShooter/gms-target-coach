@@ -50,7 +50,7 @@ describe('ReportList Component', () => {
     
     // Default mock implementation for useAuth
     mockUseAuth.mockReturnValue({
-      user: { id: 'user-123', email: 'test@example.com', firebaseUid: 'user-123' },
+      user: { id: 'user-123', email: 'test@example.com', fullName: 'Test User', createdAt: new Date().toISOString() },
       loading: false,
       error: null,
       signInWithGoogle: jest.fn(),
@@ -383,7 +383,7 @@ describe('ReportList Component', () => {
 
       // Change user
       mockUseAuth.mockReturnValue({
-        user: { id: 'user-456', email: 'test2@example.com', firebaseUid: 'user-456' },
+        user: { id: 'user-456', email: 'test2@example.com', fullName: 'Test User 2', createdAt: new Date().toISOString() },
         loading: false,
         error: null,
         signInWithGoogle: jest.fn(),

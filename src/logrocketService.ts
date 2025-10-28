@@ -53,7 +53,7 @@ export function initLogRocket() {
         }
       },
       console: {
-        shouldAggregateConsoleLogErrors: true,
+        shouldAggregateConsoleErrors: true,
       },
     });
   }

@@ -287,7 +287,7 @@ function AppContent() {
           {/* User menu in top-right */}
           <div className="fixed top-4 right-4 z-40 flex items-center space-x-4" data-testid="user-menu">
             <div className="text-slate-300 text-sm" data-testid="user-display-name">
-              {user.displayName || user.email}
+              {user.fullName || user.email}
             </div>
           </div>
           

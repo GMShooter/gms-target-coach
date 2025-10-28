@@ -7,6 +7,8 @@
 
 import { jwtDecode } from 'jwt-decode';
 
+import { encryptApiKey } from '../lib/utils';
+
 export interface HardwareAuthToken {
   token: string;
   expiresAt: Date;

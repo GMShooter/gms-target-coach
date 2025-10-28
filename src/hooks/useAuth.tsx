@@ -1,15 +1,8 @@
 import React, { useState, useEffect, useContext, createContext, ReactNode, useCallback } from 'react';
 
-import { supabase } from '../utils/supabase';
+import { authService, AuthUser } from '../services/AuthService';
 import { hardwareAPI } from '../services/HardwareAPI';
 import { env } from '../utils/env';
-
-interface AuthUser {
-  id: string;
-  email: string;
-  displayName?: string;
-  photoURL?: string;
-}
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -41,72 +34,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Convert Supabase user to AuthUser format
-  const formatUser = useCallback((supabaseUser: any): AuthUser | null => {
-    if (!supabaseUser) return null;
-    
-    return {
-      id: supabaseUser.id,
-      email: supabaseUser.email || '',
-      displayName: supabaseUser.user_metadata?.display_name || supabaseUser.user_metadata?.full_name,
-      photoURL: supabaseUser.user_metadata?.avatar_url
-    };
+  // Sync auth state with AuthService
+  const syncAuthState = useCallback(() => {
+    const authState = authService.getState();
+    setUser(authState.user);
+    setLoading(authState.isLoading);
+    setError(authState.error);
   }, []);
-
-  // Sync user with Supabase database
-  const syncUserWithSupabase = useCallback(async (supabaseUser: any) => {
-    if (!supabaseUser) return null;
-    
-    try {
-      const authUser = formatUser(supabaseUser);
-      if (!authUser) return null;
-      
-      // Check if user exists in Supabase
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', supabaseUser.id)
-        .single();
-
-      if (!existingUser) {
-        // Create new user in Supabase
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: authUser.id,
-            email: authUser.email,
-            display_name: authUser.displayName,
-            avatar_url: authUser.photoURL,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            last_login: new Date().toISOString()
-          });
-
-        if (insertError) {
-          console.error('Error creating user in Supabase:', insertError);
-        }
-      } else {
-        // Update last login
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            last_login: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', supabaseUser.id);
-
-        if (updateError) {
-          console.error('Error updating user in Supabase:', updateError);
-        }
-      }
-
-      return authUser;
-    } catch (error) {
-      console.error('Error syncing user with Supabase:', error);
-      setError('Failed to sync user data');
-      return null;
-    }
-  }, [formatUser]);
 
   // Handle Google sign in (uses Supabase OAuth)
   const handleGoogleSignIn = async () => {
@@ -120,42 +54,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const mockUser: AuthUser = {
           id: 'mock-user-id',
           email: 'mockuser@example.com',
-          displayName: 'Mock User',
-          photoURL: undefined
+          fullName: 'Mock User',
+          createdAt: new Date().toISOString()
         };
         setUser(mockUser);
         setLoading(false);
         return;
       }
       
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // OAuth redirect will handle the rest
-      // Set loading to false after initiating OAuth flow
+      // Note: Google OAuth would need to be implemented in AuthService
+      // For now, we'll show an error message
+      setError('Google sign-in not yet implemented. Please use email sign-in.');
       setLoading(false);
     } catch (error: any) {
       console.error('Google sign in error:', error);
-      let errorMessage = 'Failed to sign in with Google';
-      
-      if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setError(errorMessage);
+      setError(error.message || 'Failed to sign in with Google');
       setLoading(false);
     }
   };
 
-  // Handle email sign in (uses Supabase)
+  // Handle email sign in (uses AuthService)
   const handleEmailSignIn = async (email: string, password: string) => {
     try {
       setLoading(true);
@@ -167,54 +85,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const mockUser: AuthUser = {
           id: 'mock-user-id',
           email: email,
-          displayName: email.split('@')[0],
-          photoURL: undefined
+          fullName: email.split('@')[0],
+          createdAt: new Date().toISOString()
         };
         setUser(mockUser);
         setLoading(false);
         return;
       }
       
-      // Use Supabase for email authentication
-      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (signInError) {
-        throw signInError;
-      }
-
-      if (authData.user) {
-        const authUser = await syncUserWithSupabase(authData.user);
-        if (authUser) {
-          setUser(authUser);
-        }
+      // Use AuthService for email authentication
+      const result = await authService.signIn({ email, password });
+      
+      if (result.success) {
+        syncAuthState();
+      } else {
+        setError(result.error || 'Failed to sign in with email');
       }
     } catch (error: any) {
       console.error('Email sign in error:', error);
-      let errorMessage = 'Failed to sign in with email';
-      
-      // Provide more specific error messages
-      if (error.message?.includes('Invalid login credentials')) {
-        errorMessage = 'No account found with this email address';
-      } else if (error.message?.includes('Invalid password')) {
-        errorMessage = 'Incorrect password';
-      } else if (error.message?.includes('Email not confirmed')) {
-        errorMessage = 'Please confirm your email address';
-      } else if (error.message?.includes('Network')) {
-        errorMessage = 'Network error';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setError(errorMessage);
+      setError(error.message || 'Failed to sign in with email');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle email sign up (uses Supabase)
+  // Handle email sign up (uses AuthService)
   const handleEmailSignUp = async (email: string, password: string, name?: string) => {
     try {
       setLoading(true);
@@ -226,54 +121,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const mockUser: AuthUser = {
           id: 'mock-user-id',
           email: email,
-          displayName: name || 'Mock User',
-          photoURL: undefined
+          fullName: name || 'Mock User',
+          createdAt: new Date().toISOString()
         };
         setUser(mockUser);
         setLoading(false);
         return;
       }
       
-      // Use Supabase for email signup
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            display_name: name || '',
-            avatar_url: ''
-          }
-        }
-      });
-
-      if (signUpError) {
-        throw signUpError;
-      }
-
-      if (authData.user) {
-        const authUser = await syncUserWithSupabase(authData.user);
-        if (authUser) {
-          setUser(authUser);
-        }
+      // Use AuthService for email signup
+      const result = await authService.signUp({ email, password, fullName: name });
+      
+      if (result.success) {
+        syncAuthState();
+      } else {
+        setError(result.error || 'Failed to create account');
       }
     } catch (error: any) {
       console.error('Email sign up error:', error);
-      let errorMessage = 'Failed to create account';
-      
-      // Provide more specific error messages
-      if (error.message?.includes('User already registered')) {
-        errorMessage = 'An account with this email already exists';
-      } else if (error.message?.includes('Password should be at least')) {
-        errorMessage = 'Password is too weak. Please choose a stronger password';
-      } else if (error.message?.includes('weak_password')) {
-        errorMessage = 'Password is too weak. Please choose a stronger password';
-      } else if (error.message?.includes('Network')) {
-        errorMessage = 'Network error';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setError(errorMessage);
+      setError(error.message || 'Failed to create account');
     } finally {
       setLoading(false);
     }
@@ -285,9 +151,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      // Sign out from Supabase
-      await supabase.auth.signOut();
-      setUser(null);
+      // Use AuthService for sign out
+      const result = await authService.signOut();
+      
+      if (result.success) {
+        syncAuthState();
+      } else {
+        setError(result.error || 'Failed to sign out');
+      }
     } catch (error: any) {
       console.error('Sign out error:', error);
       setError(error.message || 'Failed to sign out');
@@ -311,8 +182,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const mockUser: AuthUser = {
             id: 'mock-user-id',
             email: 'mockuser@example.com',
-            displayName: 'Mock User',
-            photoURL: undefined
+            fullName: 'Mock User',
+            createdAt: new Date().toISOString()
           };
           setUser(mockUser);
           hardwareAPI.setUserId(mockUser.id);
@@ -320,16 +191,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
-        // Check Supabase auth state
-        const { data: { session } } = await supabase.auth.getSession();
+        // Sync initial auth state from AuthService
+        syncAuthState();
         
-        if (session?.user) {
-          const authUser = await syncUserWithSupabase(session.user);
-          if (authUser) {
-            setUser(authUser);
-            // Set user ID for hardware authentication
-            hardwareAPI.setUserId(authUser.id);
-          }
+        // Set user ID for hardware authentication if user exists
+        const authState = authService.getState();
+        if (authState.user) {
+          hardwareAPI.setUserId(authState.user.id);
         }
         
         setLoading(false);
@@ -341,27 +209,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     checkInitialAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
+    // Subscribe to auth state changes from AuthService
+    const unsubscribe = authService.subscribe((authState) => {
+      setUser(authState.user);
+      setLoading(authState.isLoading);
+      setError(authState.error);
       
-      if (event === 'SIGNED_IN' && session?.user) {
-        const authUser = await syncUserWithSupabase(session.user);
-        if (authUser) {
-          setUser(authUser);
-          // Set user ID for hardware authentication
-          hardwareAPI.setUserId(authUser.id);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        // Clear hardware authentication on sign out
+      // Set user ID for hardware authentication
+      if (authState.user) {
+        hardwareAPI.setUserId(authState.user.id);
+      } else {
         hardwareAPI.setUserId(null as any);
       }
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, [syncUserWithSupabase]);
+    return () => unsubscribe();
+  }, [syncAuthState]);
 
   const value: AuthContextType = {
     user,

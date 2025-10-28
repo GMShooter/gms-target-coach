@@ -36,7 +36,7 @@ describe('CameraAnalysis Component', () => {
 
     // Default mock implementation for useAuth
     mockUseAuth.mockReturnValue({
-      user: { id: 'user-123', email: 'test@example.com', firebaseUid: 'user-123' },
+      user: { id: 'user-123', email: 'test@example.com', fullName: 'Test User', createdAt: new Date().toISOString() },
       loading: false,
       error: null,
       signInWithGoogle: jest.fn(),
@@ -397,7 +397,7 @@ describe('CameraAnalysis Component', () => {
     it('passes userId to useCameraAnalysis hook', () => {
       const mockUser = { id: 'user-456', email: 'test@example.com', firebaseUid: 'user-456' };
       mockUseAuth.mockReturnValue({
-        user: mockUser,
+        user: { ...mockUser, createdAt: new Date().toISOString() },
         loading: false,
         error: null,
         signInWithGoogle: jest.fn(),

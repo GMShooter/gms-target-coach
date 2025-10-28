@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
+
 import { useQuery, useMutation, useQueryClient } from '../lib/query-client';
 import { useHardwareStore } from '../store/hardwareStore';
 import { hardwareAPI, PiDevice, SessionData, FrameData, ShotData } from '../services/HardwareAPI';
 import { mockHardwareAPI } from '../services/MockHardwareAPI';
+import { analysisService } from '../services/AnalysisService';
 import { supabase } from '../utils/supabase';
 
 export interface UseHardwareQueryReturn {
@@ -25,7 +27,7 @@ export interface UseHardwareQueryReturn {
   // Actions
   connectToDevice: (qrData: string) => Promise<PiDevice | null>;
   disconnectDevice: (deviceId: string) => Promise<void>;
-  startSession: (deviceId: string, userId: string) => Promise<SessionData | null>;
+  startSession: (params: { deviceId: string; userId: string; settings?: any }) => Promise<SessionData | null>;
   stopSession: (sessionId: string) => Promise<void>;
   pollForFrames: (deviceId: string, sessionId: string) => void;
   stopPolling: () => void;
@@ -246,54 +248,21 @@ export const useHardwareQuery = (): UseHardwareQueryReturn => {
         
         // If frame has shot data, call analysis function
         if (frame.hasShot && frame.shotData) {
-          // Skip Edge Function call in mock mode - use client-side analysis
-          if (process.env.NODE_ENV === 'test' ||
-            (typeof window !== 'undefined' && (window as any).__VITE_USE_MOCK_HARDWARE === 'true')) {
-            // Use client-side mock analysis
-            const { generateMockAnalysis } = await import('../services/MockAnalysisService');
-            const mockAnalysis = generateMockAnalysis(frame.frameNumber);
-             
-            // Transform mock result to match expected format
-            const transformedResult = {
-              frameId: mockAnalysis.frameId,
-              shots: [{
-                x: mockAnalysis.location.x,
-                y: mockAnalysis.location.y,
-                score: mockAnalysis.score,
-                confidence: mockAnalysis.confidence
-              }],
-              confidence: mockAnalysis.confidence,
-              timestamp: new Date().toISOString()
-            };
-           
-            store.setAnalysisResult(transformedResult);
+          try {
+            store.setAnalyzing(true);
+            
+            // Use the new AnalysisService for both mock and production modes
+            const analysisResult = await analysisService.analyzeFrame(frame.imageUrl, {
+              useMock: process.env.NODE_ENV === 'test' ||
+                (typeof window !== 'undefined' && (window as any).__VITE_USE_MOCK_HARDWARE === 'true')
+            });
+            
+            // Store analysis result in state for UI display
+            store.setAnalysisResult(analysisResult);
+          } catch (analysisError) {
+            console.error('Failed to analyze frame:', analysisError);
+          } finally {
             store.setAnalyzing(false);
-          } else {
-            // Call Supabase Edge Function for analysis
-            try {
-              store.setAnalyzing(true);
-              const { data, error } = await supabase.functions.invoke('analyze-frame', {
-                body: {
-                  frameBase64: frame.imageUrl // Pass frame data for analysis
-                }
-              });
-             
-              if (error) {
-                console.error('Analysis failed:', error);
-              } else if (data) {
-                // Store analysis result in state for UI display
-                store.setAnalysisResult({
-                  frameId: Math.random().toString(36).substring(7),
-                  shots: data.shots || [],
-                  confidence: data.confidence || 0,
-                  timestamp: new Date().toISOString()
-                });
-              }
-            } catch (analysisError) {
-              console.error('Failed to call analysis function:', analysisError);
-            } finally {
-              store.setAnalyzing(false);
-            }
           }
         }
       } catch (error) {
