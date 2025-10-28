@@ -49,8 +49,18 @@ function logWarning(message) {
 
 // Execute command and return promise
 function executeCommand(command, args = [], options = {}) {
+  // Helper to redact secrets before logging
+  function redactArgs(args) {
+    return args.map(arg => {
+      // redact the value of ROBOFLOW_API_KEY=... pattern
+      if (typeof arg === 'string' && arg.startsWith('ROBOFLOW_API_KEY=')) {
+        return 'ROBOFLOW_API_KEY=<REDACTED>';
+      }
+      return arg;
+    });
+  }
   return new Promise((resolve, reject) => {
-    log(`🔧 Running: ${command} ${args.join(' ')}`, 'blue');
+    log(`🔧 Running: ${command} ${redactArgs(args).join(' ')}`, 'blue');
     
     const child = spawn(command, args, {
       stdio: 'inherit',
