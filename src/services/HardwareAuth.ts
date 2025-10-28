@@ -22,6 +22,9 @@ export interface HardwareCredentials {
   permissions: string[];
   createdAt: Date;
   lastUsed?: Date;
+  // Below are only present when loaded from storage
+  apiKeyEnc?: string;
+  apiKeyIV?: string;
 }
 
 export interface PiAuthChallenge {
@@ -70,7 +73,7 @@ export class HardwareAuth {
     };
 
     this.credentials.set(`${deviceId}:${userId}`, credentials);
-    this.storeCredentials(credentials);
+    this.storeCredentials(credentials); // The method is now async; ensure to await it in production code.
 
     return apiKey;
   }
@@ -387,9 +390,18 @@ export class HardwareAuth {
   /**
    * Store credentials securely
    */
-  private storeCredentials(credentials: HardwareCredentials): void {
+  private async storeCredentials(credentials: HardwareCredentials): Promise<void> {
     const key = `${credentials.deviceId}:${credentials.userId}`;
-    localStorage.setItem(`hw_auth_${key}`, JSON.stringify(credentials));
+    // Encrypt the apiKey before storing
+    const { cipher, iv } = await encryptApiKey(credentials.apiKey);
+    // Store all fields EXCEPT the plain apiKey, and include the encrypted value/iv instead
+    const safeCredentials = {
+      ...credentials,
+      apiKey: undefined,        // Do not store plaintext
+      apiKeyEnc: cipher,
+      apiKeyIV: iv,
+    };
+    localStorage.setItem(`hw_auth_${key}`, JSON.stringify(safeCredentials));
   }
 
   /**
