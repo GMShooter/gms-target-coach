@@ -3,13 +3,9 @@ import ReactDOM from 'react-dom/client';
 
 import './index.css';
 import './App.css';
-import './sentry';
-import './logrocketService';
 
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-
-// Initialize Sentry and LogRocket in production
 import { initSentry } from './sentry';
 import { initLogRocket } from './logrocketService';
 

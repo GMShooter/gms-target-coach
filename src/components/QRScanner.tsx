@@ -153,6 +153,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     } catch (error) {
       setConnectionStatus(false, false, error instanceof Error ? error.message : 'Connection failed');
       setError(error instanceof Error ? error.message : 'Invalid QR code data. Please scan a valid GMShooter device QR code.');
+      setScanResult(null); // Clear scan result when error occurs
       if (onError) onError(error instanceof Error ? error : new Error('QR scan failed'));
     }
   };
@@ -320,7 +321,16 @@ export const QRScanner: React.FC<QRScannerProps> = ({
             ref={videoRef}
             className="w-full rounded-lg border-2 border-gray-200"
             style={{ display: isScanning ? 'block' : 'none' }}
-          />
+            muted
+            playsInline
+          >
+            <track
+              kind="subtitles"
+              src="data:text/vtt,WEBVTT\n\nWEBVTT\n\n00:00:00.000 --> 00:00:01.000\nQR Scanner Video\n"
+              label="QR Scanner Video"
+              default
+            />
+          </video>
           
           {!isScanning && (
             <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -343,7 +353,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
         )}
 
         {/* Scan Result */}
-        {scanResult && (
+        {scanResult && !error && (
           <Alert>
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>

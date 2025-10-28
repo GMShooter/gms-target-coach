@@ -42,6 +42,7 @@ export const Signup: Story = {
                   <label htmlFor="full-name" className="text-slate-300 text-sm font-medium">Full Name</label>
                   <input
                     id="full-name"
+                    name="full-name"
                     type="text"
                     placeholder="Enter your full name"
                     className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md"
@@ -51,6 +52,7 @@ export const Signup: Story = {
                   <label htmlFor="email-address" className="text-slate-300 text-sm font-medium">Email Address</label>
                   <input
                     id="email-address"
+                    name="email-address"
                     type="email"
                     placeholder="Enter your email"
                     className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md"
@@ -61,6 +63,7 @@ export const Signup: Story = {
                   <div className="relative">
                     <input
                       id="password"
+                      name="password"
                       type="password"
                       placeholder="Enter your password"
                       className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md pr-10"
@@ -113,6 +116,7 @@ export const WithError: Story = {
                   <label htmlFor="error-email" className="text-slate-300 text-sm font-medium">Email Address</label>
                   <input
                     id="error-email"
+                    name="error-email"
                     type="email"
                     placeholder="Enter your email"
                     className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md"
@@ -122,6 +126,7 @@ export const WithError: Story = {
                   <label htmlFor="error-password" className="text-slate-300 text-sm font-medium">Password</label>
                   <input
                     id="error-password"
+                    name="error-password"
                     type="password"
                     placeholder="Enter your password"
                     className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md"
@@ -158,8 +163,10 @@ export const WithLoading: Story = {
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-slate-300 text-sm font-medium">Email Address</label>
+                  <label htmlFor="loading-email" className="text-slate-300 text-sm font-medium">Email Address</label>
                   <input
+                    id="loading-email"
+                    name="loading-email"
                     type="email"
                     placeholder="Enter your email"
                     defaultValue="test@example.com"
@@ -168,11 +175,13 @@ export const WithLoading: Story = {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-slate-300 text-sm font-medium">Password</label>
+                  <label htmlFor="loading-password" className="text-slate-300 text-sm font-medium">Password</label>
                   <input
+                    id="loading-password"
+                    name="loading-password"
                     type="password"
                     placeholder="Enter your password"
-                    defaultValue="••••••••"
+                    defaultValue="••••••"
                     disabled
                     className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 rounded-md opacity-50"
                   />

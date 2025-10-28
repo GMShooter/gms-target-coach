@@ -98,10 +98,12 @@ export const SessionManager: React.FC<SessionManagerProps> = ({ deviceId, device
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label htmlFor="target-distance" className="block text-sm font-medium mb-2">
                   Target Distance (meters)
                 </label>
                 <input
+                  id="target-distance"
+                  name="target-distance"
                   type="number"
                   min="1"
                   max="100"
@@ -114,10 +116,12 @@ export const SessionManager: React.FC<SessionManagerProps> = ({ deviceId, device
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label htmlFor="target-size" className="block text-sm font-medium mb-2">
                   Target Size (meters)
                 </label>
                 <input
+                  id="target-size"
+                  name="target-size"
                   type="number"
                   min="0.1"
                   max="2"
@@ -131,10 +135,12 @@ export const SessionManager: React.FC<SessionManagerProps> = ({ deviceId, device
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label htmlFor="detection-sensitivity" className="block text-sm font-medium mb-2">
                   Detection Sensitivity (%)
                 </label>
                 <input
+                  id="detection-sensitivity"
+                  name="detection-sensitivity"
                   type="range"
                   min="10"
                   max="100"
@@ -150,10 +156,12 @@ export const SessionManager: React.FC<SessionManagerProps> = ({ deviceId, device
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label htmlFor="zoom-preset" className="block text-sm font-medium mb-2">
                   Zoom Preset
                 </label>
                 <select
+                  id="zoom-preset"
+                  name="zoom-preset"
                   value={sessionConfig.zoomPreset}
                   onChange={(e) => setSessionConfig(prev => ({
                     ...prev,

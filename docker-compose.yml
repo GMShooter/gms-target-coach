@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # Main application service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - VITE_SUPABASE_URL=http://supabase:54321
+      - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2YndwdXhoa3l2ZnlvbnJwYnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NDUxNzUsImV4cCI6MjA2NTIyMTE3NX0.DnuWRHUglMP0yAb5jtVtfr3Gq-N1711W36r6LMpTYGE
+      - VITE_USE_MOCK_HARDWARE=true
+      - VITE_ENABLE_EDGE_FUNCTIONS=false
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - supabase
+    command: npm run dev
+    networks:
+      - gmshoot-network
+
+  # Supabase local development
+  supabase:
+    image: supabase/cli:latest
+    ports:
+      - "54321:54321"  # API
+      - "54322:54322"  # DB
+      - "54323:54323"  # Studio
+      - "54324:54324"  # Inbucket
+    environment:
+      - SUPABASE_DB_PASSWORD=postgres
+      - SUPABASE_SERVICE_KEY=your-service-key
+    volumes:
+      - ./supabase:/supabase
+      - supabase_db:/var/lib/postgresql
+    command: supabase start
+    networks:
+      - gmshoot-network
+
+  # Test runner service
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - NODE_ENV=test
+      - VITE_SUPABASE_URL=http://supabase:54321
+      - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2YndwdXhoa3l2ZnlvbnJwYnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NDUxNzUsImV4cCI6MjA2NTIyMTE3NX0.DnuWRHUglMP0yAb5jtVtfr3Gq-N1711W36r6LMpTYGE
+      - VITE_USE_MOCK_HARDWARE=true
+      - VITE_ENABLE_EDGE_FUNCTIONS=false
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - supabase
+    command: npm run test:ci
+    networks:
+      - gmshoot-network
+
+  # Cypress E2E testing service
+  e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile.cypress
+    environment:
+      - CYPRESS_baseUrl=http://app:3000
+      - CYPRESS_SUPABASE_URL=http://supabase:54321
+      - CYPRESS_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2YndwdXhoa3l2ZnlvbnJwYnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NDUxNzUsImV4cCI6MjA2NTIyMTE3NX0.DnuWRHUglMP0yAb5jtVtfr3Gq-N1711W36r6LMpTYGE
+    volumes:
+      - ./cypress:/e2e/cypress
+      - ./cypress/videos:/e2e/cypress/videos
+      - ./cypress/screenshots:/e2e/cypress/screenshots
+    depends_on:
+      - app
+    command: npm run test:e2e
+    networks:
+      - gmshoot-network
+
+volumes:
+  supabase_db:
+
+networks:
+  gmshoot-network:
+    driver: bridge

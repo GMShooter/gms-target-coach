@@ -14,6 +14,7 @@ import ReportPage from './pages/ReportPage';
 import { ConnectPage } from './pages/ConnectPage';
 import { SessionPage } from './pages/SessionPage';
 import { HistoryPage } from './pages/HistoryPage';
+import { QueryProvider } from './lib/query-client';
 import './App.css';
 
 // Dashboard component for logged-in users
@@ -107,11 +108,13 @@ function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <QueryProvider>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </QueryProvider>
   );
 }
 

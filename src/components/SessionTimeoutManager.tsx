@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
 import {
-  Clock,
   AlertTriangle,
   Timer,
   Play,
@@ -14,6 +12,7 @@ import {
 
 import { useSessionTimeout } from '../hooks/useSessionTimeout';
 import { SessionData } from '../services/HardwareAPI';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge-2';

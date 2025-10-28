@@ -274,3 +274,7 @@ enable_confirmations = false
 # issuer_url = ""
 
 [edge_runtime]
+port = 54321
+# Set to true to use Node.js runtime instead of Deno for Edge Functions
+# This helps with Cypress compatibility on Windows
+use_nodejs = true

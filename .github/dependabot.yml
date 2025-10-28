@@ -1,0 +1,191 @@
+# GitHub Dependabot configuration for GMShoot v2
+# This file configures automated dependency updates for security and stability
+
+version: 2
+updates:
+
+  # Enable version updates for npm packages
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      # Check for updates daily at 9:00 UTC
+      interval: "daily"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "shova" # Add your GitHub username here
+    assignees:
+      - "shova" # Add your GitHub username here
+    commit-message:
+      # Prefix commit messages with "deps:" for easy identification
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    allow:
+      # Allow updates for all dependencies except those with specific patterns
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+      - dependency-type: "development"
+    ignore:
+      # Ignore certain packages that may cause breaking changes
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@tanstack/react-query"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "supabase"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # Group updates by dependency type
+      react-related:
+        patterns:
+          - "react*"
+          - "@types/react*"
+        dependency-type: "development"
+      testing-related:
+        patterns:
+          - "jest*"
+          - "@testing-library/*"
+          - "cypress*"
+        dependency-type: "development"
+      build-related:
+        patterns:
+          - "webpack*"
+          - "vite*"
+          - "craco*"
+        dependency-type: "development"
+      firebase-related:
+        patterns:
+          - "firebase*"
+        dependency-type: "direct"
+      supabase-related:
+        patterns:
+          - "supabase*"
+        dependency-type: "direct"
+      ui-related:
+        patterns:
+          - "tailwind*"
+          - "@headlessui/*"
+          - "@heroicons/*"
+        dependency-type: "direct"
+
+  # Enable Docker updates
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      # Check for Docker updates weekly on Sundays at 10:00 UTC
+      interval: "weekly"
+      day: "sunday"
+      time: "10:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "shova"
+    assignees:
+      - "shova"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "docker"
+      - "dependencies"
+      - "automated"
+    allow:
+      # Allow updates for Docker images
+      - dependency-name: "node"
+      - dependency-name: "nginx"
+      - dependency-name: "cypress/included"
+      - dependency-name: "supabase/cli"
+    groups:
+      node-related:
+        patterns:
+          - "node"
+      cypress-related:
+        patterns:
+          - "cypress/*"
+      supabase-related:
+        patterns:
+          - "supabase/*"
+
+  # Enable GitHub Actions updates
+  - package-ecosystem: "github-actions"
+    directory: ".github/workflows"
+    schedule:
+      # Check for Actions updates weekly on Mondays at 08:00 UTC
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "shova"
+    assignees:
+      - "shova"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "dependencies"
+      - "automated"
+    allow:
+      # Allow updates for specific actions
+      - dependency-name: "actions/*"
+      - dependency-name: "docker/*"
+      - dependency-name: "cypress-io/*"
+      - dependency-name: "firebase/*"
+      - dependency-name: "supabase/*"
+    groups:
+      testing-actions:
+        patterns:
+          - "cypress-io/*"
+          - "actions/*checkout*"
+          - "actions/*setup-node*"
+      deployment-actions:
+        patterns:
+          - "firebase/*"
+          - "supabase/*"
+          - "docker/*"
+      security-actions:
+        patterns:
+          - "actions/*upload*"
+          - "github/codeql-action*"
+
+# Configure security vulnerability scanning
+security-updates:
+  # Enable security updates for npm packages
+  package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      # Check for security updates every 6 hours
+      interval: "daily"
+      time: "00:00, 06:00, 12:00, 18:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "shova"
+    assignees:
+      - "shova"
+    commit-message:
+      prefix: "security"
+      include: "scope"
+    labels:
+      - "security"
+      - "dependencies"
+      - "automated"
+      - "high-priority"
+    allow:
+      # Allow security updates for all packages
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    groups:
+      security-critical:
+        patterns:
+          - "*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "security"
+
+# Configure commit signing for security
+commit-message:
+  prefix: "deps"
+  include: "scope"

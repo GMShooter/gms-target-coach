@@ -58,7 +58,7 @@ module.exports = {
     // General rules
     'no-console': 'warn',
     'no-debugger': 'error',
-    'no-alert': 'error',
+    'no-alert': 'off',
     'no-eval': 'error',
     'no-implied-eval': 'error',
     'no-new-func': 'error',

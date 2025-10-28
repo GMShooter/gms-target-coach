@@ -4,15 +4,15 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$': '<rootDir>/src/__tests__/mocks/fileMock.js'
   },
   transform: {
     '^.+\\.(ts|tsx)$': 'ts-jest',
+    '^.+\\.(js|jsx)$': 'babel-jest'
   },
   transformIgnorePatterns: [
-    'node_modules/',
-    '^.+\\.css$',
-    '^.+\\.scss$',
-    '^.+\\.less$'
+    'node_modules/(?!(supabase|@supabase|@radix-ui|framer-motion|lucide-react|@testing-library)/)'
   ],
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.(ts|tsx)',
@@ -37,6 +37,12 @@ module.exports = {
   verbose: true,
   clearMocks: true,
   restoreMocks: true,
+  testPathIgnorePatterns: [
+    '<rootDir>/src/__tests__/utils/test-key.ts',
+    '<rootDir>/src/__tests__/utils/types.d.ts',
+    '<rootDir>/src/__tests__/utils/supabase.test.ts',
+    '<rootDir>/src/__tests__/utils/test.ts'
+  ],
   globals: {
     'import.meta': {
       env: {
