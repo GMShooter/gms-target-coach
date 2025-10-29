@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext, createContext, ReactNode, useCa
 
 import { authService, AuthUser } from '../services/AuthService';
 import { hardwareAPI } from '../services/HardwareAPI';
-import { env } from '../utils/env';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -48,26 +47,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      // Check if we're using mock authentication
-      if (env.VITE_USE_MOCK_AUTH === 'true' || env.VITE_USE_MOCK_HARDWARE === 'true') {
-        // Mock Google sign-in for testing
-        const mockUser: AuthUser = {
-          id: 'mock-user-id',
-          email: 'mockuser@example.com',
-          fullName: 'Mock User',
-          createdAt: new Date().toISOString()
-        };
-        setUser(mockUser);
-        setLoading(false);
-        return;
-      }
-      
       // Note: Google OAuth would need to be implemented in AuthService
       // For now, we'll show an error message
       setError('Google sign-in not yet implemented. Please use email sign-in.');
       setLoading(false);
     } catch (error: any) {
-      console.error('Google sign in error:', error);
+      // console.error('Google sign in error:', error);
       setError(error.message || 'Failed to sign in with Google');
       setLoading(false);
     }
@@ -79,20 +64,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      // Check if we're using mock hardware
-      if (env.VITE_USE_MOCK_HARDWARE === 'true') {
-        // Mock authentication for testing
-        const mockUser: AuthUser = {
-          id: 'mock-user-id',
-          email: email,
-          fullName: email.split('@')[0],
-          createdAt: new Date().toISOString()
-        };
-        setUser(mockUser);
-        setLoading(false);
-        return;
-      }
-      
       // Use AuthService for email authentication
       const result = await authService.signIn({ email, password });
       
@@ -102,7 +73,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setError(result.error || 'Failed to sign in with email');
       }
     } catch (error: any) {
-      console.error('Email sign in error:', error);
+      // console.error('Email sign in error:', error);
       setError(error.message || 'Failed to sign in with email');
     } finally {
       setLoading(false);
@@ -115,20 +86,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      // Check if we're using mock authentication
-      if (env.VITE_USE_MOCK_AUTH === 'true' || env.VITE_USE_MOCK_HARDWARE === 'true') {
-        // Mock email sign-up for testing
-        const mockUser: AuthUser = {
-          id: 'mock-user-id',
-          email: email,
-          fullName: name || 'Mock User',
-          createdAt: new Date().toISOString()
-        };
-        setUser(mockUser);
-        setLoading(false);
-        return;
-      }
-      
       // Use AuthService for email signup
       const result = await authService.signUp({ email, password, fullName: name });
       
@@ -138,7 +95,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setError(result.error || 'Failed to create account');
       }
     } catch (error: any) {
-      console.error('Email sign up error:', error);
+      // console.error('Email sign up error:', error);
       setError(error.message || 'Failed to create account');
     } finally {
       setLoading(false);
@@ -160,7 +117,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setError(result.error || 'Failed to sign out');
       }
     } catch (error: any) {
-      console.error('Sign out error:', error);
+      // console.error('Sign out error:', error);
       setError(error.message || 'Failed to sign out');
     } finally {
       setLoading(false);
@@ -176,21 +133,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkInitialAuth = async () => {
       try {
-        // Check if we're using mock authentication
-        if (env.VITE_USE_MOCK_AUTH === 'true' || env.VITE_USE_MOCK_HARDWARE === 'true') {
-          // In mock mode, set a mock user immediately
-          const mockUser: AuthUser = {
-            id: 'mock-user-id',
-            email: 'mockuser@example.com',
-            fullName: 'Mock User',
-            createdAt: new Date().toISOString()
-          };
-          setUser(mockUser);
-          hardwareAPI.setUserId(mockUser.id);
-          setLoading(false);
-          return;
-        }
-
         // Sync initial auth state from AuthService
         syncAuthState();
         
@@ -202,7 +144,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         setLoading(false);
       } catch (error) {
-        console.error('Error checking initial auth state:', error);
+        // console.error('Error checking initial auth state:', error);
         setLoading(false);
       }
     };

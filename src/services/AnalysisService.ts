@@ -66,7 +66,7 @@ class AnalysisService {
       });
 
       if (error) {
-        console.error('Analysis service error:', error);
+        // console.error('Analysis service error:', error);
         throw new Error(`Analysis failed: ${error.message}`);
       }
 
@@ -89,11 +89,11 @@ class AnalysisService {
       };
 
     } catch (error) {
-      console.error('Frame analysis failed:', error);
+      // console.error('Frame analysis failed:', error);
       
       // Fallback to mock analysis on error
       if (!useMock) {
-        console.warn('Falling back to mock analysis due to error');
+        // console.warn('Falling back to mock analysis due to error');
         return this.generateMockAnalysis(frameData);
       }
       
@@ -127,7 +127,7 @@ class AnalysisService {
         if (result.status === 'fulfilled') {
           results.push(result.value);
         } else {
-          console.error(`Failed to analyze frame ${index}:`, result.reason);
+          // console.error(`Failed to analyze frame ${index}:`, result.reason);
         }
       });
     }

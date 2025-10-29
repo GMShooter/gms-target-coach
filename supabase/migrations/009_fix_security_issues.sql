@@ -13,9 +13,11 @@
 -- Fix update_updated_at_column function
 -- First drop triggers that depend on the function
 DROP TRIGGER IF EXISTS update_users_updated_at ON users;
-DROP TRIGGER IF EXISTS update_analysis_sessions_updated_at ON analysis_sessions;
+DROP TRIGGER IF EXISTS update_sessions_updated_at ON sessions;
 DROP TRIGGER IF EXISTS update_reports_updated_at ON reports;
+DROP TRIGGER IF EXISTS update_analysis_sessions_updated_at ON analysis_sessions;
 DROP TRIGGER IF EXISTS update_user_preferences_updated_at ON user_preferences;
+DROP TRIGGER IF EXISTS update_session_frames_updated_at ON session_frames;
 
 -- Now drop and recreate the function
 DROP FUNCTION IF EXISTS update_updated_at_column();

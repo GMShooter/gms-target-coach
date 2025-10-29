@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect } from "react"
 import { motion, useMotionTemplate, useMotionValue } from "framer-motion"
 
-import { cn } from "../../lib/utils"
-
 export interface MagicCardProps {
   children?: React.ReactNode
   className?: string

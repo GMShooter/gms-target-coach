@@ -1,4 +1,11 @@
 // Mock Canvas API before any imports that might use it
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+import '@testing-library/jest-dom';
+import LiveTargetView from '../../components/LiveTargetView';
+import { useHardware } from '../../hooks/useHardware';
+
 const mockCanvasContext = {
   clearRect: jest.fn(),
   beginPath: jest.fn(),
@@ -25,13 +32,6 @@ const mockCanvasContext = {
 
 // Setup Canvas API mock
 HTMLCanvasElement.prototype.getContext = jest.fn(() => mockCanvasContext as any);
-
-import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-
-import '@testing-library/jest-dom';
-import LiveTargetView from '../../components/LiveTargetView';
-import { useHardware } from '../../hooks/useHardware';
 
 // Mock useHardware hook
 jest.mock('../../hooks/useHardware');
@@ -183,10 +183,8 @@ describe('LiveTargetView Component', () => {
     };
     mockUseHardware.isConnected = true;
     
-    // Re-render with new state
-    act(() => {
-      render(<LiveTargetView {...defaultProps} />);
-    });
+    // Re-render with new state - component will re-render automatically when mock state changes
+    render(<LiveTargetView {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('Connected')).toBeInTheDocument();
@@ -279,10 +277,8 @@ describe('LiveTargetView Component', () => {
     };
     mockUseHardware.isSessionActive = true;
     
-    // Re-render with new state
-    act(() => {
-      render(<LiveTargetView {...defaultProps} />);
-    });
+    // Re-render with new state - component will re-render automatically when mock state changes
+    render(<LiveTargetView {...defaultProps} />);
     
     await waitFor(() => {
       expect(screen.getByText('Stop Session')).toBeInTheDocument();
@@ -380,8 +376,10 @@ describe('LiveTargetView Component', () => {
     
     await waitFor(() => {
       expect(screen.getByText('Shot History')).toBeInTheDocument();
-      expect(screen.getByText('Shot #1')).toBeInTheDocument();
     }, { timeout: 3000 });
+    
+    // Check for shot details separately
+    expect(screen.getByText('Shot #1')).toBeInTheDocument();
   });
 
   test('should show video stream when frame is updated', async () => {
@@ -570,13 +568,19 @@ describe('LiveTargetView Component', () => {
     render(<LiveTargetView {...defaultProps} />);
     
     await waitFor(() => {
-      expect(defaultProps.onSessionComplete).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ shotId: 'shot-001' }),
-          expect.objectContaining({ shotId: 'shot-002' })
-        ])
-      );
+      expect(defaultProps.onSessionComplete).toHaveBeenCalled();
     }, { timeout: 3000 });
+    
+    // Check the callback arguments separately
+    const callbackCalls = (defaultProps.onSessionComplete as jest.Mock).mock.calls;
+    expect(callbackCalls.length).toBeGreaterThan(0);
+    const shotsArray = callbackCalls[0][0];
+    expect(shotsArray).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ shotId: 'shot-001' }),
+        expect.objectContaining({ shotId: 'shot-002' })
+      ])
+    );
   });
 
   test('should cleanup on unmount', () => {

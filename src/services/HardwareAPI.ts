@@ -224,7 +224,7 @@ export class HardwareAPI {
 
       return device;
     } catch (error) {
-      console.error('Failed to parse QR code:', error);
+      // console.error('Failed to parse QR code:', error);
       return null;
     }
   }
@@ -475,7 +475,7 @@ export class HardwareAPI {
             
             // If sequential detection found a new shot, enhance the frame data
             if (sequentialResult && sequentialResult.isNewShot) {
-              console.log(`Sequential detection: Shot #${sequentialResult.shotNumber} detected at position (${sequentialResult.position.x}, ${sequentialResult.position.y})`);
+              // console.log(`Sequential detection: Shot #${sequentialResult.shotNumber} detected at position (${sequentialResult.position.x}, ${sequentialResult.position.y})`);
               
               // Add sequential shot number to existing shot data or create new shot data
               if (frameData.shotData) {
@@ -486,7 +486,7 @@ export class HardwareAPI {
               }
             }
           } catch (seqError) {
-            console.warn('Sequential shot detection failed:', seqError);
+            // console.warn('Sequential shot detection failed:', seqError);
             // Continue with normal processing if sequential detection fails
           }
         }
@@ -592,7 +592,7 @@ export class HardwareAPI {
           };
         }
       } catch (error) {
-        console.warn('Failed to authenticate request:', error);
+        // console.warn('Failed to authenticate request:', error);
         // Continue without auth for initial connection attempts
       }
     }
@@ -655,10 +655,10 @@ export class HardwareAPI {
       });
 
       if (!response.ok) {
-        console.warn('Failed to register device with Supabase:', await response.text());
+        // console.warn('Failed to register device with Supabase:', await response.text());
       }
     } catch (error) {
-      console.error('Error registering session with Supabase:', error);
+      // console.error('Error registering session with Supabase:', error);
     }
   }
 
@@ -688,10 +688,10 @@ export class HardwareAPI {
       });
 
       if (!response.ok) {
-        console.error('Failed to send session data to Supabase:', await response.text());
+        // console.error('Failed to send session data to Supabase:', await response.text());
       }
     } catch (error) {
-      console.error('Error sending session data to Supabase:', error);
+      // console.error('Error sending session data to Supabase:', error);
     }
   }
 
@@ -727,7 +727,7 @@ export class HardwareAPI {
     const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`);
 
     ws.onopen = () => {
-      console.log(`WebSocket connected to device ${deviceId}`);
+      // console.log(`WebSocket connected to device ${deviceId}`);
       this.emit('websocketConnected', { deviceId, sessionId });
     };
 
@@ -767,7 +767,7 @@ export class HardwareAPI {
           });
         }
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+        // console.error('Failed to parse WebSocket message:', error);
         this.emit('error', {
           type: 'websocket_parse_error',
           deviceId,
@@ -777,27 +777,27 @@ export class HardwareAPI {
     };
 
     ws.onerror = (error) => {
-      console.error(`WebSocket error for device ${deviceId}:`, error);
+      // console.error(`WebSocket error for device ${deviceId}:`, error);
       this.emit('error', { type: 'websocket_error', deviceId, error });
       
       // Attempt to reconnect after delay
       setTimeout(() => {
         if (this.activeSessions.has(sessionId)) {
-          console.log(`Attempting to reconnect WebSocket for device ${deviceId}...`);
+          // console.log(`Attempting to reconnect WebSocket for device ${deviceId}...`);
           this.establishWebSocketConnection(deviceId, sessionId);
         }
       }, 5000); // Reconnect after 5 seconds
     };
 
     ws.onclose = (event) => {
-      console.log(`WebSocket disconnected from device ${deviceId}, code: ${event.code}, reason: ${event.reason}`);
+      // console.log(`WebSocket disconnected from device ${deviceId}, code: ${event.code}, reason: ${event.reason}`);
       this.wsConnections.delete(deviceId);
       this.emit('websocketDisconnected', { deviceId, sessionId, code: event.code, reason: event.reason });
       
       // Attempt to reconnect if not a normal closure
       if (event.code !== 1000 && this.activeSessions.has(sessionId)) {
         setTimeout(() => {
-          console.log(`Attempting to reconnect WebSocket for device ${deviceId}...`);
+          // console.log(`Attempting to reconnect WebSocket for device ${deviceId}...`);
           this.establishWebSocketConnection(deviceId, sessionId);
         }, 5000); // Reconnect after 5 seconds
       }
@@ -812,14 +812,14 @@ export class HardwareAPI {
   public sendWebSocketMessage(deviceId: string, message: any): void {
     const ws = this.wsConnections.get(deviceId);
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.warn(`WebSocket not connected to device ${deviceId}`);
+      // console.warn(`WebSocket not connected to device ${deviceId}`);
       return;
     }
 
     try {
       ws.send(JSON.stringify(message));
     } catch (error) {
-      console.error(`Failed to send WebSocket message to device ${deviceId}:`, error);
+      // console.error(`Failed to send WebSocket message to device ${deviceId}:`, error);
       this.emit('error', {
         type: 'websocket_send_error',
         deviceId,
@@ -1191,7 +1191,7 @@ export class HardwareAPI {
         throw new Error(response.error || 'Failed to emergency stop session');
       }
     } catch (error) {
-      console.error('Error during emergency stop:', error);
+      // console.error('Error during emergency stop:', error);
       // Even if Pi server communication fails, ensure local state is updated
       session.status = 'emergency_stopped';
       session.endTime = new Date();
@@ -1229,7 +1229,7 @@ export class HardwareAPI {
         throw new Error(`Failed to update session: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error updating session in Supabase:', error);
+      // console.error('Error updating session in Supabase:', error);
       // Don't throw here - session update failures shouldn't stop the flow
     }
   }

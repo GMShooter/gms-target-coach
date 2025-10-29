@@ -422,7 +422,7 @@ export class HardwareAuth {
             this.credentials.set(key.replace(prefix, ''), credentials);
           }
         } catch (error) {
-          console.error('Failed to load stored credentials:', error);
+          // console.error('Failed to load stored credentials:', error);
           localStorage.removeItem(key);
         }
       }

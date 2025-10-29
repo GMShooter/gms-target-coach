@@ -80,7 +80,7 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
         await onSignup?.(formData.email, formData.password, formData.name);
       }
     } catch (error: any) {
-      console.error('Authentication error:', error);
+      // console.error('Authentication error:', error);
       let errorMessage = 'An error occurred';
       
       if (error.message?.includes('Invalid login credentials')) {
@@ -100,7 +100,7 @@ export const MagicLogin: React.FC<MagicLoginProps> = ({
     try {
       await onGoogleSignIn?.();
     } catch (error) {
-      console.error('Google sign-in error:', error);
+      // console.error('Google sign-in error:', error);
     } finally {
       setIsLoading(false);
     }

@@ -37,7 +37,7 @@ export function reportError(error: Error, context?: Record<string, any>) {
       Sentry.captureException(error);
     });
   } else {
-    console.error("Error reported:", error, context);
+    // console.error("Error reported:", error, context);
   }
 }
 
@@ -45,9 +45,11 @@ export function reportError(error: Error, context?: Record<string, any>) {
 export function startTransaction(name: string, op: string = "navigation") {
   // Simplified implementation for compatibility
   if (env.VITE_SUPABASE_URL && env.VITE_SUPABASE_URL.includes('production')) {
-    console.log(`Starting transaction: ${name} (${op})`);
+    // Transaction started successfully
     return {
-      finish: () => console.log(`Finished transaction: ${name}`)
+      finish: () => {
+        // Transaction finished successfully
+      }
     };
   }
   return null;
@@ -58,6 +60,6 @@ export function captureUserFeedback(email: string, comments: string) {
   if (env.VITE_SUPABASE_URL && env.VITE_SUPABASE_URL.includes('production')) {
     // Note: captureUserFeedback is not available in the current Sentry version
     // This would need to be implemented with a custom form or feedback mechanism
-    console.warn('Sentry user feedback not available in current version');
+    // console.warn('Sentry user feedback not available in current version');
   }
 }

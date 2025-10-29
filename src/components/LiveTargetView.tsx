@@ -39,7 +39,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     latestFrame: currentFrame,
     recentShots: shots,
     analysisResult,
-    isAnalyzing,
+    // isAnalyzing,
     connectToDevice,
     disconnectDevice,
     startSession,
@@ -206,8 +206,8 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw all shots in session
-    const sessionShots = Array.from(shots);
-    sessionShots.forEach((sessionShot, index) => {
+    const sessionShots = Array.from(shots) as ShotData[];
+    sessionShots.forEach((sessionShot: ShotData, index: number) => {
       const x = (sessionShot.coordinates.x / 100) * canvas.width;
       const y = (sessionShot.coordinates.y / 100) * canvas.height;
       
@@ -398,8 +398,17 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                 autoPlay
                 playsInline
                 muted
-                className={`w-full h-full object-cover ${isMobile ? 'rounded' : ''}`}
+                className={`w-full h-full object-contain ${isMobile ? 'rounded' : ''}`}
                 style={{ display: currentFrame?.imageUrl ? 'block' : 'none' }}
+                onError={(e) => {
+                  // Video stream error occurred
+                }}
+                onLoadStart={() => {
+                  // Loading video stream...
+                }}
+                onLoadedData={() => {
+                  // Video stream loaded
+                }}
               />
               
               {/* Canvas for shot overlays */}
@@ -411,24 +420,30 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
               />
               
               {/* Loading State Overlay */}
-              {isAnalyzing && (
-                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center" data-testid="loading-overlay">
+              {/* {isAnalyzing && ( */}
+                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center" data-testid="loading-overlay">
                   <div className="text-white text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-                    <p>Analyzing frame...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-lg font-medium">Analyzing frame...</p>
+                    <p className="text-sm opacity-75">Processing shot detection</p>
                   </div>
                 </div>
-              )}
+              {/* )} */}
               
               {/* Placeholder when no stream */}
               {!currentFrame?.imageUrl && (
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-900 to-black">
                   <div className="text-center text-white">
-                    <Camera className={`${isMobile ? 'h-8 w-8' : 'h-12 w-12'} mx-auto mb-4 opacity-50`} />
-                    <p className={`${isMobile ? 'text-sm' : 'text-lg'} font-medium`}>No video feed</p>
-                    <p className={`${isMobile ? 'text-xs' : 'text-sm'} opacity-75`}>
+                    <Camera className={`${isMobile ? 'h-12 w-12' : 'h-16 w-16'} mx-auto mb-6 opacity-50 animate-pulse`} />
+                    <p className={`${isMobile ? 'text-base' : 'text-xl'} font-medium mb-2`}>No video feed</p>
+                    <p className={`${isMobile ? 'text-sm' : 'text-base'} opacity-75`}>
                       {isConnected ? 'Waiting for stream...' : 'Connect to hardware to begin'}
                     </p>
+                    {!isConnected && (
+                      <div className="mt-4">
+                        <p className="text-sm opacity-60 mb-2">Try scanning a QR code or use Demo Connect</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -597,7 +612,7 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
               </p>
             ) : (
               <div className={`space-y-2 ${isMobile ? 'max-h-40' : 'max-h-64'} overflow-y-auto`}>
-                {shots.slice(-10).reverse().map((shot, index) => (
+                {shots.slice(-10).reverse().map((shot: ShotData, index: number) => (
                   <div key={shot.shotId || index} className={`flex items-center justify-between p-2 bg-muted rounded ${isMobile ? 'p-1' : ''}`}>
                     <div className="flex items-center gap-2">
                       <Target className={isMobile ? 'h-3 w-3' : 'h-4 w-4'} />
@@ -667,16 +682,16 @@ export const LiveTargetView: React.FC<LiveTargetViewProps> = ({
                 <div className="flex justify-between">
                   <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Average Score:</span>
                   <span className={isMobile ? 'text-xs' : 'text-sm'}>
-                    {(shots.reduce((sum, shot) => sum + shot.score, 0) / shots.length).toFixed(1)}
+                    {(shots.reduce((sum: number, shot: ShotData) => sum + shot.score, 0) / shots.length).toFixed(1)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Best Shot:</span>
-                  <span className={isMobile ? 'text-xs' : 'text-sm'}>{Math.max(...shots.map(s => s.score))}/10</span>
+                  <span className={isMobile ? 'text-xs' : 'text-sm'}>{Math.max(...shots.map((s: ShotData) => s.score))}/10</span>
                 </div>
                 <div className="flex justify-between">
                   <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Bullseyes:</span>
-                  <span className={isMobile ? 'text-xs' : 'text-sm'}>{shots.filter(s => s.score >= 10).length}</span>
+                  <span className={isMobile ? 'text-xs' : 'text-sm'}>{shots.filter((s: ShotData) => s.score >= 10).length}</span>
                 </div>
               </div>
             </CardContent>

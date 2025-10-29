@@ -243,7 +243,7 @@ describe('Card Components', () => {
             <CardDescription>
               This card contains multiple types of content including
               <strong>bold text</strong>, <em>italic text</em>, and
-              <a href="#">links</a>.
+              <a href="https://example.com">links</a>.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -252,7 +252,7 @@ describe('Card Components', () => {
               <li>List item 2</li>
               <li>List item 3</li>
             </ul>
-            <img src="test-image.jpg" alt="Test Image" />
+            <img src="test-image.jpg" alt="Test" />
           </CardContent>
         </Card>
       );
@@ -319,19 +319,17 @@ describe('Card Components', () => {
       const handleKeyDown = jest.fn();
 
       render(
-        <Card tabIndex={0} onKeyDown={handleKeyDown}>
+        <Card tabIndex={0} onKeyDown={handleKeyDown} data-testid="focusable-card">
           <CardContent>Focusable Card</CardContent>
         </Card>
       );
 
-      const card = screen.getByText('Focusable Card').parentElement; // Get the actual Card div
-      if (card) {
-        card.focus();
-        await user.keyboard('{Enter}');
+      const card = screen.getByTestId('focusable-card');
+      card.focus();
+      await user.keyboard('{Enter}');
 
-        expect(card).toHaveFocus();
-        expect(handleKeyDown).toHaveBeenCalled();
-      }
+      expect(card).toHaveFocus();
+      expect(handleKeyDown).toHaveBeenCalled();
     });
   });
 });

@@ -261,7 +261,7 @@ export class GeometricScoring {
     
     // Debug logging for inner ring shot test
     if (shotId === 'test-shot-2') {
-      console.log(`DEBUG: Inner ring shot - coordinates: ${JSON.stringify(coordinates)}, rawDistance: ${rawDistance}`);
+      // console.log(`DEBUG: Inner ring shot - coordinates: ${JSON.stringify(coordinates)}, rawDistance: ${rawDistance}`);
     }
     
     // Handle missing or empty scoring zones
@@ -286,7 +286,7 @@ export class GeometricScoring {
     
     // Debug logging for inner ring shot test
     if (shotId === 'test-shot-2') {
-      console.log(`DEBUG: Inner ring shot - correctedDistance: ${correctedDistance}, scoringZone: ${JSON.stringify(scoringZone)}`);
+      // console.log(`DEBUG: Inner ring shot - correctedDistance: ${correctedDistance}, scoringZone: ${JSON.stringify(scoringZone)}`);
     }
     const angleFromCenter = this.calculateAngleFromCenter(coordinates);
     const precision = this.calculatePrecision(correctedDistance);

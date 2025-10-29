@@ -1,16 +1,15 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
-import { 
-  Home, 
-  Video, 
-  Camera, 
-  FileText, 
-  User, 
-  Settings, 
+import {
+  Home,
+  Video,
+  Camera,
+  FileText,
+  User,
+  Settings,
   LogOut,
-  Target,
   BarChart3
 } from 'lucide-react'
 
@@ -70,11 +69,11 @@ export default function MagicDock({ items, className }: MagicDockProps) {
 
     window.addEventListener('mousemove', handleMouseMove)
     return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [scale, rotate, mouseX, mouseY])
+  }, [scale, rotate, mouseX, mouseY, dockRef])
 
-  const handleItemClick = (item: DockItem) => {
+  const handleItemClick = useCallback((item: DockItem) => {
     item.onClick()
-  }
+  }, [])
 
   return (
     <motion.div

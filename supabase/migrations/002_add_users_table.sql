@@ -21,10 +21,10 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for users table
 CREATE POLICY "Users can view own profile" ON users
-  FOR SELECT USING (auth.uid() = firebase_uid);
+  FOR SELECT USING (auth.uid()::text = firebase_uid);
 
 CREATE POLICY "Users can update own profile" ON users
-  FOR UPDATE USING (auth.uid() = firebase_uid);
+  FOR UPDATE USING (auth.uid()::text = firebase_uid);
 
 -- Create trigger for updated_at on users table
 CREATE TRIGGER update_users_updated_at

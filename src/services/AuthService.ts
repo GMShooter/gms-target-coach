@@ -91,7 +91,7 @@ class AuthService {
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
-        console.error('Error getting initial session:', error);
+        // console.error('Error getting initial session:', error);
         this.setError(error.message);
       } else if (session) {
         await this.setSession(session);
@@ -99,7 +99,7 @@ class AuthService {
         this.clearAuth();
       }
     } catch (error) {
-      console.error('Failed to initialize auth:', error);
+      // console.error('Failed to initialize auth:', error);
       this.setError('Failed to initialize authentication');
     } finally {
       this.setLoading(false);
@@ -111,7 +111,7 @@ class AuthService {
    * @private
    */
   private async handleAuthStateChange(event: string, session: SupabaseSession | null): Promise<void> {
-    console.log('Auth state changed:', event, session ? 'Session exists' : 'No session');
+    // console.log('Auth state changed:', event, session ? 'Session exists' : 'No session');
     
     switch (event) {
       case 'SIGNED_IN':
@@ -137,7 +137,7 @@ class AuthService {
         break;
         
       default:
-        console.log('Unhandled auth event:', event);
+        // console.log('Unhandled auth event:', event);
     }
   }
 
@@ -467,7 +467,7 @@ class AuthService {
       const { data: { session } } = await supabase.auth.getSession();
       return session?.access_token || null;
     } catch (error) {
-      console.error('Failed to get session token:', error);
+      // console.error('Failed to get session token:', error);
       return null;
     }
   }
@@ -480,7 +480,7 @@ class AuthService {
       const { data, error } = await supabase.auth.refreshSession();
       
       if (error) {
-        console.error('Failed to refresh session:', error);
+        // console.error('Failed to refresh session:', error);
         return false;
       }
 
@@ -491,7 +491,7 @@ class AuthService {
 
       return false;
     } catch (error) {
-      console.error('Failed to refresh session:', error);
+      // console.error('Failed to refresh session:', error);
       return false;
     }
   }

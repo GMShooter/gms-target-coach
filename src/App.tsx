@@ -1,104 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import { Button } from './components/ui/button';
-import MagicLandingPage from './components/ui/magic-landing-page';
 import MagicLogin from './components/ui/magic-login';
-import { MagicDock, defaultDockItems } from './components/ui/magicui';
+import { MagicDock } from './components/ui/magicui';
 import { AuthProvider, useAuth } from './hooks/useAuth';
-import VideoAnalysis from './components/VideoAnalysis';
-import CameraAnalysis from './components/CameraAnalysis';
-import ReportList from './components/ReportList';
-import Report from './components/Report';
-import ReportPage from './pages/ReportPage';
-import { ConnectPage } from './pages/ConnectPage';
-import { SessionPage } from './pages/SessionPage';
-import { HistoryPage } from './pages/HistoryPage';
+import LiveDemoPage from './pages/LiveDemoPage';
 import { QueryProvider } from './lib/query-client';
 import './App.css';
 
-// Dashboard component for logged-in users
-const Dashboard = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-800 pt-20">
-      <div className="container mx-auto px-6 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">Welcome to GMShoot</h1>
-          <p className="text-slate-300 text-lg">Your shooting analysis dashboard</p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-6 hover:bg-slate-800/70 transition-all duration-300">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mr-4">
-                <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-white">Video Analysis</h2>
-            </div>
-            <p className="text-slate-400 mb-4">Upload and analyze your shooting videos for detailed performance metrics</p>
-            <a href="/analysis" className="inline-flex items-center text-blue-400 hover:text-blue-300 font-medium">
-              Get Started
-              <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
-          </div>
-          
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-6 hover:bg-slate-800/70 transition-all duration-300">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center mr-4">
-                <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M9 10l4.553-2.276A1 1 0 0114 8.618v6.764a1 1 0 01-1.447.894L9 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-white">Camera Analysis</h2>
-            </div>
-            <p className="text-slate-400 mb-4">Use your camera for real-time shooting analysis and feedback</p>
-            <a href="/camera" className="inline-flex items-center text-green-400 hover:text-green-300 font-medium">
-              Start Camera
-              <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
-          </div>
-          
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-6 hover:bg-slate-800/70 transition-all duration-300">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mr-4">
-                <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-white">Reports</h2>
-            </div>
-            <p className="text-slate-400 mb-4">View detailed analysis reports and track your progress over time</p>
-            <a href="/reports" className="inline-flex items-center text-purple-400 hover:text-purple-300 font-medium">
-              View Reports
-              <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
-          </div>
-        </div>
-        
-        <div className="mt-12 bg-slate-800/30 backdrop-blur-sm border border-slate-700 rounded-lg p-8">
-          <h2 className="text-2xl font-semibold text-white mb-6">Recent Analysis</h2>
-          <div className="text-center py-12">
-            <svg className="w-16 h-16 text-slate-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <p className="text-slate-400 text-lg mb-4">No analysis sessions yet</p>
-            <a href="/analysis" className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
-              Start Your First Analysis
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 function App() {
   useEffect(() => {
@@ -129,77 +39,23 @@ function AppContent() {
       await signOut();
       window.location.href = '/';
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Sign out error:', error);
     }
   };
 
-  // Custom dock items for GMShoot
+  // Custom dock items for GMShoot Demo
   const dockItems = [
     {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-      ),
-      onClick: () => window.location.href = '/',
-      active: location.pathname === '/'
-    },
-    {
-      id: 'connect',
-      label: 'Connect Hardware',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3-3-3m5 0v6m0 0l-3 3m3-3V9m-9 0h6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V9a2 2 0 012-2z" />
-        </svg>
-      ),
-      onClick: () => window.location.href = '/connect',
-      active: location.pathname === '/connect'
-    },
-    {
-      id: 'session',
-      label: 'Live Session',
+      id: 'demo',
+      label: 'Live Demo',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M9 10l4.553-2.276A1 1 0 0114 8.618v6.764a1 1 0 01-1.447.894L9 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
       ),
-      onClick: () => window.location.href = '/session',
-      active: location.pathname === '/session'
-    },
-    {
-      id: 'video-analysis',
-      label: 'Video Analysis',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4" />
-        </svg>
-      ),
-      onClick: () => window.location.href = '/analysis',
-      active: location.pathname === '/analysis'
-    },
-    {
-      id: 'camera-analysis',
-      label: 'Camera Analysis',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M9 10l4.553-2.276A1 1 0 0114 8.618v6.764a1 1 0 01-1.447.894L9 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-        </svg>
-      ),
-      onClick: () => window.location.href = '/camera',
-      active: location.pathname === '/camera'
-    },
-    {
-      id: 'reports',
-      label: 'Reports',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      ),
-      onClick: () => window.location.href = '/reports',
-      active: location.pathname === '/reports' || location.pathname.startsWith('/report/')
+      onClick: () => window.location.href = '/demo',
+      active: location.pathname === '/demo'
     },
     {
       id: 'signout',
@@ -299,53 +155,13 @@ function AppContent() {
       )}
       
       <Routes>
-        <Route path="/" element={user ? <Dashboard /> : <MagicLandingPage />} />
+        <Route path="/" element={<Navigate to="/demo" replace />} />
         <Route path="/login" element={<div>Redirecting to login...</div>} />
         <Route
-          path="/connect"
+          path="/demo"
           element={
             <div className={user ? "pt-20" : ""}>
-              {user ? <ConnectPage /> : <Navigate to="/login" replace />}
-            </div>
-          }
-        />
-        <Route
-          path="/session"
-          element={
-            <div className={user ? "pt-20" : ""}>
-              {user ? <SessionPage /> : <Navigate to="/login" replace />}
-            </div>
-          }
-        />
-        <Route
-          path="/analysis"
-          element={
-            <div className={user ? "pt-20" : ""}>
-              {user ? <VideoAnalysis /> : <Navigate to="/login" replace />}
-            </div>
-          }
-        />
-        <Route
-          path="/camera"
-          element={
-            <div className={user ? "pt-20" : ""}>
-              {user ? <CameraAnalysis /> : <Navigate to="/login" replace />}
-            </div>
-          }
-        />
-        <Route
-          path="/reports"
-          element={
-            <div className={user ? "pt-20" : ""}>
-              {user ? <ReportList /> : <Navigate to="/login" replace />}
-            </div>
-          }
-        />
-        <Route
-          path="/report/:id"
-          element={
-            <div className={user ? "pt-20" : ""}>
-              {user ? <ReportPage /> : <Navigate to="/login" replace />}
+              {user ? <LiveDemoPage /> : <Navigate to="/login" replace />}
             </div>
           }
         />

@@ -5,7 +5,6 @@ import { useState } from "react";
 
 import { useAuth } from "../../hooks/useAuth";
 
-import { Button } from "./button";
 import { MagicButton } from "./magic-button";
 import {
   Card,
@@ -75,6 +74,8 @@ export default function LoginSignupForm() {
         await signInWithEmail(email, password);
       }
     } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error('Authentication error:', err);
       setError(err.message || "An error occurred during authentication");
     } finally {
       setLoading(false);
@@ -88,6 +89,8 @@ export default function LoginSignupForm() {
     try {
       await signInWithGoogle();
     } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error('Google sign-in error:', err);
       setError(err.message || "An error occurred during Google sign-in");
     } finally {
       setLoading(false);

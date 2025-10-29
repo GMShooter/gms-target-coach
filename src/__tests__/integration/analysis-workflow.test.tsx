@@ -198,6 +198,8 @@ describe('Analysis Workflow Integration Tests', () => {
       // Assert
       await waitFor(() => {
         expect(screen.getByTestId('video-feed')).toBeInTheDocument();
+      });
+      await waitFor(() => {
         expect(screen.getByTestId('analysis-results')).toBeInTheDocument();
       });
       
@@ -287,6 +289,8 @@ describe('Analysis Workflow Integration Tests', () => {
       // Assert
       await waitFor(() => {
         expect(screen.getByTestId('camera-feed')).toBeInTheDocument();
+      });
+      await waitFor(() => {
         expect(screen.getByTestId('shot-overlay')).toBeInTheDocument();
       });
       
@@ -407,9 +411,11 @@ describe('Analysis Workflow Integration Tests', () => {
       
       // Assert
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledTimes(4); // Health, session, and 2 frames (the mock only makes 4 calls)
         expect(screen.getByTestId('video-feed')).toBeInTheDocument();
       });
+      
+      // Check fetch call count separately
+      expect(global.fetch).toHaveBeenCalledTimes(4); // Health, session, and 2 frames (the mock only makes 4 calls)
     });
   });
 });

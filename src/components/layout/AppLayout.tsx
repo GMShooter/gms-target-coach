@@ -2,7 +2,6 @@ import React from 'react';
 
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/button';
-import { Card } from '../ui/card';
 import { cn } from '../../lib/utils';
 
 interface AppLayoutProps {

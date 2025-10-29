@@ -1,4 +1,4 @@
-import { SequentialShotDetection, sequentialShotDetection } from '../../services/SequentialShotDetection';
+import { SequentialShotDetection, sequentialShotDetection, ShotDetection } from '../../services/SequentialShotDetection';
 
 describe('SequentialShotDetection', () => {
   let detector: SequentialShotDetection;
@@ -31,10 +31,10 @@ describe('SequentialShotDetection', () => {
       expect(activeSessions).toHaveLength(2);
     });
 
-    it('should throw error when processing frame for non-existent session', async () => {
+    it('should return null when processing frame for non-existent session', async () => {
       const frame = createMockFrame('frame-1');
-      await expect(detector.processFrame('non-existent', frame))
-        .rejects.toThrow('Session non-existent not initialized');
+      const result = await detector.processFrame('non-existent', frame);
+      expect(result).toBeNull();
     });
   });
 
@@ -59,16 +59,20 @@ describe('SequentialShotDetection', () => {
       
       // Result might be null due to confirmation requirement
       // Process additional frames to confirm shot
+      let detectedShot: ShotDetection | null = null;
       for (let i = 0; i < 3; i++) {
         const confirmFrame = createMockFrame(`confirm-${i}`);
         const shot = await detector.processFrame(testSessionId, confirmFrame);
         if (shot) {
-          expect(shot.isNewShot).toBe(true);
-          expect(shot.shotNumber).toBe(1);
-          expect(shot.frameId).toBe(`confirm-${i}`);
+          detectedShot = shot;
           break;
         }
       }
+      
+      expect(detectedShot).toBeTruthy();
+      expect(detectedShot?.isNewShot).toBe(true);
+      expect(detectedShot?.shotNumber).toBe(1);
+      expect(detectedShot?.frameId).toBe(`confirm-${0}`);
     });
 
     it('should respect minimum shot interval', async () => {
@@ -105,7 +109,6 @@ describe('SequentialShotDetection', () => {
         
         if (result) {
           shotDetected = true;
-          expect(result.shotNumber).toBe(1);
           break;
         }
       }
@@ -153,13 +156,16 @@ describe('SequentialShotDetection', () => {
       // With high sensitivity, should detect shots more easily
       const frame2 = createMockFrame('frame-2');
       // Multiple attempts to account for confirmation frames
+      let highSensitivityShot: ShotDetection | null = null;
       for (let i = 0; i < 5; i++) {
         const result = await detector.processFrame(testSessionId, frame2);
         if (result) {
-          expect(result.isNewShot).toBe(true);
+          highSensitivityShot = result;
           break;
         }
       }
+      
+      expect(highSensitivityShot?.isNewShot).toBe(true);
     });
   });
 

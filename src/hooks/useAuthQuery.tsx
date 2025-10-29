@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, createContext, ReactNode, useCallback } from 'react';
+import React, { useEffect, useContext, createContext, ReactNode, useCallback } from 'react';
 
 import { useQuery, useMutation, useQueryClient } from '../lib/query-client';
 import { supabase } from '../utils/supabase';
@@ -95,7 +95,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           });
 
         if (insertError) {
-          console.error('Error creating user in Supabase:', insertError);
+          // console.error('Error creating user in Supabase:', insertError);
         }
 
         return authUser;
@@ -110,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           .eq('id', session.user.id);
 
         if (updateError) {
-          console.error('Error updating user in Supabase:', updateError);
+          // console.error('Error updating user in Supabase:', updateError);
         }
 
         return formatUser(existingUser);
@@ -254,7 +254,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       return await googleSignInMutation.mutateAsync();
     } catch (error: any) {
-      console.error('Google sign in error:', error);
+      // console.error('Google sign in error:', error);
       let errorMessage = 'Failed to sign in with Google';
       
       if (error.message) {
@@ -270,7 +270,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       return await emailSignInMutation.mutateAsync({ email, password });
     } catch (error: any) {
-      console.error('Email sign in error:', error);
+      // console.error('Email sign in error:', error);
       let errorMessage = 'Failed to sign in with email';
       
       // Provide more specific error messages
@@ -301,7 +301,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       return await emailSignUpMutation.mutateAsync({ email, password, name });
     } catch (error: any) {
-      console.error('Email sign up error:', error);
+      // console.error('Email sign up error:', error);
       let errorMessage = 'Failed to create account';
       
       // Provide more specific error messages
@@ -332,7 +332,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await signOutMutation.mutateAsync();
     } catch (error: any) {
-      console.error('Sign out error:', error);
+      // console.error('Sign out error:', error);
       
       // Don't throw error in tests - just let mutation handle it
       if (error.message?.includes('Sign out failed')) {
@@ -376,7 +376,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error('Error checking initial auth state:', error);
+        // console.error('Error checking initial auth state:', error);
       }
     };
 
@@ -384,7 +384,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
+      // console.log('Auth state changed:', event, session?.user?.email);
       
       if (event === 'SIGNED_IN' && session?.user) {
         const authUser = formatUser(session.user);

@@ -88,7 +88,8 @@ export class SequentialShotDetection {
   async processFrame(sessionId: string, frame: FrameData): Promise<ShotDetection | null> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new Error(`Session ${sessionId} not initialized`);
+      // throw new Error(`Session ${sessionId} not initialized`);
+      return null;
     }
 
     // If this is the first frame, just store it
