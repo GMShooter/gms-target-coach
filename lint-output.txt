@@ -1,0 +1,118 @@
+
+> client@0.1.0 lint
+> eslint src --ext .ts,.tsx
+
+
+C:\Users\shova\Downloads\GMShoot\gmshooter-v2\src\App.tsx
+  1:17  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+  1:28  warning  'useState' is defined but never used   @typescript-eslint/no-unused-vars
+
+C:\Users\shova\Downloads\GMShoot\gmshooter-v2\src\__tests__\utils\test-auth-flow.ts
+   10:3   warning  Unexpected console statement                          no-console
+   11:3   warning  Unexpected console statement                          no-console
+   11:15  warning  Unexpected whitespace before property repeat          no-whitespace-before-property
+   17:5   warning  Unexpected console statement                          no-console
+   18:21  warning  'session' is assigned a value but never used          @typescript-eslint/no-unused-vars
+   21:7   warning  Unexpected console statement                          no-console
+   24:5   warning  Unexpected console statement                          no-console
+   27:5   warning  Unexpected console statement                          no-console
+   34:7   warning  Unexpected console statement                          no-console
+   36:7   warning  Unexpected console statement                          no-console
+   40:5   warning  Unexpected console statement                          no-console
+   42:13  warning  'googleResult' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   43:7   warning  Unexpected console statement                          no-console
+   45:7   warning  Unexpected console statement                          no-console
+   49:5   warning  Unexpected console statement                          no-console
+   51:5   warning  Unexpected console statement                          no-console
+   54:5   warning  Unexpected console statement                          no-console
+   56:5   warning  Unexpected console statement                          no-console
+   58:5   warning  Unexpected console statement                          no-console
+   59:5   warning  Unexpected console statement                          no-console
+   60:5   warning  Unexpected console statement                          no-console
+   61:5   warning  Unexpected console statement                          no-console
+   62:5   warning  Unexpected console statement                          no-console
+   67:5   warning  Unexpected console statement                          no-console
+   74:3   warning  Unexpected console statement                          no-console
+   78:13  warning  'LoginPage' is assigned a value but never used        @typescript-eslint/no-unused-vars
+   79:5   warning  Unexpected console statement                          no-console
+   82:13  warning  'LiveDemoPage' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   83:5   warning  Unexpected console statement                          no-console
+   86:13  warning  'useAuth' is assigned a value but never used          @typescript-eslint/no-unused-vars
+   87:5   warning  Unexpected console statement                          no-console
+   90:13  warning  'useLiveAnalysis' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   91:5   warning  Unexpected console statement                          no-console
+   95:5   warning  Unexpected console statement                          no-console
+  102:3   warning  Unexpected console statement                          no-console
+  103:3   warning  Unexpected console statement                          no-console
+  109:5   warning  Unexpected console statement                          no-console
+  110:5   warning  Unexpected console statement                          no-console
+  111:5   warning  Unexpected console statement                          no-console
+  112:5   warning  Unexpected console statement                          no-console
+  115:5   warning  Unexpected console statement                          no-console
+  116:5   warning  Unexpected console statement                          no-console
+
+C:\Users\shova\Downloads\GMShoot\gmshooter-v2\src\hooks\useLiveAnalysis.ts
+   10:7   warning  'MOCK_FRAMES' is assigned a value but never used         @typescript-eslint/no-unused-vars
+   17:10  warning  'generateDynamicMockAnalysis' is defined but never used  @typescript-eslint/no-unused-vars
+   18:3   warning  Unexpected console statement                             no-console
+   25:3   warning  Unexpected console statement                             no-console
+   43:3   warning  Unexpected console statement                             no-console
+  257:7   warning  Unexpected console statement                             no-console
+  258:7   warning  Unexpected console statement                             no-console
+  259:7   warning  Unexpected console statement                             no-console
+  268:7   warning  Unexpected console statement                             no-console
+  285:7   warning  Unexpected console statement                             no-console
+  289:9   warning  Unexpected console statement                             no-console
+  294:7   warning  Unexpected console statement                             no-console
+  297:9   warning  Unexpected console statement                             no-console
+  309:9   warning  Unexpected console statement                             no-console
+  313:11  warning  Unexpected console statement                             no-console
+  330:7   warning  Unexpected console statement                             no-console
+  334:7   warning  Unexpected console statement                             no-console
+  355:9   warning  Unexpected console statement                             no-console
+  359:11  warning  Unexpected console statement                             no-console
+  364:9   warning  Unexpected console statement                             no-console
+  368:11  warning  Unexpected console statement                             no-console
+  374:11  warning  Unexpected console statement                             no-console
+  375:11  warning  Unexpected console statement                             no-console
+  376:11  warning  Unexpected console statement                             no-console
+  382:9   warning  Unexpected console statement                             no-console
+  389:11  warning  Unexpected console statement                             no-console
+  409:13  warning  Unexpected console statement                             no-console
+  439:9   warning  Unexpected console statement                             no-console
+  446:11  warning  Unexpected console statement                             no-console
+  447:11  warning  Unexpected console statement                             no-console
+  448:11  warning  Unexpected console statement                             no-console
+  487:9   warning  Unexpected console statement                             no-console
+  499:7   warning  Unexpected console statement                             no-console
+  512:5   warning  Unexpected console statement                             no-console
+  513:5   warning  Unexpected console statement                             no-console
+  520:7   warning  Unexpected console statement                             no-console
+  524:11  warning  Unexpected console statement                             no-console
+  550:7   warning  Unexpected console statement                             no-console
+  552:7   warning  Unexpected console statement                             no-console
+  557:7   warning  Unexpected console statement                             no-console
+  561:9   warning  Unexpected console statement                             no-console
+  563:11  warning  Unexpected console statement                             no-console
+  567:9   warning  Unexpected console statement                             no-console
+  572:11  warning  Unexpected console statement                             no-console
+  578:9   warning  Unexpected console statement                             no-console
+  582:11  warning  Unexpected console statement                             no-console
+  585:11  warning  Unexpected console statement                             no-console
+
+C:\Users\shova\Downloads\GMShoot\gmshooter-v2\src\pages\SimpleDemoPage.tsx
+   1:27  warning  'useEffect' is defined but never used       @typescript-eslint/no-unused-vars
+  14:7   warning  Unexpected console statement                no-console
+  21:5   warning  Unexpected console statement                no-console
+  32:5   warning  'error' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\shova\Downloads\GMShoot\gmshooter-v2\src\pages\SimpleLoginPage.tsx
+  29:7  warning  Unexpected console statement  no-console
+  41:7  warning  Unexpected console statement  no-console
+
+C:\Users\shova\Downloads\GMShoot\gmshooter-v2\src\services\AuthService.ts
+  280:15  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+Γ£צ 98 problems (0 errors, 98 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+

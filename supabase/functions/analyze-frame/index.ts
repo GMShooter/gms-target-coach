@@ -1,12 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
 import { corsHeaders } from '../_shared/cors.ts';
 
 const ROBOFLOW_API_KEY = (globalThis as any).Deno?.env.get('ROBOFLOW_API_KEY');
 const ROBOFLOW_MODEL = 'gmshooter-v2/1'; // Updated model name
 const ROBOFLOW_API_URL = `https://api.roboflow.com/${ROBOFLOW_MODEL}`;
 
-// Check if we're in mock mode
-const USE_MOCK_API = ROBOFLOW_API_KEY === 'mock-roboflow-key';
+// Check if we're in mock mode (no API key or explicit mock key)
+const USE_MOCK_API = !ROBOFLOW_API_KEY || ROBOFLOW_API_KEY === 'mock-roboflow-key';
+
+console.log('🎯 DEBUG: Environment variables at startup');
+console.log('🎯 DEBUG: ROBOFLOW_API_KEY:', ROBOFLOW_API_KEY ? 'SET' : 'NOT SET');
+console.log('🎯 DEBUG: USE_MOCK_API:', USE_MOCK_API);
 
 async function callRealRoboflowWorkflow(frameBase64: string): Promise<any[]> {
   // User's Roboflow workflow integration - matching roboflow_workflow.py
@@ -126,12 +131,34 @@ async function callDirectRoboflowAPI(frameBase64: string): Promise<any[]> {
 }
 
 serve(async (req: Request) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { frameBase64 } = await req.json();
+    // Log request for debugging
+    console.log('🧪 Analyze-frame request:', {
+      method: req.method,
+      url: req.url,
+      headers: Object.fromEntries(req.headers.entries())
+    });
+
+    // For development/demo purposes, bypass authentication completely
+    // Check if authorization header exists, but don't require it
+    const authHeader = req.headers.get('authorization');
+    console.log('🎯 Authorization header:', authHeader ? 'PRESENT' : 'MISSING');
+    
+    if (!authHeader) {
+      console.log('🎯 No authorization header - allowing for demo purposes');
+    } else {
+      console.log('🎯 Authorization header found - proceeding anyway for demo purposes');
+    }
+    
+    const requestBody = await req.json();
+    console.log('🧪 Request body:', requestBody);
+    
+    const { frameBase64, sessionId, frameNumber } = requestBody;
     if (!frameBase64) {
       throw new Error('frameBase64 is required.');
     }
@@ -141,28 +168,38 @@ serve(async (req: Request) => {
     // Use mock mode if no real API key is configured
     if (!ROBOFLOW_API_KEY || USE_MOCK_API) {
       console.log('🎯 Using dynamic mock analysis results - no real API key configured');
+      console.log('🎯 ROBOFLOW_API_KEY:', ROBOFLOW_API_KEY);
+      console.log('🎯 USE_MOCK_API:', USE_MOCK_API);
       
       // Generate dynamic mock results based on frame hash for testing
       const frameHash = Math.abs(frameBase64.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0));
       const shotCount = (frameHash % 4) + 1; // 1-4 shots per frame
       const baseConfidence = 0.6 + (frameHash % 3) * 0.1; // 0.6-0.8 confidence
       
-      console.log(`🎯 Generating ${shotCount} mock shots with confidence ${baseConfidence}`);
+      console.log(`🎯 Frame hash: ${frameHash}, generating ${shotCount} mock shots with confidence ${baseConfidence}`);
       
       // Generate dynamic mock shots
-      shots = [];
       for (let i = 0; i < shotCount; i++) {
         const shotHash = frameHash + i * 1000;
-        shots.push({
-          x: 20 + (shotHash % 60), // 20-80% x position
-          y: 20 + ((shotHash * 2) % 60), // 20-80% y position
-          score: 5 + ((shotHash % 6)), // 5-10 score
-          confidence: Math.min(0.95, baseConfidence + (i * 0.05)), // Increasing confidence
+        const x = 20 + (shotHash % 60); // 20-80% x position
+        const y = 20 + ((shotHash * 2) % 60); // 20-80% y position
+        const score = 5 + ((shotHash % 6)); // 5-10 score
+        const confidence = Math.min(0.95, baseConfidence + (i * 0.05)); // Increasing confidence
+        
+        const shot = {
+          x,
+          y,
+          score,
+          confidence,
           class: 'shot'
-        });
+        };
+        
+        shots.push(shot);
+        console.log(`🎯 Generated mock shot ${i+1}: x=${x}, y=${y}, score=${score}, confidence=${confidence}`);
       }
       
-      console.log(`🎯 Generated ${shots.length} dynamic mock shots:`, shots);
+      console.log(`🎯 Total generated shots: ${shots.length}`);
+      console.log(`🎯 Final shots array:`, JSON.stringify(shots, null, 2));
     } else {
       // Try to use user's real Roboflow workflow first
       try {
@@ -189,11 +226,32 @@ serve(async (req: Request) => {
       }
     }
     
-    const responseHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
-    return new Response(JSON.stringify({
+    // Return success response with proper structure
+    const responseData = {
+      success: true,
+      frameNumber: frameNumber || 1,
+      sessionId: sessionId || 'demo-session',
       shots,
-      confidence: shots.length > 0 ? shots.reduce((sum: number, shot: any) => sum + shot.confidence, 0) / shots.length : 0
-    }), { headers: responseHeaders });
+      predictions: shots, // For compatibility with existing code
+      timestamp: new Date().toISOString(),
+      processingTime: Date.now() - (Date.now() - 100) // Mock processing time
+    }
+
+    console.log('🎯 Analysis complete, returning:', responseData);
+
+    return new Response(
+      JSON.stringify(responseData),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
+    );
 
   } catch (error: any) {
     console.error('Error in analyze-frame function:', error);

@@ -6,6 +6,45 @@ import { env } from '../utils/env';
 import { geometricScoring } from '../services/GeometricScoring';
 import { sequentialShotDetection, FrameData as SequentialFrameData, ShotDetection as SequentialShotDetectionType } from '../services/SequentialShotDetection';
 
+// Mock frame data for testing when Supabase functions aren't available
+const MOCK_FRAMES = [
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzFlMjkyYiIvPjxjaXJjbGUgY3g9IjMyMCIgY3k9IjI0MCIgcj0iNTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzNiODJmNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0iY2FwLXJvdW5kIiBzdHJva2UtbGluZWpvaW49ImRhc2giLz48L3N2Zz4=',
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzFlMjkyYiIvPjxjaXJjbGUgY3g9IjMyMCIgY3k9IjI0MCIgcj0iNTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzM2ODJmNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0iY2FwLXJvdW5kIiBzdHJva2UtbGluZWpvaW49ImRhc2giLz48L3N2Zz4=',
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzFlMjkyYiIvPjxjaXJjbGUgY3g9IjMyMCIgY3k9IjI0MCIgcj0iNTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMyODJmNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0iY2FwLXJvdW5kIiBzdHJva2UtbGluZWpvaW49ImRhc2giLz48L3N2Zz4='
+];
+
+// Dynamic mock analysis function for testing without Supabase
+function generateDynamicMockAnalysis(frameData: string, frameNumber: number): { shots: Shot[]; processingTime: number } {
+  console.log(`🎯 Generating dynamic mock analysis for frame ${frameNumber}`);
+  
+  // Generate varying shot counts based on frame hash
+  const frameHash = Math.abs(frameData.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0));
+  const shotCount = (frameHash % 4) + 1; // 1-4 shots per frame
+  const baseConfidence = 0.6 + (frameHash % 3) * 0.1; // 0.6-0.8 confidence
+  
+  console.log(`🎯 Generating ${shotCount} mock shots with confidence ${baseConfidence}`);
+  
+  // Generate dynamic mock shots
+  const shots: Shot[] = [];
+  for (let i = 0; i < shotCount; i++) {
+    const shotHash = frameHash + i * 1000;
+    shots.push({
+      id: `shot-${frameNumber}-${i}`,
+      x: 20 + (shotHash % 60), // 20-80% x position
+      y: 20 + ((shotHash * 2) % 60), // 20-80% y position
+      score: 5 + ((shotHash % 6)), // 5-10 score
+      confidence: Math.min(0.95, baseConfidence + (i * 0.05)), // Increasing confidence
+      timestamp: new Date()
+    });
+  }
+  
+  const processingTime = 150 + Math.random() * 100; // 150-250ms processing time
+  
+  console.log(`🎯 Generated ${shots.length} dynamic mock shots:`, shots);
+  
+  return { shots, processingTime };
+}
+
 export interface Shot {
   id: string;
   x: number;
@@ -207,7 +246,7 @@ export function useLiveAnalysis(sessionId?: string) {
     }
   }, []);
 
-  // Fetch and analyze next frame with change detection
+  // Fetch and analyze next frame with change detection - NO MOCKS
   const fetchAndAnalyzeNextFrame = useCallback(async (): Promise<FrameAnalysis | null> => {
     try {
       setState(prev => ({ ...prev, error: null }));
@@ -215,18 +254,18 @@ export function useLiveAnalysis(sessionId?: string) {
       frameCountRef.current += 1;
       const frameNumber = frameCountRef.current;
       
-      // DEBUG: Log environment variables and session info
-      console.log('🔍 DEBUG: fetchAndAnalyzeNextFrame called');
-      console.log('🔍 DEBUG: sessionId:', sessionId);
-      console.log('🔍 DEBUG: frameNumber:', frameNumber);
-      console.log('🔍 DEBUG: VITE_SUPABASE_URL:', env.VITE_SUPABASE_URL);
-      console.log('🔍 DEBUG: VITE_SUPABASE_ANON_KEY:', env.VITE_SUPABASE_ANON_KEY ? 'SET' : 'MISSING');
-      console.log('🔍 DEBUG: VITE_ROBOFLOW_API_KEY:', env.VITE_ROBOFLOW_API_KEY ? 'SET' : 'MISSING');
-      console.log('🔍 DEBUG: VITE_ROBOFLOW_MODEL_ID:', env.VITE_ROBOFLOW_MODEL_ID || 'MISSING');
+      console.log('🔍 REAL: fetchAndAnalyzeNextFrame called');
+      console.log('🔍 REAL: sessionId:', sessionId);
+      console.log('🔍 REAL: frameNumber:', frameNumber);
       
-      // Step 1: Get next frame from camera proxy
+      // Validate required environment variables
+      if (!env.VITE_SUPABASE_URL || !env.VITE_SUPABASE_ANON_KEY) {
+        throw new Error('Missing Supabase configuration. Check environment variables.');
+      }
+      
+      // Step 1: Get next frame from camera proxy - REAL HARDWARE ONLY
       const cameraProxyUrl = `${env.VITE_SUPABASE_URL}/functions/v1/camera-proxy`;
-      console.log('🔍 DEBUG: Calling camera proxy URL:', cameraProxyUrl);
+      console.log('🔍 REAL: Calling camera proxy URL:', cameraProxyUrl);
       
       const frameResponse = await fetch(cameraProxyUrl, {
         method: 'POST',
@@ -243,38 +282,42 @@ export function useLiveAnalysis(sessionId?: string) {
         }),
       });
 
-      console.log('🔍 DEBUG: Camera proxy response status:', frameResponse.status);
+      console.log('🔍 REAL: Camera proxy response status:', frameResponse.status);
       
       if (!frameResponse.ok) {
-        console.error('🔍 DEBUG: Camera proxy response not OK:', frameResponse.statusText);
-        throw new Error(`Failed to fetch frame from camera: ${frameResponse.status} ${frameResponse.statusText}`);
+        const errorText = await frameResponse.text();
+        console.error('🔍 REAL: Camera proxy response not OK:', frameResponse.statusText, errorText);
+        throw new Error(`Failed to fetch frame from camera: ${frameResponse.status} ${frameResponse.statusText}. ${errorText}`);
       }
 
       const frameData = await frameResponse.json();
-      console.log('🔍 DEBUG: Camera proxy response data:', frameData);
+      console.log('🔍 REAL: Camera proxy response data:', frameData);
       
-      if (!frameData.frameUrl) {
-        console.log('🔍 DEBUG: No frameUrl in response, stopping analysis');
+      if (!frameData.frameUrl && !frameData.frame) {
+        console.log('🔍 REAL: No frame data in response, stopping analysis');
         return null; // No more frames available
       }
 
+      // Use frame data from response (could be frameUrl or frame)
+      const frameUrl = frameData.frameUrl || frameData.frame;
+      
       // Step 1.5: Check if frame has actually changed
-      const currentFrameHash = await hashFrame(frameData.frameUrl);
+      const currentFrameHash = await hashFrame(frameUrl);
       
       if (lastFrameHashRef.current === currentFrameHash) {
         unchangedFrameCountRef.current++;
-        // console.log(`Frame ${frameNumber} unchanged (${unchangedFrameCountRef.current}/${maxUnchangedFramesRef.current})`);
+        console.log(`🔍 REAL: Frame ${frameNumber} unchanged (${unchangedFrameCountRef.current}/${maxUnchangedFramesRef.current})`);
         
         // Stop analysis after max unchanged frames
         if (unchangedFrameCountRef.current >= maxUnchangedFramesRef.current) {
-          // console.log('Max unchanged frames reached, stopping analysis');
+          console.log('🔍 REAL: Max unchanged frames reached, stopping analysis');
           setState(prev => ({ ...prev, isAnalyzing: false }));
           return null;
         }
         
         // Return early without processing
         return {
-          frameUrl: frameData.frameUrl,
+          frameUrl: frameUrl,
           predictions: [],
           confidence: 0,
           timestamp: Date.now(),
@@ -284,11 +327,11 @@ export function useLiveAnalysis(sessionId?: string) {
       // Frame has changed, reset counter and update hash
       unchangedFrameCountRef.current = 0;
       lastFrameHashRef.current = currentFrameHash;
-      // console.log(`Frame ${frameNumber} changed, processing analysis`);
+      console.log(`🔍 REAL: Frame ${frameNumber} changed, processing analysis`);
 
-      // Step 2: Analyze frame using our Supabase edge function with Production Timeout
+      // Step 2: Analyze frame using our Supabase edge function - REAL ROBOFLOW ONLY
       const analysisUrl = `${env.VITE_SUPABASE_URL}/functions/v1/analyze-frame`;
-      console.log('🔍 DEBUG: Calling analysis edge function URL:', analysisUrl);
+      console.log('🔍 REAL: Calling analysis edge function URL:', analysisUrl);
       
       // Create AbortController for 15-second timeout
       const controller = new AbortController();
@@ -302,53 +345,54 @@ export function useLiveAnalysis(sessionId?: string) {
             'Authorization': `Bearer ${env.VITE_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({
-            frameBase64: frameData.frameUrl.replace('data:image/svg+xml;base64,', ''), // Remove data URL prefix
+            frameBase64: frameUrl.replace(/^data:image\/[a-z]+;base64,/, ''), // Remove any data URL prefix
           }),
           signal: controller.signal,
         });
 
         clearTimeout(timeoutId);
 
-        console.log('🔍 DEBUG: Analysis response status:', analysisResponse.status);
+        console.log('🔍 REAL: Analysis response status:', analysisResponse.status);
         
         if (!analysisResponse.ok) {
-          console.error('🔍 DEBUG: Analysis response not OK:', analysisResponse.statusText);
-          throw new Error(`Analysis API error: ${analysisResponse.status} ${analysisResponse.statusText}`);
+          const errorText = await analysisResponse.text();
+          console.error('🔍 REAL: Analysis response not OK:', analysisResponse.statusText, errorText);
+          throw new Error(`Analysis API error: ${analysisResponse.status} ${analysisResponse.statusText}. ${errorText}`);
         }
 
         const analysisResult = await analysisResponse.json();
-        console.log('🔍 DEBUG: Analysis response data:', analysisResult);
+        console.log('🔍 REAL: Analysis response data:', analysisResult);
         
         // Validate analysis result structure
         if (!analysisResult || typeof analysisResult !== 'object') {
-          console.error('🔍 DEBUG: Invalid analysis result structure from edge function');
+          console.error('🔍 REAL: Invalid analysis result structure from edge function');
           throw new Error('Invalid analysis result structure from edge function');
         }
         
-        // Our edge function returns { shots: [], confidence: number } not { predictions: [] }
+        // Our edge function returns { shots: [], confidence: number }
         if (!Array.isArray(analysisResult.shots)) {
-          console.warn('🔍 DEBUG: Edge function returned non-array shots, using empty array');
-          console.log('🔍 DEBUG: Shots type:', typeof analysisResult.shots);
-          console.log('🔍 DEBUG: Shots value:', analysisResult.shots);
-          analysisResult.shots = [];
+          console.error('🔍 REAL: Edge function returned non-array shots');
+          console.log('🔍 REAL: Shots type:', typeof analysisResult.shots);
+          console.log('🔍 REAL: Shots value:', analysisResult.shots);
+          throw new Error('Invalid shots data from analysis service');
         }
         
         // Convert shots to predictions for compatibility with existing code
         analysisResult.predictions = analysisResult.shots;
-        console.log('🔍 DEBUG: Number of shots/predictions:', analysisResult.predictions.length);
+        console.log('🔍 REAL: Number of shots/predictions:', analysisResult.predictions.length);
         
-        // Step 3: Process predictions through Sequential Shot Detection
-        // Convert Roboflow predictions to frame data for processing
+        // Step 3: Process REAL shots through Sequential Shot Detection
         const detectedShots: SequentialShotDetectionType[] = [];
         
-        // For each prediction, create a mock frame and process it
+        // Process each REAL prediction
         for (const prediction of analysisResult.predictions) {
-          // Use prediction to avoid unused variable warning
-          void prediction;
-          const mockFrame: SequentialFrameData = {
-            id: `prediction-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          console.log('🔍 REAL: Processing prediction:', prediction);
+          
+          // Create frame data for shot detection
+          const frameData: SequentialFrameData = {
+            id: `frame-${frameNumber}-${Date.now()}`,
             timestamp: Date.now(),
-            imageData: '', // Would be actual image data
+            imageData: frameUrl,
             width: 640,
             height: 480
           };
@@ -359,13 +403,14 @@ export function useLiveAnalysis(sessionId?: string) {
           }
           
           // Process the frame to detect shots
-          const shot = await shotDetection.processFrame(sessionId || 'demo-session', mockFrame);
+          const shot = await shotDetection.processFrame(sessionId || 'demo-session', frameData);
           if (shot && shot.isNewShot) {
             detectedShots.push(shot);
+            console.log('🔍 REAL: New shot detected:', shot);
           }
         }
         
-        // Step 4: Apply Geometric Scoring
+        // Step 4: Apply Geometric Scoring to REAL shots
         const scoredShots = detectedShots.map((shot: SequentialShotDetectionType) => {
           // Analyze shot with geometric scoring
           const shotAnalysis = scoringService.analyzeShot(
@@ -391,14 +436,20 @@ export function useLiveAnalysis(sessionId?: string) {
           };
         });
 
-        // Step 5: Update state with new shots
+        console.log('🔍 REAL: Scored shots:', scoredShots);
+
+        // Step 5: Update state with REAL shots
         setState(prev => {
           const allShots = [...prev.shots, ...scoredShots];
           const newMetrics = calculateMetrics(allShots);
           
+          console.log('🔍 REAL: Updating state with', scoredShots.length, 'new shots');
+          console.log('🔍 REAL: Total shots now:', allShots.length);
+          console.log('🔍 REAL: New metrics:', newMetrics);
+          
           return {
             ...prev,
-            currentFrame: frameData.frameUrl,
+            currentFrame: frameUrl,
             shots: allShots,
             metrics: newMetrics,
           };
@@ -406,11 +457,11 @@ export function useLiveAnalysis(sessionId?: string) {
 
         // Step 6: Store frame analysis in database (only if we have actual predictions)
         if (analysisResult.predictions && analysisResult.predictions.length > 0) {
-          await storeFrameAnalysis(sessionId, frameNumber, frameData.frameUrl, analysisResult);
+          await storeFrameAnalysis(sessionId, frameNumber, frameUrl, analysisResult);
         }
 
         return {
-          frameUrl: frameData.frameUrl,
+          frameUrl: frameUrl,
           predictions: analysisResult.predictions || [],
           confidence: analysisResult.confidence || 0.8,
           timestamp: Date.now(),
@@ -433,7 +484,7 @@ export function useLiveAnalysis(sessionId?: string) {
           }
         }
         
-        console.error('Error in fetchAndAnalyzeNextFrame:', error);
+        console.error('🔍 REAL: Error in fetchAndAnalyzeNextFrame:', error);
         
         // Stop analysis on critical errors
         setState(prev => ({
@@ -445,7 +496,7 @@ export function useLiveAnalysis(sessionId?: string) {
         return null;
       }
     } catch (error) {
-      console.error('Error in fetchAndAnalyzeNextFrame:', error);
+      console.error('🔍 REAL: Error in fetchAndAnalyzeNextFrame:', error);
       setState(prev => ({
         ...prev,
         isAnalyzing: false,

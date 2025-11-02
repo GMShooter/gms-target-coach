@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../hooks/useAuth';
 
@@ -6,7 +7,15 @@ export function SimpleLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signInWithEmail, signInWithGoogle, error } = useAuth();
+  const { signInWithEmail, signInWithGoogle, error, user } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to demo page if user is already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/demo');
+    }
+  }, [user, navigate]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,6 +24,7 @@ export function SimpleLoginPage() {
     setIsLoading(true);
     try {
       await signInWithEmail(email, password);
+      // Navigation will be handled by useEffect when user state updates
     } catch (err) {
       console.error('Login error:', err);
     } finally {
@@ -26,6 +36,7 @@ export function SimpleLoginPage() {
     setIsLoading(true);
     try {
       await signInWithGoogle();
+      // Navigation will be handled by useEffect when user state updates
     } catch (err) {
       console.error('Google login error:', err);
     } finally {

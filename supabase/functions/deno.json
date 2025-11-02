@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "analyze-frame": {
+      "verify_jwt": false
+    },
+    "camera-proxy": {
+      "verify_jwt": false
+    },
+    "health-check": {
+      "verify_jwt": false
+    }
+  }
+}
