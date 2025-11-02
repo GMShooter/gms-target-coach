@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
-import { MagicButton, MagicCard, TextGradient, animations, gradients, glass, patterns, grid } from './magicui';
+import { MagicButton, MagicCard, TextGradient } from './magicui';
 
 const MagicLandingPage = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });

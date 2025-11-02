@@ -16,7 +16,8 @@ describe('Input Component', () => {
   it('renders with custom type', () => {
     render(<Input type="password" />);
     
-    const input = screen.getByDisplayValue('') || screen.getByRole('textbox', { hidden: true });
+    // Password inputs don't have textbox role, use getByDisplayValue fallback
+    const input = screen.getByDisplayValue('');
     expect(input).toBeInTheDocument();
     expect(input).toHaveAttribute('type', 'password');
   });
@@ -105,7 +106,8 @@ describe('Input Component', () => {
     
     types.forEach(type => {
       const { unmount } = render(<Input type={type} />);
-      const input = screen.getByRole('textbox', { hidden: true });
+      // Use fallback selector for different input types
+      const input = screen.getByDisplayValue('');
       expect(input).toBeInTheDocument();
       expect(input).toHaveAttribute('type', type);
       unmount();
@@ -164,7 +166,8 @@ describe('Input Component', () => {
   it('handles file input type', () => {
     render(<Input type="file" />);
     
-    const input = screen.getByRole('button', { hidden: true }); // File inputs are often rendered as buttons
+    // File inputs don't have button role, use getByDisplayValue fallback
+    const input = screen.getByDisplayValue('');
     expect(input).toBeInTheDocument();
     expect(input).toHaveAttribute('type', 'file');
   });

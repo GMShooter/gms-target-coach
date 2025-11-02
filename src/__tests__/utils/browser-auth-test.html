@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMShoot Auth Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .debug {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo img {
+            height: 60px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>🎯 GMShoot Authentication Test</h1>
+        </div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" value="test.user+demo@gmail.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="TestPassword123!" required>
+            </div>
+            
+            <button type="submit" id="loginBtn">Sign In</button>
+            <button type="button" id="googleBtn">Sign In with Google</button>
+            <button type="button" id="checkUserBtn">Check User Record</button>
+            <button type="button" id="createUserBtn">Create User Manually</button>
+        </form>
+        
+        <div id="status"></div>
+        <div id="debug" class="debug" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Initialize Supabase client
+        const supabaseUrl = 'https://avbwpuxhkyvfyonrpbqg.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2YndwdXhoa3l2ZnlvbnJwYnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NDUxNzUsImV4cCI6MjA2NTIyMTE3NX0.DnuWRHUglMP0yAb5jtVtfr3Gq-N1711W36r6LMpTYGE';
+        
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        
+        const statusDiv = document.getElementById('status');
+        const debugDiv = document.getElementById('debug');
+        
+        function showStatus(message, type = 'info') {
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        function showDebug(message) {
+            debugDiv.style.display = 'block';
+            debugDiv.textContent += new Date().toISOString() + ' - ' + message + '\n';
+        }
+        
+        async function checkUserRecord() {
+            try {
+                showStatus('Checking user record...', 'info');
+                showDebug('Checking users table for test.user+demo@gmail.com...');
+                
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('email', 'test.user+demo@gmail.com')
+                    .single();
+                
+                if (error) {
+                    showDebug('Error checking user record: ' + JSON.stringify(error, null, 2));
+                    showStatus('❌ Error checking user record: ' + error.message, 'error');
+                } else if (data) {
+                    showDebug('User record found: ' + JSON.stringify(data, null, 2));
+                    showStatus('✅ User record found in database', 'success');
+                } else {
+                    showDebug('No user record found');
+                    showStatus('❌ No user record found in database', 'error');
+                }
+            } catch (error) {
+                showDebug('Unexpected error checking user: ' + error.message);
+                showStatus('❌ Unexpected error: ' + error.message, 'error');
+            }
+        }
+        
+        async function createUserManually() {
+            try {
+                showStatus('Creating user manually...', 'info');
+                showDebug('Attempting to create user record manually...');
+                
+                // First try to get auth user
+                const { data: authData, error: authError } = await supabase.auth.getUser();
+                
+                if (authError) {
+                    showDebug('Auth error: ' + JSON.stringify(authError, null, 2));
+                    showStatus('❌ Auth error: ' + authError.message, 'error');
+                    return;
+                }
+                
+                if (!authData.user) {
+                    showDebug('No authenticated user found');
+                    showStatus('❌ No authenticated user found. Please sign in first.', 'error');
+                    return;
+                }
+                
+                showDebug('Auth user found: ' + JSON.stringify(authData.user, null, 2));
+                
+                // Create user record
+                const { data, error } = await supabase
+                    .from('users')
+                    .upsert({
+                        id: authData.user.id,
+                        email: authData.user.email,
+                        firebase_uid: authData.user.id, // Use Supabase UUID as firebase_uid
+                        display_name: authData.user.user_metadata?.display_name || authData.user.email,
+                        created_at: authData.user.created_at,
+                        updated_at: new Date().toISOString(),
+                        last_login: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (error) {
+                    showDebug('Error creating user: ' + JSON.stringify(error, null, 2));
+                    showStatus('❌ Error creating user: ' + error.message, 'error');
+                } else {
+                    showDebug('User created successfully: ' + JSON.stringify(data, null, 2));
+                    showStatus('✅ User record created successfully', 'success');
+                }
+            } catch (error) {
+                showDebug('Unexpected error creating user: ' + error.message);
+                showStatus('❌ Unexpected error: ' + error.message, 'error');
+            }
+        }
+        
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                showStatus('Signing in...', 'info');
+                showDebug('Attempting sign in with email: ' + email);
+                
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) {
+                    showDebug('Sign in error: ' + JSON.stringify(error, null, 2));
+                    showStatus('❌ Sign in failed: ' + error.message, 'error');
+                } else {
+                    showDebug('Sign in successful: ' + JSON.stringify(data, null, 2));
+                    showStatus('✅ Sign in successful! User: ' + data.user.email, 'success');
+                    
+                    // Check if user record exists after successful login
+                    setTimeout(checkUserRecord, 1000);
+                }
+            } catch (error) {
+                showDebug('Unexpected sign in error: ' + error.message);
+                showStatus('❌ Unexpected error: ' + error.message, 'error');
+            }
+        }
+        
+        async function handleGoogleLogin() {
+            try {
+                showStatus('Signing in with Google...', 'info');
+                showDebug('Attempting Google OAuth...');
+                
+                const { data, error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: window.location.origin + '/demo'
+                    }
+                });
+                
+                if (error) {
+                    showDebug('Google sign in error: ' + JSON.stringify(error, null, 2));
+                    showStatus('❌ Google sign in failed: ' + error.message, 'error');
+                } else {
+                    showDebug('Google sign in initiated: ' + JSON.stringify(data, null, 2));
+                    showStatus('✅ Google sign in initiated! Check your browser...', 'info');
+                }
+            } catch (error) {
+                showDebug('Unexpected Google sign in error: ' + error.message);
+                showStatus('❌ Unexpected error: ' + error.message, 'error');
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('loginForm').addEventListener('submit', handleLogin);
+        document.getElementById('googleBtn').addEventListener('click', handleGoogleLogin);
+        document.getElementById('checkUserBtn').addEventListener('click', checkUserRecord);
+        document.getElementById('createUserBtn').addEventListener('click', createUserManually);
+        
+        // Check current auth state on load
+        supabase.auth.onAuthStateChange((event, session) => {
+            showDebug('Auth state changed: ' + event + ', Session: ' + (session ? 'active' : 'none'));
+            if (session) {
+                showDebug('Current session: ' + JSON.stringify(session, null, 2));
+            }
+        });
+        
+        // Initial status
+        showStatus('🔧 GMShoot Authentication Test Ready', 'info');
+        showDebug('Supabase client initialized with URL: ' + supabaseUrl);
+        showDebug('Current time: ' + new Date().toISOString());
+    </script>
+</body>
+</html>

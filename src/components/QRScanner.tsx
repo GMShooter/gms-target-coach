@@ -20,22 +20,26 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    let stream: MediaStream | null = null;
+    let timeoutId: NodeJS.Timeout;
+    const currentVideoRef = videoRef.current;
+
     const startScanner = async () => {
       try {
         setIsScanning(true);
         setError(null);
 
         // Get user media
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment' }
         });
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+        if (currentVideoRef) {
+          currentVideoRef.srcObject = stream;
         }
 
         // Simulate QR code detection after 2 seconds for demo
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           const mockResult: ScanResult = {
             data: 'GMShoot://pi-device-001|Raspberry Pi|192.168.1.100|8080',
             cornerPoints: [
@@ -64,10 +68,15 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
 
     return () => {
       // Cleanup
-      const currentVideoRef = videoRef.current;
-      if (currentVideoRef && currentVideoRef.srcObject) {
-        const stream = currentVideoRef.srcObject as MediaStream;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      if (stream) {
         stream.getTracks().forEach(track => track.stop());
+      }
+      if (currentVideoRef && currentVideoRef.srcObject) {
+        const videoStream = currentVideoRef.srcObject as MediaStream;
+        videoStream.getTracks().forEach(track => track.stop());
       }
     };
   }, [onScan]);

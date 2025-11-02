@@ -36,6 +36,7 @@ export const env = {
   // Roboflow
   VITE_ROBOFLOW_API_KEY: getEnvVar('VITE_ROBOFLOW_API_KEY'),
   VITE_ROBOFLOW_MODEL_ID: getEnvVar('VITE_ROBOFLOW_MODEL_ID'),
+  VITE_ROBOFLOW_URL: getEnvVar('VITE_ROBOFLOW_URL'),
   
   // Ngrok
   VITE_NGROK_URL: getEnvVar('VITE_NGROK_URL'),

@@ -1,5 +1,5 @@
 import { supabase } from '../../utils/supabase';
-import { apiTestUtils, mockApiResponses, testHelpers } from '../../utils/test-utils';
+import { apiTestUtils, mockApiResponses } from '../../utils/test-utils';
 
 // Mock Supabase client
 jest.mock('../../utils/supabase', () => ({
@@ -7,6 +7,8 @@ jest.mock('../../utils/supabase', () => ({
     from: jest.fn((table) => {
       // Create base response based on table
       const baseResponse = table === 'shots' ? mockApiResponses.supabaseShot : mockApiResponses.supabaseSession;
+      // Note: baseResponse is prepared for future use
+      void baseResponse; // Explicitly mark as used to avoid ESLint warning
       
       return {
         select: jest.fn(() => ({

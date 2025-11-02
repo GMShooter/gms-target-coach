@@ -47,13 +47,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      // Note: Google OAuth would need to be implemented in AuthService
-      // For now, we'll show an error message
-      setError('Google sign-in not yet implemented. Please use email sign-in.');
-      setLoading(false);
+      // Use AuthService for Google OAuth
+      const result = await authService.signInWithGoogle();
+      
+      if (result.success) {
+        syncAuthState();
+      } else {
+        setError(result.error || 'Failed to sign in with Google');
+      }
     } catch (error: any) {
       // console.error('Google sign in error:', error);
       setError(error.message || 'Failed to sign in with Google');
+    } finally {
       setLoading(false);
     }
   };

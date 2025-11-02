@@ -21,7 +21,7 @@ export const createSession = async (userId: string, sessionType: string) => {
     .single();
 
   if (error) {
-    console.error('Error creating session:', error);
+    // Error creating session
     throw error;
   }
 
@@ -36,7 +36,7 @@ export const endSession = async (sessionId: string) => {
   });
 
   if (error) {
-    console.error("Error ending session:", error);
+    // Error ending session
     throw error;
   }
 };
@@ -49,7 +49,7 @@ export const startSession = async (userId: string, drillMode: boolean = false) =
   });
 
   if (error) {
-    console.error('Error starting session:', error);
+    // Error starting session
     throw error;
   }
 
@@ -62,7 +62,7 @@ export const analyzeFrame = async (frameBase64: string) => {
   });
 
   if (error) {
-    console.error('Error analyzing frame:', error);
+    // Error analyzing frame
     throw error;
   }
 

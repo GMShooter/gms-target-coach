@@ -23,7 +23,7 @@ export const Signup: Story = {
   render: () => {
     // Create a modified version that starts in signup mode
     const SignupForm = () => {
-      const [isLogin, setIsLogin] = React.useState(false);
+      // const [isLogin, setIsLogin] = React.useState(false);
       
       return (
         <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-800">

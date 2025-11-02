@@ -2,11 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 
-import { apiTestUtils, mockApiResponses, testHelpers } from '../../utils/test-utils';
+import { mockApiResponses, testHelpers } from '../../utils/test-utils';
 
 // Mock components (we'll create these later)
 const MockVideoAnalysis = () => {
-  const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+  const [, setIsAnalyzing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   
   const handleStartAnalysis = async () => {
@@ -55,7 +55,7 @@ const MockVideoAnalysis = () => {
 };
 
 const MockCameraAnalysis = () => {
-  const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+  const [, setIsAnalyzing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   
   const handleStartCamera = async () => {
@@ -160,7 +160,7 @@ const TestApp = () => (
 
 describe('Analysis Workflow Integration Tests', () => {
   const mockNgrokUrl = 'https://test.ngrok.io';
-  const mockRoboflowKey = 'test-api-key';
+  // const mockRoboflowKey = 'test-api-key';
   
   beforeEach(() => {
     jest.clearAllMocks();

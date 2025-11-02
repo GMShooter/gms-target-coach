@@ -270,6 +270,38 @@ class AuthService {
   }
 
   /**
+   * Sign in with Google OAuth
+   */
+  async signInWithGoogle(): Promise<{ success: boolean; error?: string }> {
+    try {
+      this.setLoading(true);
+      this.setError(null);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/demo`
+        }
+      });
+
+      if (error) {
+        this.setError(this.getAuthErrorMessage(error));
+        return { success: false, error: this.getAuthErrorMessage(error) };
+      }
+
+      // OAuth sign-in is handled by redirect, so we'll return success
+      // The actual session will be set when the user returns
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Google sign-in failed';
+      this.setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      this.setLoading(false);
+    }
+  }
+
+  /**
    * Update user profile
    */
   async updateProfile(updates: {

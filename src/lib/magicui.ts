@@ -126,7 +126,7 @@ export const defaultDockItems = [
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ]
 
-export default {
+export const magicui = {
   magicVariants,
   getMagicClass,
   animations,
@@ -138,4 +138,6 @@ export default {
   hoverEffects,
   textGradient,
   defaultDockItems,
-}
+};
+
+export default magicui;

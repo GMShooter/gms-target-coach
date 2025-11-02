@@ -220,6 +220,7 @@ export const apiTestUtils = {
   // Test Supabase connection
   testSupabaseConnection: async () => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { data, error } = await supabase.from('sessions').select('count').limit(1);
       return {
         success: !error,

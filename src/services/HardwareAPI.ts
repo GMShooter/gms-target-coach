@@ -5,9 +5,9 @@
  * It provides methods for device discovery, session management, and real-time data retrieval.
  */
 
-import { geometricScoring, type Point, type TargetConfig, type ShotResult } from './GeometricScoring';
-import { sequentialShotDetection, type SequentialDetectionConfig, type SessionShotHistory } from './SequentialShotDetection';
-import { hardwareAuth, type HardwareAuthToken } from './HardwareAuth';
+import { geometricScoring, type Point, type TargetConfig } from './GeometricScoring';
+import { sequentialShotDetection, type SequentialDetectionConfig } from './SequentialShotDetection';
+import { hardwareAuth } from './HardwareAuth';
 
 export interface PiDevice {
   id: string;
@@ -244,6 +244,7 @@ export class HardwareAPI {
 
     try {
       // Generate API key for this device
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const apiKey = hardwareAuth.generateApiKey(device.id, this.userId, ['read', 'write', 'session']);
       
       // Test connection to device

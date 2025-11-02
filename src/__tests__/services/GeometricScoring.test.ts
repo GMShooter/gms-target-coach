@@ -10,12 +10,11 @@
  * - Personalized recommendations
  */
 
-import { 
-  geometricScoring, 
-  type Point, 
-  type TargetConfig, 
-  type ShotResult, 
-  type SessionStatistics 
+import {
+  geometricScoring,
+  type Point,
+  type TargetConfig,
+  type ShotResult
 } from '../../services/GeometricScoring';
 
 describe('GeometricScoring Service', () => {

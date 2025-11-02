@@ -221,7 +221,7 @@ export class SequentialShotDetection {
     difference: { overallDifference: number; changedPixels: number; changedRegions: Array<{ area: number }> },
     session: SessionShotHistory
   ): boolean {
-    const { overallDifference, changedPixels, changedRegions } = difference;
+    const { overallDifference, /* changedPixels, */ changedRegions } = difference;
     const currentTime = Date.now();
 
     // Check minimum time interval between shots

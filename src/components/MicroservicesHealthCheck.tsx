@@ -6,6 +6,7 @@ import { CheckCircle, XCircle, AlertCircle, RefreshCw, Wifi, Database, Cloud, Ca
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge-2';
 import { Button } from './ui/button';
+import { env } from '../utils/env';
 
 interface ServiceStatus {
   name: string;
@@ -27,35 +28,35 @@ export const MicroservicesHealthCheck: React.FC<MicroservicesHealthCheckProps> =
   const [services, setServices] = useState<ServiceStatus[]>([
     {
       name: 'Supabase Database',
-      url: `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`,
+      url: `${env.VITE_SUPABASE_URL}/rest/v1/`,
       status: 'checking',
       lastChecked: new Date(),
       icon: <Database className="h-4 w-4" />
     },
     {
       name: 'Supabase Edge Functions',
-      url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/`,
+      url: `${env.VITE_SUPABASE_URL}/functions/v1/`,
       status: 'checking',
       lastChecked: new Date(),
       icon: <Cloud className="h-4 w-4" />
     },
     {
       name: 'Health Check Service',
-      url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-check`,
+      url: `${env.VITE_SUPABASE_URL}/functions/v1/health-check`,
       status: 'checking',
       lastChecked: new Date(),
       icon: <CheckCircle className="h-4 w-4" />
     },
     {
       name: 'Camera Proxy Service',
-      url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/camera-proxy`,
+      url: `${env.VITE_SUPABASE_URL}/functions/v1/camera-proxy`,
       status: 'checking',
       lastChecked: new Date(),
       icon: <Camera className="h-4 w-4" />
     },
     {
       name: 'Roboflow API',
-      url: import.meta.env.VITE_ROBOFLOW_URL || 'https://detect.roboflow.com',
+      url: env.VITE_ROBOFLOW_URL || 'https://detect.roboflow.com',
       status: 'checking',
       lastChecked: new Date(),
       icon: <Wifi className="h-4 w-4" />
@@ -75,7 +76,7 @@ export const MicroservicesHealthCheck: React.FC<MicroservicesHealthCheckProps> =
         method: 'GET',
         signal: controller.signal,
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${env.VITE_SUPABASE_ANON_KEY}`,
         }
       });
 

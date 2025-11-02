@@ -1,169 +1,236 @@
-import React, { useState, useEffect } from 'react';
-import { Play, Square, Target } from 'lucide-react';
+import React, { useState } from 'react';
 
 import { useAuth } from '../hooks/useAuth';
 import { useLiveAnalysis } from '../hooks/useLiveAnalysis';
-import { useSoundEffects } from '../hooks/useSoundEffects';
-import LiveTargetView from '../components/LiveTargetView';
-import LiveMetricsDashboard from '../components/LiveMetricsDashboard';
-import LiveShotVisualization from '../components/LiveShotVisualization';
-import { ParticleEffects } from '../components/ParticleEffects';
-import { PerformanceChart } from '../components/PerformanceChart';
 
-const LiveDemoPage: React.FC = () => {
-  const { user } = useAuth();
-  const [particleTrigger, setParticleTrigger] = useState<'shot' | 'bullseye' | 'analysis' | null>(null);
+export function LiveDemoPage() {
+  const { user, signOut } = useAuth();
+  const [isAnalysisActive, setIsAnalysisActive] = useState(false);
   
-  // Use our real-time analysis hook
-  const liveAnalysis = useLiveAnalysis(`demo-session-${user?.id || 'anonymous'}`);
-  
-  // Sound effects
-  const { playShotSound, playHitSound, playBullseyeSound, playAnalysisCompleteSound } = useSoundEffects();
+  const {
+    startAnalysis,
+    stopAnalysis,
+    resetAnalysis,
+    currentFrame,
+    shots,
+    metrics,
+    isAnalyzing,
+    error
+  } = useLiveAnalysis();
 
-  // Sound effects for new shots
-  useEffect(() => {
-    if (liveAnalysis.shots.length > 0) {
-      const latestShot = liveAnalysis.shots[liveAnalysis.shots.length - 1];
-      playShotSound();
-      playHitSound(latestShot.score);
-      
-      if (latestShot.score >= 10) {
-        playBullseyeSound();
-        setParticleTrigger('bullseye');
-        setTimeout(() => setParticleTrigger(null), 100);
-      } else {
-        setParticleTrigger('shot');
-        setTimeout(() => setParticleTrigger(null), 100);
-      }
-    }
-  }, [liveAnalysis.shots, liveAnalysis.shots.length, playShotSound, playHitSound, playBullseyeSound]);
+  const handleStartAnalysis = () => {
+    setIsAnalysisActive(true);
+    startAnalysis();
+  };
 
-  // Sound effect for analysis completion (when analysis stops)
-  useEffect(() => {
-    if (!liveAnalysis.isAnalyzing && liveAnalysis.shots.length > 0) {
-      playAnalysisCompleteSound();
-      setParticleTrigger('analysis');
-      setTimeout(() => setParticleTrigger(null), 100);
-    }
-  }, [liveAnalysis.isAnalyzing, liveAnalysis.shots.length, playAnalysisCompleteSound]);
+  const handleStopAnalysis = () => {
+    setIsAnalysisActive(false);
+    stopAnalysis();
+  };
 
-  // Generate performance data for chart
-  const performanceData = liveAnalysis.shots.map((shot, index) => ({
-    timestamp: index,
-    score: shot.score,
-    accuracy: liveAnalysis.metrics.accuracy,
-    grouping: liveAnalysis.metrics.groupSize
-  }));
+  const handleReset = () => {
+    setIsAnalysisActive(false);
+    resetAnalysis();
+  };
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h1>
-          <p className="text-gray-600">Please sign in to access demo.</p>
-        </div>
-      </div>
-    );
-  }
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.href = '/';
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-black to-slate-900 pt-20">
-      <div className="container mx-auto px-4 sm:px-6 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">GMShoot Live Demo</h1>
-          <p className="text-slate-300 text-base sm:text-lg">Real-time shooting analysis demonstration</p>
-        </div>
-        
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
-          {/* Live Shot Visualization */}
-          <div className="relative order-1 xl:order-1">
-            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-4">
-              <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                <Target className="h-5 w-5 text-blue-400" />
-                Live Shot Visualization
-              </h2>
-              <LiveShotVisualization
-                shots={liveAnalysis.shots}
-                currentFrame={liveAnalysis.currentFrame}
-                isAnalyzing={liveAnalysis.isAnalyzing}
-                width={800}
-                height={600}
-              />
-              <ParticleEffects
-                trigger={particleTrigger}
-                x={400}
-                y={300}
-                score={liveAnalysis.shots[liveAnalysis.shots.length - 1]?.score}
-              />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-black">
+      {/* Header */}
+      <div className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <img src="/GMShoot_logo.png" alt="GMShoot" className="h-8 w-auto" />
+              <h1 className="text-xl font-bold text-white">Live Demo</h1>
             </div>
-          </div>
-          
-          {/* Live Metrics Dashboard */}
-          <div className="order-2 xl:order-2">
-            <LiveMetricsDashboard
-              metrics={liveAnalysis.metrics}
-              isAnalyzing={liveAnalysis.isAnalyzing}
-              shots={liveAnalysis.shots}
-            />
-          </div>
-        </div>
 
-        {/* Performance Chart */}
-        <div className="mt-8 order-3">
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-6">
-            <PerformanceChart
-              data={performanceData}
-              title="Performance Trends"
-              height={300}
-            />
-          </div>
-        </div>
-        
-        {/* Control Panel */}
-        <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4 order-4">
-          <button
-            onClick={liveAnalysis.startAnalysis}
-            disabled={liveAnalysis.isAnalyzing}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium disabled:bg-gray-600 disabled:cursor-not-allowed hover:bg-green-700 transition-colors min-w-[140px] flex items-center justify-center gap-2"
-          >
-            <Play className="h-4 w-4" />
-            {liveAnalysis.isAnalyzing ? 'Analyzing...' : 'Start Analysis'}
-          </button>
-          
-          <button
-            onClick={liveAnalysis.stopAnalysis}
-            disabled={!liveAnalysis.isAnalyzing}
-            className="px-6 py-3 bg-red-600 text-white rounded-lg font-medium disabled:bg-gray-600 disabled:cursor-not-allowed hover:bg-red-700 transition-colors min-w-[140px] flex items-center justify-center gap-2"
-          >
-            <Square className="h-4 w-4" />
-            Stop Analysis
-          </button>
-          
-          <button
-            onClick={liveAnalysis.resetAnalysis}
-            className="px-6 py-3 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-700 transition-colors min-w-[140px] flex items-center justify-center gap-2"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Reset
-          </button>
-        </div>
-        
-        {/* Error Display */}
-        {liveAnalysis.error && (
-          <div className="mt-8 bg-red-900/90 border border-red-700 text-red-100 px-4 py-3 rounded-lg backdrop-blur-sm order-5">
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="font-medium">Error: {liveAnalysis.error}</p>
+            {/* User Info & Actions */}
+            <div className="flex items-center gap-4">
+              <span className="text-slate-300 text-sm">
+                {user?.email}
+              </span>
+              <button
+                onClick={handleSignOut}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                Sign Out
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Panel - Target View (70%) */}
+          <div className="lg:col-span-2">
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-white">Target View</h2>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${isAnalyzing ? 'text-green-400' : 'text-slate-400'}`}>
+                    {isAnalyzing ? '● Analyzing' : '● Idle'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Target Display */}
+              <div className="relative bg-slate-900/50 rounded-lg overflow-hidden" style={{ paddingBottom: '75%' }}>
+                {currentFrame ? (
+                  <img
+                    src={currentFrame}
+                    alt="Target"
+                    className="absolute inset-0 w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-16 h-16 border-2 border-slate-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
+                      </div>
+                      <p className="text-slate-400">No frame available</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Shot Overlays */}
+                {shots.map((shot, index) => (
+                  <div
+                    key={index}
+                    className="absolute w-3 h-3 bg-red-500 rounded-full border-2 border-white"
+                    style={{
+                      left: `${shot.x}%`,
+                      top: `${shot.y}%`,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Analysis Controls */}
+              <div className="flex items-center gap-4 mt-6">
+                {!isAnalysisActive ? (
+                  <button
+                    onClick={handleStartAnalysis}
+                    disabled={isAnalyzing}
+                    className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isAnalyzing ? 'Starting...' : 'Start Analysis'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStopAnalysis}
+                    className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                  >
+                    Stop Analysis
+                  </button>
+                )}
+                
+                <button
+                  onClick={handleReset}
+                  className="bg-slate-600 hover:bg-slate-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+
+              {/* Error Display */}
+              {error && (
+                <div className="mt-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
+                  <p className="text-red-400 text-sm">{error}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Panel - Metrics (30%) */}
+          <div className="lg:col-span-1">
+            <div className="space-y-6">
+              {/* Metrics Card */}
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50">
+                <h3 className="text-lg font-semibold text-white mb-4">Live Metrics</h3>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Total Shots</span>
+                    <span className="text-2xl font-bold text-white">{metrics.totalShots}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Group Size</span>
+                    <span className="text-2xl font-bold text-white">{metrics.groupSize.toFixed(1)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">MPI</span>
+                    <span className="text-2xl font-bold text-white">
+                      {metrics.mpi.toFixed(2)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Last Score</span>
+                    <span className="text-2xl font-bold text-white">
+                      {shots.length > 0 ? shots[shots.length - 1].score : '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Shots */}
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50">
+                <h3 className="text-lg font-semibold text-white mb-4">Recent Shots</h3>
+                
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {shots.length === 0 ? (
+                    <p className="text-slate-400 text-center py-4">No shots detected yet</p>
+                  ) : (
+                    shots.slice(-5).reverse().map((shot, index) => (
+                      <div key={shots.length - 1 - index} className="flex justify-between items-center py-2 border-b border-slate-700/50">
+                        <span className="text-slate-300">Shot #{shots.length - index}</span>
+                        <span className="text-white font-medium">Score: {shot.score}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Session Info */}
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50">
+                <h3 className="text-lg font-semibold text-white mb-4">Session Info</h3>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Status</span>
+                    <span className={`text-sm font-medium ${isAnalysisActive ? 'text-green-400' : 'text-slate-400'}`}>
+                      {isAnalysisActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Frame</span>
+                    <span className="text-white font-medium">
+                      {shots.length}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">FPS</span>
+                    <span className="text-white font-medium">30</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
-};
-
-export default LiveDemoPage;
+}

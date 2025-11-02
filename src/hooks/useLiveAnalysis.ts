@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 import { supabase } from '../utils/supabase';
+import { env } from '../utils/env';
 import { geometricScoring } from '../services/GeometricScoring';
 import { sequentialShotDetection, FrameData as SequentialFrameData, ShotDetection as SequentialShotDetectionType } from '../services/SequentialShotDetection';
 
@@ -60,6 +61,7 @@ export function useLiveAnalysis(sessionId?: string) {
   const lastFrameHashRef = useRef<string | null>(null);
   const unchangedFrameCountRef = useRef(0);
   const maxUnchangedFramesRef = useRef(5); // Stop after 5 unchanged frames
+  const isAnalyzingRef = useRef(false); // Add ref to track analysis state
 
   // Initialize services
   const shotDetection = sequentialShotDetection;
@@ -165,7 +167,7 @@ export function useLiveAnalysis(sessionId?: string) {
       const buffer = await blob.arrayBuffer();
       const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      return hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
     } catch (error) {
       // Failed to hash frame
       return Date.now().toString(); // Fallback to timestamp
@@ -213,28 +215,46 @@ export function useLiveAnalysis(sessionId?: string) {
       frameCountRef.current += 1;
       const frameNumber = frameCountRef.current;
       
+      // DEBUG: Log environment variables and session info
+      console.log('🔍 DEBUG: fetchAndAnalyzeNextFrame called');
+      console.log('🔍 DEBUG: sessionId:', sessionId);
+      console.log('🔍 DEBUG: frameNumber:', frameNumber);
+      console.log('🔍 DEBUG: VITE_SUPABASE_URL:', env.VITE_SUPABASE_URL);
+      console.log('🔍 DEBUG: VITE_SUPABASE_ANON_KEY:', env.VITE_SUPABASE_ANON_KEY ? 'SET' : 'MISSING');
+      console.log('🔍 DEBUG: VITE_ROBOFLOW_API_KEY:', env.VITE_ROBOFLOW_API_KEY ? 'SET' : 'MISSING');
+      console.log('🔍 DEBUG: VITE_ROBOFLOW_MODEL_ID:', env.VITE_ROBOFLOW_MODEL_ID || 'MISSING');
+      
       // Step 1: Get next frame from camera proxy
-      const frameResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/camera-proxy`, {
+      const cameraProxyUrl = `${env.VITE_SUPABASE_URL}/functions/v1/camera-proxy`;
+      console.log('🔍 DEBUG: Calling camera proxy URL:', cameraProxyUrl);
+      
+      const frameResponse = await fetch(cameraProxyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
-          action: 'getFrame',
-          sessionId,
-          frameNumber,
+          action: 'frame_next',
+          payload: {
+            sessionId,
+            frameNumber,
+          }
         }),
       });
 
+      console.log('🔍 DEBUG: Camera proxy response status:', frameResponse.status);
+      
       if (!frameResponse.ok) {
-        throw new Error('Failed to fetch frame from camera');
+        console.error('🔍 DEBUG: Camera proxy response not OK:', frameResponse.statusText);
+        throw new Error(`Failed to fetch frame from camera: ${frameResponse.status} ${frameResponse.statusText}`);
       }
 
       const frameData = await frameResponse.json();
+      console.log('🔍 DEBUG: Camera proxy response data:', frameData);
       
       if (!frameData.frameUrl) {
-        // console.log('No more frames available, stopping analysis');
+        console.log('🔍 DEBUG: No frameUrl in response, stopping analysis');
         return null; // No more frames available
       }
 
@@ -266,109 +286,170 @@ export function useLiveAnalysis(sessionId?: string) {
       lastFrameHashRef.current = currentFrameHash;
       // console.log(`Frame ${frameNumber} changed, processing analysis`);
 
-      // Step 2: Analyze frame using Roboflow
-      const analysisResponse = await fetch(`${import.meta.env.VITE_ROBOFLOW_URL}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_ROBOFLOW_API_KEY}`,
-        },
-        body: JSON.stringify({
-          image: frameData.frameUrl,
-          inference_id: `frame_${frameNumber}`,
-        }),
-      });
-
-      if (!analysisResponse.ok) {
-        throw new Error('Failed to analyze frame with Roboflow');
-      }
-
-      const analysisResult = await analysisResponse.json();
+      // Step 2: Analyze frame using our Supabase edge function with Production Timeout
+      const analysisUrl = `${env.VITE_SUPABASE_URL}/functions/v1/analyze-frame`;
+      console.log('🔍 DEBUG: Calling analysis edge function URL:', analysisUrl);
       
-      // Step 3: Process predictions through Sequential Shot Detection
-      // Convert Roboflow predictions to frame data for processing
-      const detectedShots: SequentialShotDetectionType[] = [];
+      // Create AbortController for 15-second timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
       
-      // For each prediction, create a mock frame and process it
-      for (const prediction of analysisResult.predictions) {
-        // Use prediction to avoid unused variable warning
-        void prediction;
-        const mockFrame: SequentialFrameData = {
-          id: `prediction-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          timestamp: Date.now(),
-          imageData: '', // Would be actual image data
-          width: 640,
-          height: 480
-        };
-        
-        // Initialize session if not already done
-        if (sessionId && !shotDetection.hasSession(sessionId)) {
-          shotDetection.initializeSession(sessionId);
-        }
-        
-        // Process the frame to detect shots
-        const shot = await shotDetection.processFrame(sessionId || 'demo-session', mockFrame);
-        if (shot && shot.isNewShot) {
-          detectedShots.push(shot);
-        }
-      }
-      
-      // Step 4: Apply Geometric Scoring
-      const scoredShots = detectedShots.map((shot: SequentialShotDetectionType) => {
-        // Analyze shot with geometric scoring
-        const shotAnalysis = scoringService.analyzeShot(
-          shot.frameId,
-          shot.position,
-          {
-            targetDistance: 25, // Default target distance
-            targetSize: 0.5, // Default target size
-            targetType: 'circular',
-            scoringZones: scoringService.getDefaultScoringZones('competition')
+      try {
+        const analysisResponse = await fetch(analysisUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${env.VITE_SUPABASE_ANON_KEY}`,
           },
-          [] // No previous shots for now
-        );
-        
-        return {
-          id: shot.frameId,
-          x: shot.position.x,
-          y: shot.position.y,
-          score: shotAnalysis.score,
-          scoringZone: shotAnalysis.scoringZone.name,
-          confidence: shot.confidence,
-          timestamp: new Date(shot.timestamp),
-        };
-      });
+          body: JSON.stringify({
+            frameBase64: frameData.frameUrl.replace('data:image/svg+xml;base64,', ''), // Remove data URL prefix
+          }),
+          signal: controller.signal,
+        });
 
-      // Step 5: Update state with new shots
-      setState(prev => {
-        const allShots = [...prev.shots, ...scoredShots];
-        const newMetrics = calculateMetrics(allShots);
+        clearTimeout(timeoutId);
+
+        console.log('🔍 DEBUG: Analysis response status:', analysisResponse.status);
         
+        if (!analysisResponse.ok) {
+          console.error('🔍 DEBUG: Analysis response not OK:', analysisResponse.statusText);
+          throw new Error(`Analysis API error: ${analysisResponse.status} ${analysisResponse.statusText}`);
+        }
+
+        const analysisResult = await analysisResponse.json();
+        console.log('🔍 DEBUG: Analysis response data:', analysisResult);
+        
+        // Validate analysis result structure
+        if (!analysisResult || typeof analysisResult !== 'object') {
+          console.error('🔍 DEBUG: Invalid analysis result structure from edge function');
+          throw new Error('Invalid analysis result structure from edge function');
+        }
+        
+        // Our edge function returns { shots: [], confidence: number } not { predictions: [] }
+        if (!Array.isArray(analysisResult.shots)) {
+          console.warn('🔍 DEBUG: Edge function returned non-array shots, using empty array');
+          console.log('🔍 DEBUG: Shots type:', typeof analysisResult.shots);
+          console.log('🔍 DEBUG: Shots value:', analysisResult.shots);
+          analysisResult.shots = [];
+        }
+        
+        // Convert shots to predictions for compatibility with existing code
+        analysisResult.predictions = analysisResult.shots;
+        console.log('🔍 DEBUG: Number of shots/predictions:', analysisResult.predictions.length);
+        
+        // Step 3: Process predictions through Sequential Shot Detection
+        // Convert Roboflow predictions to frame data for processing
+        const detectedShots: SequentialShotDetectionType[] = [];
+        
+        // For each prediction, create a mock frame and process it
+        for (const prediction of analysisResult.predictions) {
+          // Use prediction to avoid unused variable warning
+          void prediction;
+          const mockFrame: SequentialFrameData = {
+            id: `prediction-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            timestamp: Date.now(),
+            imageData: '', // Would be actual image data
+            width: 640,
+            height: 480
+          };
+          
+          // Initialize session if not already done
+          if (sessionId && !shotDetection.hasSession(sessionId)) {
+            shotDetection.initializeSession(sessionId);
+          }
+          
+          // Process the frame to detect shots
+          const shot = await shotDetection.processFrame(sessionId || 'demo-session', mockFrame);
+          if (shot && shot.isNewShot) {
+            detectedShots.push(shot);
+          }
+        }
+        
+        // Step 4: Apply Geometric Scoring
+        const scoredShots = detectedShots.map((shot: SequentialShotDetectionType) => {
+          // Analyze shot with geometric scoring
+          const shotAnalysis = scoringService.analyzeShot(
+            shot.frameId,
+            shot.position,
+            {
+              targetDistance: 25, // Default target distance
+              targetSize: 0.5, // Default target size
+              targetType: 'circular',
+              scoringZones: scoringService.getDefaultScoringZones('competition')
+            },
+            [] // No previous shots for now
+          );
+          
+          return {
+            id: shot.frameId,
+            x: shot.position.x,
+            y: shot.position.y,
+            score: shotAnalysis.score,
+            scoringZone: shotAnalysis.scoringZone.name,
+            confidence: shot.confidence,
+            timestamp: new Date(shot.timestamp),
+          };
+        });
+
+        // Step 5: Update state with new shots
+        setState(prev => {
+          const allShots = [...prev.shots, ...scoredShots];
+          const newMetrics = calculateMetrics(allShots);
+          
+          return {
+            ...prev,
+            currentFrame: frameData.frameUrl,
+            shots: allShots,
+            metrics: newMetrics,
+          };
+        });
+
+        // Step 6: Store frame analysis in database (only if we have actual predictions)
+        if (analysisResult.predictions && analysisResult.predictions.length > 0) {
+          await storeFrameAnalysis(sessionId, frameNumber, frameData.frameUrl, analysisResult);
+        }
+
         return {
+          frameUrl: frameData.frameUrl,
+          predictions: analysisResult.predictions || [],
+          confidence: analysisResult.confidence || 0.8,
+          timestamp: Date.now(),
+        };
+      } catch (error) {
+        clearTimeout(timeoutId);
+        
+        // Handle different error types with specific user-friendly messages
+        let errorMessage = 'Analysis failed';
+        
+        if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            errorMessage = 'Analysis timeout - frame processing took too long';
+          } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = 'Network error - unable to reach analysis service';
+          } else if (error.message.includes('Roboflow API error')) {
+            errorMessage = 'Analysis service error - please try again';
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        
+        console.error('Error in fetchAndAnalyzeNextFrame:', error);
+        
+        // Stop analysis on critical errors
+        setState(prev => ({
           ...prev,
-          currentFrame: frameData.frameUrl,
-          shots: allShots,
-          metrics: newMetrics,
-        };
-      });
-
-      // Step 6: Store frame analysis in database (only if we have actual predictions)
-      if (analysisResult.predictions && analysisResult.predictions.length > 0) {
-        await storeFrameAnalysis(sessionId, frameNumber, frameData.frameUrl, analysisResult);
+          isAnalyzing: false, // Stop analysis on error
+          error: errorMessage
+        }));
+        
+        return null;
       }
-
-      return {
-        frameUrl: frameData.frameUrl,
-        predictions: analysisResult.predictions || [],
-        confidence: analysisResult.confidence || 0.8,
-        timestamp: Date.now(),
-      };
-      
     } catch (error) {
-      // console.error('Error in fetchAndAnalyzeNextFrame:', error);
-      setState(prev => ({ 
-        ...prev, 
-        error: error instanceof Error ? error.message : 'Analysis failed' 
+      console.error('Error in fetchAndAnalyzeNextFrame:', error);
+      setState(prev => ({
+        ...prev,
+        isAnalyzing: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       }));
       return null;
     }
@@ -377,13 +458,19 @@ export function useLiveAnalysis(sessionId?: string) {
 
   // Start real-time analysis
   const startAnalysis = useCallback(() => {
+    console.log('🚀 DEBUG: startAnalysis called');
+    console.log('🚀 DEBUG: sessionId:', sessionId);
+    
     setState(prev => ({ ...prev, isAnalyzing: true, error: null }));
+    isAnalyzingRef.current = true; // Update ref when starting analysis
     
     // Set up real-time subscription
     if (sessionId) {
+      console.log('🚀 DEBUG: Setting up Supabase realtime subscription for session:', sessionId);
       const channel = supabase
         .channel(`session:${sessionId}`)
         .on('broadcast', { event: 'frame_processed' }, (payload) => {
+          console.log('🚀 DEBUG: Received realtime broadcast:', payload);
           setState(prev => {
             const newShot: Shot = {
               id: payload.newShot.id,
@@ -394,10 +481,10 @@ export function useLiveAnalysis(sessionId?: string) {
               confidence: payload.newShot.confidence,
               scoringZone: payload.newShot.scoringZone,
             };
-            
+           
             const allShots = [...prev.shots, newShot];
             const newMetrics = calculateMetrics(allShots);
-            
+           
             return {
               ...prev,
               shots: allShots,
@@ -409,35 +496,54 @@ export function useLiveAnalysis(sessionId?: string) {
 
       channelRef.current = channel;
       channel.subscribe();
+      console.log('🚀 DEBUG: Realtime subscription active');
+    } else {
+      console.warn('🚀 DEBUG: No sessionId provided, skipping realtime subscription');
     }
 
     // Start frame processing loop with change detection
     const processFrames = async () => {
-      while (state.isAnalyzing) {
+      console.log('🚀 DEBUG: Starting frame processing loop');
+      while (true) { // Use true instead of state.isAnalyzing to avoid stale closure
+        // Use a ref to check current state and avoid stale closure
+        const isCurrentlyAnalyzing = isAnalyzingRef.current;
+        console.log('🚀 DEBUG: Current analysis state:', isCurrentlyAnalyzing);
+        if (!isCurrentlyAnalyzing) {
+          console.log('🚀 DEBUG: Analysis stopped, breaking loop');
+          break;
+        }
+        
+        console.log('🚀 DEBUG: Processing next frame...');
         const result = await fetchAndAnalyzeNextFrame();
         
         if (!result) {
           // No more frames available
-          // console.log('No more frames available, stopping analysis');
+          console.log('🚀 DEBUG: No more frames available, stopping analysis');
           setState(prev => ({ ...prev, isAnalyzing: false }));
+          isAnalyzingRef.current = false; // Update ref when stopping analysis
           break;
         }
         
+        console.log('🚀 DEBUG: Frame processed, predictions:', result.predictions.length);
+        
         // If frame was unchanged, add longer delay
         if (result.predictions.length === 0) {
+          console.log('🚀 DEBUG: No predictions, waiting 500ms');
           await new Promise(resolve => setTimeout(resolve, 500)); // Longer delay for unchanged frames
         } else {
+          console.log('🚀 DEBUG: Found predictions, waiting 100ms');
           await new Promise(resolve => setTimeout(resolve, 100)); // Normal delay for changed frames
         }
       }
     };
 
     processFrames();
-  }, [sessionId, fetchAndAnalyzeNextFrame, calculateMetrics, state.isAnalyzing]);
+  }, [sessionId, fetchAndAnalyzeNextFrame, calculateMetrics]);
 
   // Stop analysis
   const stopAnalysis = useCallback(() => {
     setState(prev => ({ ...prev, isAnalyzing: false }));
+    isAnalyzingRef.current = false; // Update ref when stopping analysis
     
     if (channelRef.current) {
       channelRef.current.unsubscribe();
@@ -448,6 +554,7 @@ export function useLiveAnalysis(sessionId?: string) {
   // Reset analysis
   const resetAnalysis = useCallback(() => {
     setState(initialState);
+    isAnalyzingRef.current = false; // Update ref when resetting analysis
     frameCountRef.current = 0;
     lastFrameRef.current = null;
     lastFrameHashRef.current = null;

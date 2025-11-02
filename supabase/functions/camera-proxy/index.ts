@@ -89,20 +89,98 @@ function handleStopSession(payload: any) {
 }
 
 function handleFrameNext(payload: any) {
-  const { since } = payload;
+  const { since, timeout = 10 } = payload;
   
-  // For demo purposes, return a mock frame
-  // In production, this would interface with actual camera hardware
-  const mockFrame = generateMockFrame();
-  
-  return new Response(
-    JSON.stringify({
-      frame: mockFrame,
-      frameId: Date.now(),
-      timestamp: new Date().toISOString()
-    }),
-    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
+  // Try to get frame from user's real camera server via ngrok
+  return getRealCameraFrame(since, timeout)
+    .then(frameData => {
+      if (frameData) {
+        return new Response(
+          JSON.stringify({
+            frame: frameData.frameData, // Raw frame data as base64
+            frameId: frameData.frameId,
+            timestamp: frameData.timestamp || new Date().toISOString()
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        // Fallback to mock frame if no real frame available
+        console.log('No frame from real camera, using mock frame');
+        const mockFrame = generateMockFrame();
+        return new Response(
+          JSON.stringify({
+            frame: mockFrame,
+            frameId: Date.now(),
+            timestamp: new Date().toISOString()
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    })
+    .catch(error => {
+      console.error('Error getting real camera frame, falling back to mock:', error);
+      const mockFrame = generateMockFrame();
+      return new Response(
+        JSON.stringify({
+          frame: mockFrame,
+          frameId: Date.now(),
+          timestamp: new Date().toISOString()
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    });
+}
+
+async function getRealCameraFrame(sinceId?: number, timeout: number = 10): Promise<{frameId: number, frameData: string, timestamp?: string} | null> {
+  try {
+    // User's ngrok server URL - configure via environment variables
+    const NGROK_URL = (globalThis as any).Deno?.env?.get('NGROK_URL') || 'https://f92126526c77.ngrok-free.app';
+    
+    // Build URL matching user's ngrok_server.py api_frame_next function
+    let url = `${NGROK_URL}/frame/next?timeout=${timeout}`;
+    if (sinceId !== undefined && sinceId !== null) {
+      url += `&since=${sinceId}`;
+    }
+    
+    console.log(`📷 Fetching frame from user's ngrok server: ${url}`);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'image/*, application/json',
+        'ngrok-skip-browser-warning': 'true'
+      }
+    });
+    
+    if (response.status === 204) {
+      console.log('📷 No new frame available from ngrok server');
+      return null;
+    }
+    
+    if (!response.ok) {
+      throw new Error(`Ngrok server error: ${response.status} ${response.statusText}`);
+    }
+    
+    // Get frame ID from headers (matching user's ngrok_server.py implementation)
+    const frameId = parseInt(response.headers.get('X-Frame-Id') || '0');
+    const timestamp = response.headers.get('X-Frame-Timestamp') || new Date().toISOString();
+    
+    // Get frame data as base64
+    const frameBuffer = await response.arrayBuffer();
+    const frameBase64 = btoa(String.fromCharCode(...new Uint8Array(frameBuffer)));
+    
+    console.log(`📷 Successfully retrieved frame ${frameId} from ngrok server`);
+    
+    return {
+      frameId,
+      frameData: frameBase64,
+      timestamp
+    };
+    
+  } catch (error) {
+    console.error('📷 Error accessing ngrok server:', error);
+    return null;
+  }
 }
 
 function handleFrameAdd(payload: any) {

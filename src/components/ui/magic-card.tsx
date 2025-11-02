@@ -76,7 +76,7 @@ export function MagicCard({
     ]
     
     if (variant === "glass") {
-      classes.push("bg-white/10 backdrop-blur-sm border border-white/20")
+      classes.push("bg-slate-900/20 backdrop-blur-sm border border-slate-700/30")
     }
     if (variant === "glow") {
       classes.push("shadow-lg shadow-primary/25")
@@ -111,18 +111,18 @@ export function MagicCard({
       onPointerEnter={reset}
     >
       <motion.div
-        className="bg-border pointer-events-none absolute inset-0 rounded-[inherit] duration-300 group-hover:opacity-100"
+        className="bg-slate-700/50 pointer-events-none absolute inset-0 rounded-[inherit] duration-300 group-hover:opacity-100"
         style={{
           background: useMotionTemplate`
           radial-gradient(${gradientSize}px circle at ${mouseX}px ${mouseY}px,
-          ${gradientFrom}, 
-          ${gradientTo}, 
-          var(--border) 100%
+          ${gradientFrom},
+          ${gradientTo},
+          rgba(51, 65, 85, 0.5) 100%
           )
           `,
         }}
       />
-      <div className="bg-background absolute inset-px rounded-[inherit]" />
+      <div className="bg-slate-900/50 absolute inset-px rounded-[inherit]" />
       <motion.div
         className="pointer-events-none absolute inset-px rounded-[inherit] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
         style={{

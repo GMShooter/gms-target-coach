@@ -82,7 +82,6 @@ const mockCanvasContext = {
 HTMLCanvasElement.prototype.getContext = jest.fn(() => mockCanvasContext as any);
 
 // Suppress console errors during tests
-const originalError = console.error;
 beforeAll(() => {
   // Canvas API errors are expected in tests
   // Error suppression implemented for test environment
@@ -813,9 +812,12 @@ if (!globalAny.HTMLElement.prototype.scrollIntoView) {
 }
 
 // Suppress specific warnings that are expected in tests
+// eslint-disable-next-line no-console
 const originalWarn = console.warn;
-console.warn = function() {
-  const message = Array.from(arguments).join(' ');
+/* eslint-disable no-console */
+// eslint-disable-next-line no-console
+console.warn = function(...args: any[]) {
+  const message = args.join(' ');
   // Suppress warnings about act() updates
   if (message.includes('act(...) is not supported')) {
     return;
@@ -824,6 +826,10 @@ console.warn = function() {
   if (message.includes('findDOMNode is deprecated')) {
     return;
   }
-  originalWarn.apply(console, Array.from(arguments));
+  originalWarn.apply(console, args);
 };
+/* eslint-enable no-console */
+
+// Test environment setup complete
+// console.log('Test setup completed');
 

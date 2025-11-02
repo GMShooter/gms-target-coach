@@ -126,9 +126,9 @@ describe('QRScanner Component', () => {
       expect(mockOnScan).toHaveBeenCalled();
     }, { timeout: 1000 });
     
-    // Verify component shows completion state instead of scanning text
+    // Verify scanning stops after successful scan (no scanning text visible)
     await waitFor(() => {
-      expect(screen.getByText('QR Code Scanned Successfully!')).toBeInTheDocument();
+      expect(screen.queryByText('Scanning for QR code...')).not.toBeInTheDocument();
     }, { timeout: 3000 });
     
     jest.useRealTimers();

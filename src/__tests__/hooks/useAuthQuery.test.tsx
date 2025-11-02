@@ -1,9 +1,8 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import { useAuth, AuthProvider } from '../../hooks/useAuth';
-import { createTestQueryClient, createQueryWrapper } from '../utils/test-query-client';
-import authService, { AuthService } from '../../services/AuthService';
+import { createTestQueryClient } from '../utils/test-query-client';
 
 // Mock AuthService
 jest.mock('../../services/AuthService', () => {
@@ -89,8 +88,6 @@ describe('useAuth', () => {
 
   describe('signIn', () => {
     it('should sign in successfully', async () => {
-      const mockUser = { id: 'test-user', email: 'test@example.com' };
-      
       // Mock AuthService signIn to return success
       mockAuthService.signIn.mockResolvedValue({ success: true });
 
