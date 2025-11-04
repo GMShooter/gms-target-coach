@@ -170,7 +170,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (authService.authSubscription) {
+        authService.authSubscription.unsubscribe();
+        authService.authSubscription = null;
+      }
+    };
   }, [syncAuthState]);
 
   const value: AuthContextType = {

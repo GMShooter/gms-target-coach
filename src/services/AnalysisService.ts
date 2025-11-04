@@ -25,18 +25,11 @@ export interface ShotDetection {
 export interface AnalysisOptions {
   confidence?: number; // Minimum confidence threshold (0-1)
   overlap?: number; // Overlap threshold for detection (0-1)
-  useMock?: boolean; // Force mock mode for testing
 }
 
 class AnalysisService {
-  private isMockMode: boolean;
-
   constructor() {
-    // Determine if we're in mock mode based on environment
-    this.isMockMode = 
-      process.env.NODE_ENV === 'test' ||
-      (typeof window !== 'undefined' && (window as any).__VITE_USE_MOCK_ANALYSIS === 'true') ||
-      import.meta.env.VITE_ROBOFLOW_API_KEY === 'mock-roboflow-key';
+    // Production-ready service - no mock mode
   }
 
   /**
@@ -46,16 +39,12 @@ class AnalysisService {
    * @returns Promise<AnalysisResult>
    */
   async analyzeFrame(
-    frameData: string, 
+    frameData: string,
     options: AnalysisOptions = {}
   ): Promise<AnalysisResult> {
-    const { confidence = 0.5, overlap = 0.5, useMock = this.isMockMode } = options;
+    const { confidence = 0.5, overlap = 0.5 } = options;
 
     try {
-      if (useMock) {
-        return this.generateMockAnalysis(frameData);
-      }
-
       // Call Supabase Edge Function for production analysis
       const { data, error } = await supabase.functions.invoke('analyze-frame', {
         body: {
@@ -90,13 +79,6 @@ class AnalysisService {
 
     } catch (error) {
       // console.error('Frame analysis failed:', error);
-      
-      // Fallback to mock analysis on error
-      if (!useMock) {
-        // console.warn('Falling back to mock analysis due to error');
-        return this.generateMockAnalysis(frameData);
-      }
-      
       throw error;
     }
   }
@@ -178,33 +160,6 @@ class AnalysisService {
     };
   }
 
-  /**
-   * Generate mock analysis results for testing
-   * @private
-   */
-  private generateMockAnalysis(frameData: string): AnalysisResult {
-    // Generate consistent mock results based on frame data hash
-    const frameNumber = Math.abs(
-      frameData.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)
-    ) % 5 + 1;
-    
-    const mockResults: { [key: number]: ShotDetection[] } = {
-      1: [{ x: 25, y: 30, score: 9.8, confidence: 0.95, class: 'shot' }],
-      2: [{ x: 45, y: 25, score: 8.5, confidence: 0.87, class: 'shot' }],
-      3: [{ x: 35, y: 45, score: 7.2, confidence: 0.92, class: 'shot' }],
-      4: [{ x: 55, y: 35, score: 6.9, confidence: 0.88, class: 'shot' }],
-      5: [{ x: 40, y: 50, score: 8.1, confidence: 0.91, class: 'shot' }]
-    };
-
-    const shots = mockResults[frameNumber] || [];
-    
-    return {
-      frameId: `mock-frame-${frameNumber}`,
-      shots,
-      confidence: shots.length > 0 ? shots.reduce((sum, shot) => sum + shot.confidence, 0) / shots.length : 0,
-      timestamp: new Date().toISOString()
-    };
-  }
 
   /**
    * Generate a consistent frame ID from frame data
@@ -246,19 +201,6 @@ class AnalysisService {
     return chunks;
   }
 
-  /**
-   * Check if service is in mock mode
-   */
-  isInMockMode(): boolean {
-    return this.isMockMode;
-  }
-
-  /**
-   * Set mock mode (for testing)
-   */
-  setMockMode(enabled: boolean): void {
-    this.isMockMode = enabled;
-  }
 }
 
 // Export singleton instance

@@ -1,8 +1,8 @@
 /**
  * AuthService
  *
- * Production-ready authentication service
- * Integrates with Supabase Auth and provides additional security features
+ * Production-ready Supabase-only authentication service
+ * Provides secure authentication with proper error handling and session management
  */
 
 import {
@@ -69,15 +69,19 @@ class AuthService {
   };
 
   private listeners: Array<(state: AuthState) => void> = [];
+  public authSubscription: any = null;
 
   constructor() {
     // Initialize auth state from current session
     this.initializeAuth();
     
     // Listen for auth changes
-    supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       this.handleAuthStateChange(event, session);
     });
+    
+    // Store subscription for cleanup
+    this.authSubscription = subscription;
   }
 
   /**
@@ -527,9 +531,24 @@ class AuthService {
       return false;
     }
   }
+
+  /**
+   * Cleanup method for component unmount
+   */
+  public cleanup(): void {
+    if (this.authSubscription) {
+      this.authSubscription.unsubscribe();
+      this.authSubscription = null;
+    }
+  }
 }
 
 // Export singleton instance and class
 export const authService = new AuthService();
 export default authService;
 export { AuthService };
+
+// Cleanup function for component unmount
+export const cleanupAuthService = () => {
+  authService.cleanup();
+};

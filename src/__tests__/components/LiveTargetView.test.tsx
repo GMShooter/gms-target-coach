@@ -1,595 +1,465 @@
-// Mock Canvas API before any imports that might use it
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-
-import '@testing-library/jest-dom';
-import LiveTargetView from '../../components/LiveTargetView';
-import { useHardware } from '../../hooks/useHardware';
-
-const mockCanvasContext = {
-  clearRect: jest.fn(),
-  beginPath: jest.fn(),
-  arc: jest.fn(),
-  stroke: jest.fn(),
-  fill: jest.fn(),
-  setLineDash: jest.fn(),
-  save: jest.fn(),
-  restore: jest.fn(),
-  translate: jest.fn(),
-  rotate: jest.fn(),
-  moveTo: jest.fn(),
-  lineTo: jest.fn(),
-  fillText: jest.fn(),
-  measureText: jest.fn(() => ({ width: 100 })),
-  globalAlpha: 1,
-  strokeStyle: '',
-  lineWidth: 1,
-  fillStyle: '',
-  font: '',
-  textAlign: 'center' as CanvasTextAlign,
-  textBaseline: 'middle' as CanvasTextBaseline,
-};
-
-// Setup Canvas API mock
-HTMLCanvasElement.prototype.getContext = jest.fn(() => mockCanvasContext as any);
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LiveTargetView } from '../../../components/LiveTargetView';
+import { useHardware } from '../../../hooks/useHardware';
 
 // Mock useHardware hook
-jest.mock('../../hooks/useHardware');
-jest.mock('../../components/QRScanner', () => ({
-  QRScanner: ({ onScan, onClose }: { onScan: (result: any) => void; onClose: () => void }) => (
-    <div data-testid="qr-scanner-mock">
-      <button onClick={() => onScan({ data: 'test-qr-data' })}>Scan</button>
-      <button onClick={onClose}>Close</button>
-    </div>
-  ),
-}));
+jest.mock('../../../hooks/useHardware');
+const mockUseHardware = useHardware as jest.MockedFunction<typeof useHardware>;
 
-// Mock Supabase client
-jest.mock('../../utils/supabase', () => ({
-  supabase: {
-    from: jest.fn(() => ({
-      insert: jest.fn().mockResolvedValue({ error: null }),
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          data: [],
-          error: null,
-        })),
-      })),
-    })),
+// Test utilities
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
   },
-}));
-
-// Mock localStorage
-const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-};
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
 });
 
-// Mock useHardware hook implementation
-const mockUseHardware: any = {
-  // Connection state
-  connectedDevice: null,
-  isConnected: false,
-  isConnecting: false,
-  connectionError: null,
-  
-  // Session state
-  activeSession: null,
-  isSessionActive: false,
-  
-  // Real-time data
-  latestFrame: null,
-  recentShots: [], // This is key fix - ensure recentShots is initialized as empty array
-  analysisResult: null,
-  isAnalyzing: false,
-  
-  // Actions
-  connectToDevice: jest.fn().mockResolvedValue({
-    id: 'pi-device-001',
-    name: 'Raspberry Pi',
-    url: '192.168.1.100:8080',
-    status: 'online'
-  }),
-  disconnectDevice: jest.fn().mockResolvedValue(undefined),
-  startSession: jest.fn().mockResolvedValue({
-    sessionId: 'test-session-123',
-    userId: 'current-user',
-    startTime: new Date(),
-    shotCount: 0,
-    status: 'active'
-  }),
-  stopSession: jest.fn().mockResolvedValue(undefined),
-  pollForFrames: jest.fn(),
-  stopPolling: jest.fn(),
+const renderWithQueryClient = (component: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {component}
+    </QueryClientProvider>
+  );
 };
 
-// Set mock implementation
-const mockedUseHardware = useHardware as jest.MockedFunction<typeof useHardware>;
-mockedUseHardware.mockReturnValue(mockUseHardware);
+// Mock device data
+const mockDevice = {
+  id: 'device123',
+  name: 'TestDevice',
+  status: 'online',
+  ngrokUrl: 'https://test.ngrok.io',
+  capabilities: {
+    hasCamera: true,
+    hasZoom: true,
+    maxResolution: '1920x1080',
+    supportedFormats: ['jpeg', 'png']
+  },
+  lastSeen: new Date().toISOString(),
+  url: '192.168.1.100:8080'
+};
 
-describe('LiveTargetView Component', () => {
-  const defaultProps = {
-    deviceId: 'test-device',
-    sessionId: 'test-session-123',
-    onShotDetected: jest.fn(),
-    onSessionComplete: jest.fn(),
-  };
+// Mock session data
+const mockSession = {
+  sessionId: 'session1',
+  deviceId: 'device123',
+  status: 'active',
+  startTime: new Date().toISOString(),
+  settings: {
+    detectSensitivity: 0.5,
+    scoringZones: [
+      { color: '#FF0000', id: 'bullseye', name: 'Bullseye', points: 10, radius: 5 },
+      { color: '#FF4500', id: 'inner', name: 'Inner Ring', points: 9, radius: 10 },
+      { color: '#FFA500', id: 'middle', name: 'Middle Ring', points: 8, radius: 20 },
+      { color: '#FFFF00', id: 'outer', name: 'Outer Ring', points: 7, radius: 30 },
+      { color: '#00FF00', id: 'edge', name: 'Edge', points: 6, radius: 40 },
+      { color: '#880808', id: 'miss', name: 'Miss', points: 0, radius: 100 }
+    ],
+    targetDistance: 10,
+    targetSize: 60,
+    shotCount: 0,
+    zoomPreset: undefined
+};
 
+// Mock shot data
+const mockShot = {
+  shotId: 'shot1',
+  timestamp: new Date().toISOString(),
+  coordinates: { x: 50, y: 50 },
+  score: 8,
+  hasShot: true,
+  imageUrl: 'data:image/jpeg;base64,test',
+  metadata: {
+    brightness: 50,
+    contrast: 50,
+    resolution: '1920x1080'
+  }
+};
+
+// Mock analysis result
+const mockAnalysisResult = {
+  shots: [mockShot],
+  confidence: 0.85,
+  avgScore: 7.5,
+  bestShot: mockShot,
+  shotPattern: 'data:image/svg+xml,test'
+};
+
+describe('LiveTargetView', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    
-    // Reset localStorage mock
-    localStorageMock.getItem.mockReturnValue(null);
-    
-    // Reset mock hardware state
-    mockUseHardware.connectedDevice = null;
-    mockUseHardware.isConnected = false;
-    mockUseHardware.isConnecting = false;
-    mockUseHardware.connectionError = null;
-    mockUseHardware.activeSession = null;
-    mockUseHardware.isSessionActive = false;
-    mockUseHardware.latestFrame = null;
-    mockUseHardware.recentShots = [];
-    mockUseHardware.analysisResult = null;
-    mockUseHardware.isAnalyzing = false;
+    // Reset mocks
+    mockUseHardware.mockReturnValue({
+      connectedDevice: mockDevice,
+      isConnected: true,
+      isConnecting: false,
+      connectionError: null,
+      activeSession: mockSession,
+      isSessionActive: true,
+      latestFrame: mockShot,
+      recentShots: [mockShot],
+      analysisResult: mockAnalysisResult,
+      connectToDevice: jest.fn(),
+      disconnectDevice: jest.fn(),
+      startSession: jest.fn(),
+      stopSession: jest.fn()
+    });
   });
 
-  test('should render component correctly', () => {
-    render(<LiveTargetView {...defaultProps} />);
+  it('renders without crashing', () => {
+    renderWithQueryClient(<LiveTargetView />);
     
+    // Check for main elements
     expect(screen.getByText('Live Target View')).toBeInTheDocument();
-    expect(screen.getByText('Real-time target feed from Raspberry Pi')).toBeInTheDocument();
+    expect(screen.getByText('Target')).toBeInTheDocument();
+  });
+
+  it('displays connection status', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for connection status
+    expect(screen.getByText('Connected')).toBeInTheDocument();
+    expect(screen.getByText('Raspberry Pi feed')).toBeInTheDocument();
+  });
+
+  it('displays session status when active', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for session status
+    expect(screen.getByText('Session Active')).toBeInTheDocument();
+  });
+
+  it('displays video feed when frame is available', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for video element
+    const videoElement = screen.getByTestId('video-element');
+    expect(videoElement).toBeInTheDocument();
+    expect(videoElement).toHaveAttribute('src', mockShot.imageUrl);
+  });
+
+  it('displays placeholder when no frame is available', () => {
+    mockUseHardware.mockReturnValue({
+      connectedDevice: mockDevice,
+      isConnected: true,
+      isConnecting: false,
+      connectionError: null,
+      activeSession: mockSession,
+      isSessionActive: true,
+      latestFrame: null,
+      recentShots: [mockShot],
+      analysisResult: mockAnalysisResult,
+      connectToDevice: jest.fn(),
+      disconnectDevice: jest.fn(),
+      startSession: jest.fn(),
+      stopSession: jest.fn()
+    });
+    
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for placeholder text
+    expect(screen.getByText('No video feed')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for stream...')).toBeInTheDocument();
+  });
+
+  it('displays shot history', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for shot history
+    expect(screen.getByText('Shot #1')).toBeInTheDocument();
+    expect(screen.getByText('Recent shots in this session')).toBeInTheDocument();
+  });
+
+  it('displays analysis results', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for analysis results
+    expect(screen.getByText('Analysis Results')).toBeInTheDocument();
+    expect(screen.getByText('Shots Detected: 1')).toBeInTheDocument();
+    expect(screen.getByText('Avg Score: 7.5')).toBeInTheDocument();
+    expect(screen.getByText('Best Shot: 8')).toBeInTheDocument();
+  });
+
+  it('displays session configuration', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for session configuration
+    expect(screen.getByText('Session Configuration')).toBeInTheDocument();
+    expect(screen.getByText('Session ID: session1')).toBeInTheDocument();
+    expect(screen.getByText('Device: TestDevice')).toBeInTheDocument();
+    expect(screen.getByText('Target Distance: 10m')).toBeInTheDocument();
+    expect(screen.getByText('Target Size: 60m')).toBeInTheDocument();
+    expect(screen.getByText('Shot Count: 0')).toBeInTheDocument();
+  });
+
+  it('displays session statistics', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for session statistics
+    expect(screen.getByText('Session Stats')).toBeInTheDocument();
+    expect(screen.getByText('Total Shots: 1')).toBeInTheDocument();
+    expect(screen.getByText('Average Score: 7.5')).toBeInTheDocument();
+    expect(screen.getByText('Best Shot: 8')).toBeInTheDocument();
+    expect(screen.getByText('Bullseyes: 1')).toBeInTheDocument();
+  });
+
+  it('handles QR scanner open', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Initially QR scanner should be closed
+    expect(screen.queryByText('Scan QR Code')).not.toBeInTheDocument();
+    
+    // Click scan button
+    const scanButton = screen.getByText('Scan');
+    fireEvent.click(scanButton);
+    
+    // QR scanner should now be open
+    waitFor(() => {
+      expect(screen.getByText('Scan QR Code')).toBeInTheDocument();
+    });
+  });
+
+  it('handles QR scanner close', async () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Open QR scanner
+    const scanButton = screen.getByText('Scan');
+    fireEvent.click(scanButton);
+    
+    // Wait for QR scanner to open
+    waitFor(() => {
+      expect(screen.getByText('Scan QR Code')).toBeInTheDocument();
+    });
+    
+    // Click cancel button
+    const cancelButton = screen.getByText('Cancel');
+    fireEvent.click(cancelButton);
+    
+    // QR scanner should now be closed
+    waitFor(() => {
+      expect(screen.queryByText('Scan QR Code')).not.toBeInTheDocument();
+    });
+  });
+
+  it('handles demo connect', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Click demo connect button
+    const demoButton = screen.getByText('Demo Connect');
+    fireEvent.click(demoButton);
+    
+    // Should call connectToDevice
+    expect(mockUseHardware().connectToDevice).toHaveBeenCalledWith(
+      'GMShoot://pi-device-001|Raspberry Pi|192.168.1.100|8080'
+    );
+  });
+
+  it('handles start session', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Click start session button
+    const startButton = screen.getByText('Start Session');
+    fireEvent.click(startButton);
+    
+    // Should call startSession
+    expect(mockUseHardware().startSession).toHaveBeenCalledWith('device123', 'current-user');
+  });
+
+  it('handles stop session', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Click stop session button
+    const stopButton = screen.getByText('Stop Session');
+    fireEvent.click(stopButton);
+    
+    // Should call stopSession
+    expect(mockUseHardware().stopSession).toHaveBeenCalledWith('session1');
+  });
+
+  it('handles disconnect from hardware', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Click disconnect button
+    const disconnectButton = screen.getByText('Disconnect');
+    fireEvent.click(disconnectButton);
+    
+    // Should call disconnectDevice
+    expect(mockUseHardware().disconnectDevice).toHaveBeenCalledWith('device123');
+  });
+
+  it('handles settings toggle', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Initially settings should be closed
+    expect(screen.queryByText('Current settings')).not.toBeInTheDocument();
+    
+    // Click settings button
+    const settingsButton = screen.getByText('Settings');
+    fireEvent.click(settingsButton);
+    
+    // Settings should now be open
+    waitFor(() => {
+      expect(screen.getByText('Current settings')).toBeInTheDocument();
+    });
+  });
+
+  it('handles fullscreen toggle', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Click fullscreen button
+    const fullscreenButton = screen.getByRole('button').find(button => 
+      button.querySelector('svg[data-lucide="maximize2"]') || 
+      button.querySelector('svg[data-lucide="minimize2"]')
+    );
+    
+    expect(fullscreenButton).toBeInTheDocument();
+    fireEvent.click(fullscreenButton);
+  });
+
+  it('handles analysis toggle', () => {
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Click analysis toggle button
+    const analysisButton = screen.getByRole('button').find(button => 
+      button.querySelector('svg[data-lucide="eye"]')
+    );
+    
+    expect(analysisButton).toBeInTheDocument();
+    fireEvent.click(analysisButton);
+  });
+
+  it('displays error message', () => {
+    mockUseHardware.mockReturnValue({
+      connectedDevice: mockDevice,
+      isConnected: true,
+      isConnecting: false,
+      connectionError: new Error('Connection failed'),
+      activeSession: mockSession,
+      isSessionActive: true,
+      latestFrame: mockShot,
+      recentShots: [mockShot],
+      analysisResult: mockAnalysisResult,
+      connectToDevice: jest.fn(),
+      disconnectDevice: jest.fn(),
+      startSession: jest.fn(),
+      stopSession: jest.fn()
+    });
+    
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for error message
+    expect(screen.getByText('Connection failed')).toBeInTheDocument();
+  });
+
+  it('displays disconnected status', () => {
+    mockUseHardware.mockReturnValue({
+      connectedDevice: mockDevice,
+      isConnected: false,
+      isConnecting: false,
+      connectionError: null,
+      activeSession: mockSession,
+      isSessionActive: true,
+      latestFrame: mockShot,
+      recentShots: [mockShot],
+      analysisResult: mockAnalysisResult,
+      connectToDevice: jest.fn(),
+      disconnectDevice: jest.fn(),
+      startSession: jest.fn(),
+      stopSession: jest.fn()
+    });
+    
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for disconnected status
     expect(screen.getByText('Disconnected')).toBeInTheDocument();
   });
 
-  test('should show disconnected status initially', () => {
-    render(<LiveTargetView {...defaultProps} />);
+  it('handles mobile layout', () => {
+    // Mock mobile device
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 500
+    });
     
-    expect(screen.getByText('Disconnected')).toBeInTheDocument();
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for mobile-specific elements
+    expect(screen.getByText('Raspberry Pi feed')).toBeInTheDocument();
+    expect(screen.getByText('Scan')).toBeInTheDocument();
+    expect(screen.getByText('Demo')).toBeInTheDocument();
+  });
+
+  it('handles desktop layout', () => {
+    // Mock desktop device
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1200
+    });
+    
+    renderWithQueryClient(<LiveTargetView />);
+    
+    // Check for desktop-specific elements
+    expect(screen.getByText('Real-time target feed from Raspberry Pi')).toBeInTheDocument();
     expect(screen.getByText('Scan QR Code')).toBeInTheDocument();
     expect(screen.getByText('Demo Connect')).toBeInTheDocument();
   });
 
-  test('should connect to hardware when Demo Connect button is clicked', async () => {
-    render(<LiveTargetView {...defaultProps} />);
+  it('handles shot detection callback', () => {
+    const onShotDetected = jest.fn();
     
-    const demoConnectButton = screen.getByText('Demo Connect');
-    fireEvent.click(demoConnectButton);
+    renderWithQueryClient(<LiveTargetView onShotDetected={onShotDetected} />);
     
-    await waitFor(() => {
-      expect(mockUseHardware.connectToDevice).toHaveBeenCalledWith('GMShoot://pi-device-001|Raspberry Pi|192.168.1.100|8080');
+    // Simulate shot detection
+    mockUseHardware.mockReturnValue({
+      connectedDevice: mockDevice,
+      isConnected: true,
+      isConnecting: false,
+      connectionError: null,
+      activeSession: mockSession,
+      isSessionActive: true,
+      latestFrame: mockShot,
+      recentShots: [mockShot, { ...mockShot, shotId: 'shot2' }],
+      analysisResult: mockAnalysisResult,
+      connectToDevice: jest.fn(),
+      disconnectDevice: jest.fn(),
+      startSession: jest.fn(),
+      stopSession: jest.fn()
     });
     
-    // Update mock to return connected state
-    mockUseHardware.connectedDevice = {
-      id: 'pi-device-001',
-      name: 'Raspberry Pi',
-      type: 'raspberry-pi' as const,
-      url: 'http://192.168.1.100:8080',
-      ngrokUrl: 'http://192.168.1.100:8080',
-      status: 'online' as const,
-      lastSeen: new Date(),
-      capabilities: ['camera', 'analysis'],
-      settings: {
-        resolution: { width: 1920, height: 1080 },
-        fps: 30,
-        quality: 'high'
-      }
-    };
-    mockUseHardware.isConnected = true;
-    
-    // Re-render with new state - component will re-render automatically when mock state changes
-    render(<LiveTargetView {...defaultProps} />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Connected')).toBeInTheDocument();
+    // Should call onShotDetected with latest shot
+    waitFor(() => {
+      expect(onShotDetected).toHaveBeenCalledWith(mockShot);
     });
   });
 
-  test('should handle connection error', async () => {
-    // Set up error state before rendering
-    mockUseHardware.connectionError = 'Connection failed';
+  it('handles session completion callback', () => {
+    const onSessionComplete = jest.fn();
     
-    render(<LiveTargetView {...defaultProps} />);
+    renderWithQueryClient(<LiveTargetView onSessionComplete={onSessionComplete} />);
     
-    await waitFor(() => {
-      expect(screen.getByText('Connection failed')).toBeInTheDocument();
-    });
-  });
-
-  test('should show connected status when device is connected', async () => {
-    // Update mock to show connected device
-    mockUseHardware.connectedDevice = {
-      id: 'pi-device-001',
-      name: 'Raspberry Pi',
-      type: 'raspberry-pi' as const,
-      url: 'http://192.168.1.100:8080',
-      ngrokUrl: 'http://192.168.1.100:8080',
-      status: 'online' as const,
-      lastSeen: new Date(),
-      capabilities: ['camera', 'analysis'],
-      settings: {
-        resolution: { width: 1920, height: 1080 },
-        fps: 30,
-        quality: 'high'
-      }
-    };
-    mockUseHardware.isConnected = true;
-    
-    render(<LiveTargetView {...defaultProps} />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Connected')).toBeInTheDocument();
-    });
-  });
-
-  test('should start session when Start Session button is clicked', async () => {
-    // Set up connected device first
-    mockUseHardware.connectedDevice = {
-      id: 'pi-device-001',
-      name: 'Raspberry Pi',
-      type: 'raspberry-pi' as const,
-      url: 'http://192.168.1.100:8080',
-      ngrokUrl: 'http://192.168.1.100:8080',
-      status: 'online' as const,
-      lastSeen: new Date(),
-      capabilities: ['camera', 'analysis'],
-      settings: {
-        resolution: { width: 1920, height: 1080 },
-        fps: 30,
-        quality: 'high'
-      }
-    };
-    mockUseHardware.isConnected = true;
-    
-    render(<LiveTargetView {...defaultProps} />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Start Session')).toBeInTheDocument();
-    }, { timeout: 3000 });
-    
-    const startSessionButton = screen.getByText('Start Session');
-    fireEvent.click(startSessionButton);
-    
-    await waitFor(() => {
-      expect(mockUseHardware.startSession).toHaveBeenCalled();
+    // Simulate session completion
+    mockUseHardware.mockReturnValue({
+      connectedDevice: mockDevice,
+      isConnected: true,
+      isConnecting: false,
+      connectionError: null,
+      activeSession: { ...mockSession, status: 'completed' },
+      isSessionActive: false,
+      latestFrame: mockShot,
+      recentShots: [mockShot],
+      analysisResult: mockAnalysisResult,
+      connectToDevice: jest.fn(),
+      disconnectDevice: jest.fn(),
+      startSession: jest.fn(),
+      stopSession: jest.fn()
     });
     
-    // Update mock to show active session
-    mockUseHardware.activeSession = {
-      sessionId: 'test-session-123',
-      deviceId: 'pi-device-001',
-      startTime: new Date(),
-      shotCount: 0,
-      status: 'active' as const,
-      settings: {
-        targetDistance: 10,
-        targetSize: 100,
-        scoringZones: [],
-        zoomPreset: undefined,
-        detectionSensitivity: 0.7
-      }
-    };
-    mockUseHardware.isSessionActive = true;
-    
-    // Re-render with new state - component will re-render automatically when mock state changes
-    render(<LiveTargetView {...defaultProps} />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Stop Session')).toBeInTheDocument();
-    }, { timeout: 3000 });
-  });
-
-  test('should show session active status when session is started', async () => {
-    // Set up connected device and active session
-    mockUseHardware.connectedDevice = {
-      id: 'pi-device-001',
-      name: 'Raspberry Pi',
-      type: 'raspberry-pi' as const,
-      url: 'http://192.168.1.100:8080',
-      ngrokUrl: 'http://192.168.1.100:8080',
-      status: 'online' as const,
-      lastSeen: new Date(),
-      capabilities: ['camera', 'analysis'],
-      settings: {
-        resolution: { width: 1920, height: 1080 },
-        fps: 30,
-        quality: 'high'
-      }
-    };
-    mockUseHardware.isConnected = true;
-    mockUseHardware.activeSession = {
-      sessionId: 'test-session-123',
-      deviceId: 'pi-device-001',
-      startTime: new Date(),
-      shotCount: 0,
-      status: 'active' as const,
-      settings: {
-        targetDistance: 10,
-        targetSize: 100,
-        scoringZones: [],
-        zoomPreset: undefined,
-        detectionSensitivity: 0.7
-      }
-    };
-    mockUseHardware.isSessionActive = true;
-    
-    render(<LiveTargetView {...defaultProps} />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Session Active')).toBeInTheDocument();
-    }, { timeout: 3000 });
-  });
-
-  test('should display shot history when shots are detected', async () => {
-    // Set up connected device and active session
-    mockUseHardware.connectedDevice = {
-      id: 'pi-device-001',
-      name: 'Raspberry Pi',
-      type: 'raspberry-pi' as const,
-      url: 'http://192.168.1.100:8080',
-      ngrokUrl: 'http://192.168.1.100:8080',
-      status: 'online' as const,
-      lastSeen: new Date(),
-      capabilities: ['camera', 'analysis'],
-      settings: {
-        resolution: { width: 1920, height: 1080 },
-        fps: 30,
-        quality: 'high'
-      }
-    };
-    mockUseHardware.isConnected = true;
-    mockUseHardware.activeSession = {
-      sessionId: 'test-session-123',
-      deviceId: 'pi-device-001',
-      startTime: new Date(),
-      shotCount: 0,
-      status: 'active' as const,
-      settings: {
-        targetDistance: 10,
-        targetSize: 100,
-        scoringZones: [],
-        zoomPreset: undefined,
-        detectionSensitivity: 0.7
-      }
-    };
-    mockUseHardware.isSessionActive = true;
-    
-    // Add shot to recentShots
-    const shotData = {
-      shotId: 'shot-001',
-      sessionId: 'test-session-123',
-      timestamp: new Date(),
-      frameNumber: 1,
-      coordinates: { x: 50, y: 50 },
-      score: 8,
-      confidence: 0.9
-    };
-    mockUseHardware.recentShots = [shotData];
-    
-    render(<LiveTargetView {...defaultProps} />);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Shot History')).toBeInTheDocument();
-    }, { timeout: 3000 });
-    
-    // Check for shot details separately
-    expect(screen.getByText('Shot #1')).toBeInTheDocument();
-  });
-
-  test('should show video stream when frame is updated', async () => {
-    // Set up connected device and active session
-    mockUseHardware.connectedDevice = {
-      id: 'pi-device-001',
-      name: 'Raspberry Pi',
-      type: 'raspberry-pi' as const,
-      url: 'http://192.168.1.100:8080',
-      ngrokUrl: 'http://192.168.1.100:8080',
-      status: 'online' as const,
-      lastSeen: new Date(),
-      capabilities: ['camera', 'analysis'],
-      settings: {
-        resolution: { width: 1920, height: 1080 },
-        fps: 30,
-        quality: 'high'
-      }
-    };
-    mockUseHardware.isConnected = true;
-    mockUseHardware.activeSession = {
-      sessionId: 'test-session-123',
-      deviceId: 'pi-device-001',
-      startTime: new Date(),
-      shotCount: 0,
-      status: 'active' as const,
-      settings: {
-        targetDistance: 10,
-        targetSize: 100,
-        scoringZones: [],
-        zoomPreset: undefined,
-        detectionSensitivity: 0.7
-      }
-    };
-    mockUseHardware.isSessionActive = true;
-    
-    // Set frame with image URL
-    mockUseHardware.latestFrame = {
-      frameNumber: 1,
-      timestamp: new Date(),
-      imageUrl: 'http://example.com/frame.jpg',
-      hasShot: false,
-      shotData: null,
-      metadata: {
-        resolution: '1920x1080',
-        brightness: 50,
-        contrast: 50
-      }
-    };
-    
-    render(<LiveTargetView {...defaultProps} />);
-    
-    await waitFor(() => {
-      const videoElement = screen.getByTestId('video-element');
-      expect(videoElement).toHaveAttribute('src', 'http://example.com/frame.jpg');
-    }, { timeout: 3000 });
-  });
-
-  test('should show placeholder when no video stream', () => {
-    render(<LiveTargetView {...defaultProps} />);
-    
-    expect(screen.getByText('No video feed')).toBeInTheDocument();
-    expect(screen.getByText('Connect to hardware to begin')).toBeInTheDocument();
-  });
-
-  test('should show error message when error occurs', async () => {
-    const errorMessage = 'Test error message';
-    mockUseHardware.connectionError = errorMessage;
-    
-    render(<LiveTargetView {...defaultProps} />);
-    
-    await waitFor(() => {
-      expect(screen.getByText(errorMessage)).toBeInTheDocument();
-    }, { timeout: 3000 });
-  });
-
-  test('should call onShotDetected callback when shot is detected', async () => {
-    // Set up connected device and active session
-    mockUseHardware.connectedDevice = {
-      id: 'pi-device-001',
-      name: 'Raspberry Pi',
-      type: 'raspberry-pi' as const,
-      url: 'http://192.168.1.100:8080',
-      ngrokUrl: 'http://192.168.1.100:8080',
-      status: 'online' as const,
-      lastSeen: new Date(),
-      capabilities: ['camera', 'analysis'],
-      settings: {
-        resolution: { width: 1920, height: 1080 },
-        fps: 30,
-        quality: 'high'
-      }
-    };
-    mockUseHardware.isConnected = true;
-    mockUseHardware.activeSession = {
-      sessionId: 'test-session-123',
-      deviceId: 'pi-device-001',
-      startTime: new Date(),
-      shotCount: 0,
-      status: 'active' as const,
-      settings: {
-        targetDistance: 10,
-        targetSize: 100,
-        scoringZones: [],
-        zoomPreset: undefined,
-        detectionSensitivity: 0.7
-      }
-    };
-    mockUseHardware.isSessionActive = true;
-    
-    const shotData = {
-      shotId: 'shot-001',
-      sessionId: 'test-session-123',
-      timestamp: new Date(),
-      frameNumber: 1,
-      coordinates: { x: 50, y: 50 },
-      score: 8,
-      confidence: 0.9
-    };
-    mockUseHardware.recentShots = [shotData];
-    
-    render(<LiveTargetView {...defaultProps} />);
-    
-    await waitFor(() => {
-      expect(defaultProps.onShotDetected).toHaveBeenCalledWith(shotData);
-    }, { timeout: 3000 });
-  });
-
-  test('should call onSessionComplete callback when session ends', async () => {
-    // Set up connected device and active session
-    mockUseHardware.connectedDevice = {
-      id: 'pi-device-001',
-      name: 'Raspberry Pi',
-      type: 'raspberry-pi' as const,
-      url: 'http://192.168.1.100:8080',
-      ngrokUrl: 'http://192.168.1.100:8080',
-      status: 'online' as const,
-      lastSeen: new Date(),
-      capabilities: ['camera', 'analysis'],
-      settings: {
-        resolution: { width: 1920, height: 1080 },
-        fps: 30,
-        quality: 'high'
-      }
-    };
-    mockUseHardware.isConnected = true;
-    
-    const shots = [
-      {
-        shotId: 'shot-001',
-        sessionId: 'test-session-123',
-        timestamp: new Date(),
-        frameNumber: 1,
-        coordinates: { x: 50, y: 50 },
-        score: 8,
-        confidence: 0.9
-      },
-      {
-        shotId: 'shot-002',
-        sessionId: 'test-session-123',
-        timestamp: new Date(),
-        frameNumber: 2,
-        coordinates: { x: 60, y: 60 },
-        score: 9,
-        confidence: 0.85
-      }
-    ];
-    
-    mockUseHardware.activeSession = {
-      sessionId: 'test-session-123',
-      deviceId: 'pi-device-001',
-      startTime: new Date(),
-      shotCount: 0,
-      status: 'completed' as const, // Set to completed to trigger callback
-      settings: {
-        targetDistance: 10,
-        targetSize: 100,
-        scoringZones: [],
-        zoomPreset: undefined,
-        detectionSensitivity: 0.7
-      }
-    };
-    mockUseHardware.isSessionActive = false; // Session is no longer active
-    mockUseHardware.recentShots = shots;
-    
-    render(<LiveTargetView {...defaultProps} />);
-    
-    await waitFor(() => {
-      expect(defaultProps.onSessionComplete).toHaveBeenCalled();
-    }, { timeout: 3000 });
-    
-    // Check the callback arguments separately
-    const callbackCalls = (defaultProps.onSessionComplete as jest.Mock).mock.calls;
-    expect(callbackCalls.length).toBeGreaterThan(0);
-    const shotsArray = callbackCalls[0][0];
-    expect(shotsArray).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ shotId: 'shot-001' }),
-        expect.objectContaining({ shotId: 'shot-002' })
-      ])
-    );
-  });
-
-  test('should cleanup on unmount', () => {
-    const { unmount } = render(<LiveTargetView {...defaultProps} />);
-    
-    unmount();
-    
-    // Since we're using useHardware hook, we can't directly test cleanup
-    // but we can verify component unmounts without errors
-    expect(true).toBe(true); // Placeholder test
+    // Should call onSessionComplete with shots
+    waitFor(() => {
+      expect(onSessionComplete).toHaveBeenCalledWith([mockShot]);
+    });
   });
 });

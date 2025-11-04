@@ -2,13 +2,12 @@ import * as React from "react"
 
 import { cn } from "../../lib/utils"
 
-const Separator = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & {
-    orientation?: "horizontal" | "vertical"
-    decorative?: boolean
-  }
->(
+interface SeparatorProps extends React.HTMLAttributes<HTMLDivElement> {
+  orientation?: "horizontal" | "vertical"
+  decorative?: boolean
+}
+
+const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
   (
     { className, orientation = "horizontal", decorative = true, ...props },
     ref
@@ -16,15 +15,15 @@ const Separator = React.forwardRef<
     <div
       ref={ref}
       role="separator"
-      {...(orientation && { orientation })}
+      {...({ orientation } as any)}
       aria-orientation={orientation}
       aria-hidden={decorative ? "true" : undefined}
-      data-orientation={orientation}
       className={cn(
         "shrink-0 bg-border",
         orientation === "horizontal" ? "h-[1px] w-full" : "h-full w-[1px]",
         className
       )}
+      data-orientation={orientation}
       {...props}
     />
   )

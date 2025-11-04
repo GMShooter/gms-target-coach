@@ -1,261 +1,595 @@
-import React, { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, Target, Zap, Activity } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Activity,
+  TrendingUp,
+  TrendingDown,
+  Target,
+  Zap,
+  Clock,
+  Award,
+  BarChart3,
+  PieChart,
+  Crosshair,
+  Gauge,
+  AlertCircle,
+  CheckCircle,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Timer,
+  Wind,
+  Thermometer,
+  Eye,
+  MousePointer,
+  RefreshCw,
+  Download,
+  Share2,
+  Settings,
+  Maximize2,
+  Minimize2
+} from 'lucide-react';
 
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge-2";
+import { type ShotData, type SessionData } from '../services/HardwareAPI';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Loading } from './ui/loading';
+import { GMShootLogo } from './ui/gmshoot-logo';
 
 interface LiveMetricsDashboardProps {
-  metrics: {
-    totalShots: number;
-    averageScore: number;
-    highestScore: number;
-    accuracy: number;
-    groupSize: number;
-    mpi: number;
-  };
-  isAnalyzing: boolean;
-  shots: any[];
+  shots: ShotData[];
+  session?: SessionData;
+  isSessionActive?: boolean;
+  onExportData?: () => void;
+  onShareResults?: () => void;
+  onRefresh?: () => void;
+  className?: string;
 }
 
-export const LiveMetricsDashboard: React.FC<LiveMetricsDashboardProps> = ({
-  metrics,
-  isAnalyzing,
-  shots
+interface MetricCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  trend?: 'up' | 'down' | 'neutral';
+  trendValue?: string;
+  description?: string;
+  variant?: 'default' | 'success' | 'warning' | 'danger';
+  animated?: boolean;
+  delay?: number;
+}
+
+const MetricCard: React.FC<MetricCardProps> = ({
+  title,
+  value,
+  icon,
+  trend,
+  trendValue,
+  description,
+  variant = 'default',
+  animated = true,
+  delay = 0
 }) => {
-  const [animatedValues, setAnimatedValues] = useState({
-    totalShots: 0,
-    averageScore: 0,
-    accuracy: 0,
-    mpi: 0
-  });
-
-  // Animate metric changes
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setAnimatedValues({
-        totalShots: metrics.totalShots,
-        averageScore: metrics.averageScore,
-        accuracy: metrics.accuracy,
-        mpi: metrics.mpi
-      });
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [metrics]);
-
-  // Get trend indicator
-  const getTrendIcon = (current: number, previous: number) => {
-    if (current > previous) return <TrendingUp className="h-4 w-4 text-green-500" />;
-    if (current < previous) return <TrendingDown className="h-4 w-4 text-red-500" />;
-    return <Minus className="h-4 w-4 text-gray-500" />;
+  const getVariantClasses = () => {
+    switch (variant) {
+      case 'success':
+        return 'border-green-500/20 bg-green-500/5';
+      case 'warning':
+        return 'border-yellow-500/20 bg-yellow-500/5';
+      case 'danger':
+        return 'border-red-500/20 bg-red-500/5';
+      default:
+        return 'border-slate-700/50 bg-slate-800/30';
+    }
   };
 
-  // Get performance color
-  const getPerformanceColor = (score: number) => {
-    if (score >= 9) return 'text-green-500';
-    if (score >= 7) return 'text-yellow-500';
-    return 'text-red-500';
+  const getTrendIcon = () => {
+    switch (trend) {
+      case 'up':
+        return <ArrowUp className="h-3 w-3 text-green-500" />;
+      case 'down':
+        return <ArrowDown className="h-3 w-3 text-red-500" />;
+      default:
+        return <Minus className="h-3 w-3 text-slate-500" />;
+    }
   };
-
-  // Get accuracy level
-  const getAccuracyLevel = (accuracy: number) => {
-    if (accuracy >= 90) return { text: 'Excellent', color: 'bg-green-500' };
-    if (accuracy >= 75) return { text: 'Good', color: 'bg-blue-500' };
-    if (accuracy >= 60) return { text: 'Fair', color: 'bg-yellow-500' };
-    return { text: 'Poor', color: 'bg-red-500' };
-  };
-
-  const accuracyLevel = getAccuracyLevel(animatedValues.accuracy);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Live SOTA Metrics</h2>
-        <div className="flex items-center justify-center gap-2">
-          <Badge variant={isAnalyzing ? "secondary" : "success"} className="animate-pulse">
-            {isAnalyzing ? (
-              <>
-                <Activity className="h-3 w-3 mr-1" />
-                Analyzing
-              </>
-            ) : (
-              <>
-                <Target className="h-3 w-3 mr-1" />
-                Live
-              </>
-            )}
-          </Badge>
-        </div>
-      </div>
-
-      {/* Primary Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Shots */}
-        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-slate-600 transition-all duration-300">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-slate-400 text-sm font-medium">Total Shots</h3>
-            <Target className="h-4 w-4 text-slate-500" />
+    <motion.div
+      initial={animated ? { opacity: 0, y: 20 } : false}
+      animate={animated ? { opacity: 1, y: 0 } : false}
+      transition={{ duration: 0.3, delay }}
+      whileHover={animated ? { scale: 1.02 } : undefined}
+      className={`relative overflow-hidden rounded-lg border ${getVariantClasses()} backdrop-blur-sm`}
+    >
+      <div className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${
+              variant === 'success' ? 'bg-green-500/20 text-green-400' :
+              variant === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+              variant === 'danger' ? 'bg-red-500/20 text-red-400' :
+              'bg-slate-700/50 text-slate-300'
+            }`}>
+              {icon}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-400">{title}</p>
+              <p className="text-2xl font-bold text-white">{value}</p>
+            </div>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white tabular-nums">
-              {animatedValues.totalShots}
-            </span>
-            <span className="text-slate-400 text-sm">shots</span>
-          </div>
-          {isAnalyzing && (
-            <div className="mt-2 h-1 bg-slate-600 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 animate-pulse" style={{ width: '60%' }} />
+          {trend && (
+            <div className="flex items-center space-x-1">
+              {getTrendIcon()}
+              <span className="text-sm text-slate-400">{trendValue}</span>
             </div>
           )}
         </div>
+        {description && (
+          <p className="mt-2 text-xs text-slate-500">{description}</p>
+        )}
+      </div>
+    </motion.div>
+  );
+};
 
-        {/* Average Score */}
-        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-slate-600 transition-all duration-300">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-slate-400 text-sm font-medium">Average Score</h3>
-            <Zap className="h-4 w-4 text-yellow-500" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className={`text-3xl font-bold tabular-nums ${getPerformanceColor(animatedValues.averageScore)}`}>
-              {animatedValues.averageScore.toFixed(1)}
-            </span>
-            <span className="text-slate-400 text-sm">/10.0</span>
-          </div>
-          <div className="mt-2">
-            <div className="h-2 bg-slate-600 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 transition-all duration-500"
-                style={{ width: `${(animatedValues.averageScore / 10) * 100}%` }}
+interface ProgressRingProps {
+  value: number;
+  maxValue: number;
+  size?: number;
+  strokeWidth?: number;
+  label?: string;
+  color?: string;
+  animated?: boolean;
+}
+
+const ProgressRing: React.FC<ProgressRingProps> = ({
+  value,
+  maxValue,
+  size = 120,
+  strokeWidth = 8,
+  label,
+  color = '#3B82F6',
+  animated = true
+}) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const progress = (value / maxValue) * circumference;
+  const percentage = Math.round((value / maxValue) * 100);
+
+  return (
+    <div className="relative flex items-center justify-center">
+      <svg
+        width={size}
+        height={size}
+        className="transform -rotate-90"
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#1E293B"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          initial={animated ? { strokeDashoffset: circumference } : false}
+          animate={animated ? { strokeDashoffset: circumference - progress } : false}
+          transition={{ duration: 1, ease: "easeInOut" }}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center justify-center">
+        <span className="text-2xl font-bold text-white">{percentage}%</span>
+        {label && <span className="text-xs text-slate-400">{label}</span>}
+      </div>
+    </div>
+  );
+};
+
+interface ShotDistributionChartProps {
+  shots: ShotData[];
+  animated?: boolean;
+}
+
+const ShotDistributionChart: React.FC<ShotDistributionChartProps> = ({ shots, animated = true }) => {
+  const distribution = useMemo(() => {
+    const zones = { center: 0, inner: 0, middle: 0, outer: 0, miss: 0 };
+    
+    shots.forEach(shot => {
+      const distance = Math.sqrt(
+        Math.pow(shot.coordinates.x - 50, 2) + 
+        Math.pow(shot.coordinates.y - 50, 2)
+      );
+      
+      if (distance <= 10) zones.center++;
+      else if (distance <= 25) zones.inner++;
+      else if (distance <= 40) zones.middle++;
+      else if (distance <= 50) zones.outer++;
+      else zones.miss++;
+    });
+    
+    return zones;
+  }, [shots]);
+
+  const total = shots.length || 1;
+  const maxCount = Math.max(...Object.values(distribution));
+
+  return (
+    <div className="space-y-3">
+      {Object.entries(distribution).map(([zone, count], index) => {
+        const percentage = (count / total) * 100;
+        const zoneColors = {
+          center: 'bg-green-500',
+          inner: 'bg-blue-500',
+          middle: 'bg-yellow-500',
+          outer: 'bg-orange-500',
+          miss: 'bg-red-500'
+        };
+        
+        const zoneLabels = {
+          center: 'Center (10)',
+          inner: 'Inner (8-9)',
+          middle: 'Middle (5-7)',
+          outer: 'Outer (1-4)',
+          miss: 'Miss (0)'
+        };
+
+        return (
+          <motion.div
+            key={zone}
+            initial={animated ? { opacity: 0, x: -20 } : false}
+            animate={animated ? { opacity: 1, x: 0 } : false}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+            className="space-y-1"
+          >
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">{zoneLabels[zone as keyof typeof zoneLabels]}</span>
+              <span className="text-white font-medium">{count} ({percentage.toFixed(1)}%)</span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2">
+              <motion.div
+                className={`h-2 rounded-full ${zoneColors[zone as keyof typeof zoneColors]}`}
+                initial={animated ? { width: 0 } : false}
+                animate={animated ? { width: `${percentage}%` } : false}
+                transition={{ duration: 0.5, delay: index * 0.1 + 0.2 }}
               />
             </div>
-          </div>
-        </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+};
 
-        {/* Accuracy */}
-        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-slate-600 transition-all duration-300">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-slate-400 text-sm font-medium">Accuracy</h3>
-            <div className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${accuracyLevel.color}`} />
-              <span className="text-slate-400 text-sm">{accuracyLevel.text}</span>
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className={`text-3xl font-bold tabular-nums ${getPerformanceColor(animatedValues.accuracy / 10)}`}>
-              {animatedValues.accuracy.toFixed(1)}%
-            </span>
-          </div>
-          <div className="mt-2">
-            <div className="h-2 bg-slate-600 rounded-full overflow-hidden">
-              <div 
-                className={`h-full ${accuracyLevel.color} transition-all duration-500`}
-                style={{ width: `${animatedValues.accuracy}%` }}
-              />
-            </div>
-          </div>
-        </div>
+export const LiveMetricsDashboard: React.FC<LiveMetricsDashboardProps> = ({
+  shots,
+  session,
+  isSessionActive = false,
+  onExportData,
+  onShareResults,
+  onRefresh,
+  className = ''
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-        {/* MPI (Mean Point Impact) */}
-        <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-slate-600 transition-all duration-300">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-slate-400 text-sm font-medium">MPI</h3>
-            <div className="text-xs text-slate-500">Mean Point Impact</div>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className={`text-3xl font-bold tabular-nums ${getPerformanceColor(animatedValues.mpi * 10)}`}>
-              {animatedValues.mpi.toFixed(2)}
-            </span>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <div className="flex-1 h-2 bg-slate-600 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 transition-all duration-500"
-                style={{ width: `${animatedValues.mpi * 100}%` }}
-              />
+  // Calculate metrics
+  const metrics = useMemo(() => {
+    if (shots.length === 0) {
+      return {
+        totalShots: 0,
+        averageScore: 0,
+        bestScore: 0,
+        worstScore: 0,
+        bullseyeCount: 0,
+        accuracy: 0,
+        consistency: 0,
+        improvement: 0,
+        sessionDuration: 0,
+        shotsPerMinute: 0,
+        grouping: 0,
+        averageDistance: 0
+      };
+    }
+
+    const scores = shots.map(s => s.score);
+    const totalShots = shots.length;
+    const averageScore = scores.reduce((sum, score) => sum + score, 0) / totalShots;
+    const bestScore = Math.max(...scores);
+    const worstScore = Math.min(...scores);
+    const bullseyeCount = shots.filter(s => s.score >= 10).length;
+    const accuracy = (bullseyeCount / totalShots) * 100;
+    
+    // Calculate consistency (standard deviation)
+    const variance = scores.reduce((sum, score) => sum + Math.pow(score - averageScore, 2), 0) / totalShots;
+    const standardDeviation = Math.sqrt(variance);
+    const consistency = Math.max(0, 100 - (standardDeviation * 10));
+    
+    // Calculate improvement (trend over last 5 shots)
+    const recentShots = shots.slice(-5);
+    const olderShots = shots.slice(-10, -5);
+    const recentAvg = recentShots.reduce((sum, s) => sum + s.score, 0) / recentShots.length;
+    const olderAvg = olderShots.length > 0 ? 
+      olderShots.reduce((sum, s) => sum + s.score, 0) / olderShots.length : recentAvg;
+    const improvement = ((recentAvg - olderAvg) / olderAvg) * 100;
+    
+    // Calculate session duration
+    const sessionDuration = session ? 
+      (Date.now() - new Date(session.startTime).getTime()) / 1000 / 60 : 0;
+    
+    // Calculate shots per minute
+    const shotsPerMinute = sessionDuration > 0 ? totalShots / sessionDuration : 0;
+    
+    // Calculate grouping (average distance from center of mass)
+    const centerX = shots.reduce((sum, s) => sum + s.coordinates.x, 0) / totalShots;
+    const centerY = shots.reduce((sum, s) => sum + s.coordinates.y, 0) / totalShots;
+    const averageDistance = shots.reduce((sum, s) => {
+      const distance = Math.sqrt(
+        Math.pow(s.coordinates.x - centerX, 2) + 
+        Math.pow(s.coordinates.y - centerY, 2)
+      );
+      return sum + distance;
+    }, 0) / totalShots;
+    const grouping = Math.max(0, 100 - averageDistance);
+
+    return {
+      totalShots,
+      averageScore,
+      bestScore,
+      worstScore,
+      bullseyeCount,
+      accuracy,
+      consistency,
+      improvement,
+      sessionDuration,
+      shotsPerMinute,
+      grouping,
+      averageDistance
+    };
+  }, [shots, session]);
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await onRefresh?.();
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  };
+
+  // Get trend for improvement
+  const getImprovementTrend = (): 'up' | 'down' | 'neutral' => {
+    if (metrics.improvement > 5) return 'up';
+    if (metrics.improvement < -5) return 'down';
+    return 'neutral';
+  };
+
+  return (
+    <div className={`space-y-4 ${className}`}>
+      {/* Header */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <GMShootLogo size="sm" variant="gradient" />
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Live Metrics
+                </CardTitle>
+                <CardDescription>
+                  {isSessionActive ? 'Session in progress' : 'Session completed'}
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
             </div>
           </div>
-        </div>
+        </CardHeader>
+      </Card>
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          title="Total Shots"
+          value={metrics.totalShots}
+          icon={<Target className="h-5 w-5" />}
+          description="Shots fired this session"
+          delay={0}
+        />
+        <MetricCard
+          title="Average Score"
+          value={metrics.averageScore.toFixed(1)}
+          icon={<Gauge className="h-5 w-5" />}
+          trend={getImprovementTrend()}
+          trendValue={`${Math.abs(metrics.improvement).toFixed(1)}%`}
+          description="Average shot score"
+          variant={metrics.averageScore >= 7 ? 'success' : metrics.averageScore >= 5 ? 'warning' : 'danger'}
+          delay={0.1}
+        />
+        <MetricCard
+          title="Best Shot"
+          value={metrics.bestScore}
+          icon={<Award className="h-5 w-5" />}
+          description="Highest score achieved"
+          variant={metrics.bestScore >= 10 ? 'success' : 'default'}
+          delay={0.2}
+        />
+        <MetricCard
+          title="Accuracy"
+          value={`${metrics.accuracy.toFixed(1)}%`}
+          icon={<Crosshair className="h-5 w-5" />}
+          description="Bullseye hit rate"
+          variant={metrics.accuracy >= 50 ? 'success' : metrics.accuracy >= 25 ? 'warning' : 'default'}
+          delay={0.3}
+        />
       </div>
 
-      {/* Secondary Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Highest Score */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-slate-300 text-sm flex items-center gap-2">
-              <Target className="h-4 w-4 text-green-500" />
-              Highest Score
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-green-500 tabular-nums">
-              {metrics.highestScore}/10
+      {/* Expanded Metrics */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <MetricCard
+                title="Consistency"
+                value={`${metrics.consistency.toFixed(1)}%`}
+                icon={<Activity className="h-5 w-5" />}
+                description="Shot score consistency"
+                variant={metrics.consistency >= 70 ? 'success' : metrics.consistency >= 50 ? 'warning' : 'default'}
+                delay={0.4}
+              />
+              <MetricCard
+                title="Grouping"
+                value={`${metrics.grouping.toFixed(1)}%`}
+                icon={<PieChart className="h-5 w-5" />}
+                description="Shot tightness"
+                variant={metrics.grouping >= 70 ? 'success' : metrics.grouping >= 50 ? 'warning' : 'default'}
+                delay={0.5}
+              />
+              <MetricCard
+                title="Shots/Min"
+                value={metrics.shotsPerMinute.toFixed(1)}
+                icon={<Zap className="h-5 w-5" />}
+                description="Firing rate"
+                delay={0.6}
+              />
+              <MetricCard
+                title="Duration"
+                value={`${Math.round(metrics.sessionDuration)}m`}
+                icon={<Clock className="h-5 w-5" />}
+                description="Session length"
+                delay={0.7}
+              />
             </div>
-            {shots.length > 0 && (
-              <div className="mt-2 text-xs text-slate-400">
-                Shot #{shots.findIndex(s => s.score === metrics.highestScore) + 1}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Group Size */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-slate-300 text-sm flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-white" />
-              </div>
-              Group Size
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-blue-500 tabular-nums">
-              {metrics.groupSize}
-            </div>
-            <div className="mt-2 text-xs text-slate-400">
-              {metrics.groupSize === 1 ? 'No grouping' : 
-               metrics.groupSize >= 3 ? 'Tight grouping' : 'Loose grouping'}
-            </div>
-          </CardContent>
-        </Card>
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Shot Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <PieChart className="h-5 w-5" />
+                    Shot Distribution
+                  </CardTitle>
+                  <CardDescription>
+                    Distribution of shots across target zones
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {shots.length > 0 ? (
+                    <ShotDistributionChart shots={shots} />
+                  ) : (
+                    <div className="text-center py-8 text-slate-400">
+                      <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No shots to analyze</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-        {/* Performance Trend */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-slate-300 text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4 text-purple-500" />
-              Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400 text-sm">Trend</span>
-                {getTrendIcon(animatedValues.averageScore, animatedValues.averageScore - 0.1)}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400 text-sm">Consistency</span>
-                <span className={`text-sm font-medium ${
-                  animatedValues.accuracy >= 80 ? 'text-green-500' : 
-                  animatedValues.accuracy >= 60 ? 'text-yellow-500' : 'text-red-500'
-                }`}>
-                  {animatedValues.accuracy >= 80 ? 'High' : 
-                   animatedValues.accuracy >= 60 ? 'Medium' : 'Low'}
-                </span>
-              </div>
+              {/* Performance Ring */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gauge className="h-5 w-5" />
+                    Overall Performance
+                  </CardTitle>
+                  <CardDescription>
+                    Combined performance score
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-center">
+                  {shots.length > 0 ? (
+                    <ProgressRing
+                      value={metrics.averageScore * 10}
+                      maxValue={100}
+                      size={150}
+                      strokeWidth={12}
+                      label="Score"
+                      color={metrics.averageScore >= 7 ? '#10B981' : metrics.averageScore >= 5 ? '#F59E0B' : '#EF4444'}
+                    />
+                  ) : (
+                    <div className="text-center py-8 text-slate-400">
+                      <Gauge className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No data available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Real-time Analysis Indicator */}
-      {isAnalyzing && (
-        <div className="mt-6 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 bg-opacity-20 border border-blue-500 border-opacity-50 rounded-full">
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-            <span className="text-blue-400 text-sm font-medium">Real-time Analysis Active</span>
+      {/* Action Buttons */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              onClick={onExportData}
+              disabled={shots.length === 0}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export Data
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onShareResults}
+              disabled={shots.length === 0}
+              className="flex items-center gap-2"
+            >
+              <Share2 className="h-4 w-4" />
+              Share Results
+            </Button>
+            <Button
+              variant="gmshoot"
+              onClick={() => setSelectedMetric('performance')}
+              className="flex items-center gap-2"
+            >
+              <Activity className="h-4 w-4" />
+              Detailed Analysis
+            </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Loading Overlay */}
+      {isRefreshing && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <Loading variant="spinner" size="lg" />
         </div>
       )}
     </div>

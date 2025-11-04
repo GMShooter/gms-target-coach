@@ -4,12 +4,47 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAuth, AuthProvider } from '../../hooks/useAuth';
 import { env } from '../../utils/env';
 
-// Mock AuthService
-jest.mock('../../services/AuthService');
-
 // Mock env utility
 jest.mock('../../utils/env');
 const mockEnv = env as jest.Mocked<typeof env>;
+
+// Mock AuthService
+jest.mock('../../services/AuthService', () => {
+  const mockAuthService = {
+    signIn: jest.fn().mockResolvedValue({ success: true }),
+    signUp: jest.fn().mockResolvedValue({ success: true }),
+    signOut: jest.fn().mockResolvedValue({ success: true }),
+    resetPassword: jest.fn().mockResolvedValue({ success: true }),
+    updateProfile: jest.fn().mockResolvedValue({ success: true }),
+    signInWithGoogle: jest.fn().mockResolvedValue({ success: true }),
+    getCurrentUser: jest.fn().mockResolvedValue(null),
+    getUser: jest.fn().mockReturnValue(null),
+    getSession: jest.fn().mockReturnValue(null),
+    isAuthenticated: jest.fn().mockReturnValue(false),
+    getSessionToken: jest.fn().mockResolvedValue(null),
+    refreshSession: jest.fn().mockResolvedValue(false),
+    onAuthStateChange: jest.fn().mockImplementation((callback) => {
+      return jest.fn(); // Return unsubscribe function
+    }),
+    subscribe: jest.fn().mockImplementation((callback) => {
+      return jest.fn(); // Return unsubscribe function
+    }),
+    getState: jest.fn().mockReturnValue({
+      user: null,
+      isLoading: false,
+      error: null,
+      session: null,
+      isAuthenticated: false
+    })
+  };
+  
+  return {
+    AuthService: jest.fn(() => mockAuthService),
+    authService: mockAuthService,
+    __esModule: true,
+    default: mockAuthService
+  };
+});
 
 // Mock console methods to reduce noise in tests
 const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -28,6 +63,8 @@ describe('useAuth Hook', () => {
     <AuthProvider>{children}</AuthProvider>
   );
 
+  let mockAuthService: any;
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -35,41 +72,9 @@ describe('useAuth Hook', () => {
     mockEnv.VITE_USE_MOCK_HARDWARE = 'false';
     mockEnv.VITE_USE_MOCK_AUTH = 'false';
 
-    // Mock AuthService with a simpler approach
-    const mockAuthService = {
-      signIn: jest.fn().mockResolvedValue({ success: true }),
-      signUp: jest.fn().mockResolvedValue({ success: true }),
-      signOut: jest.fn().mockResolvedValue({ success: true }),
-      resetPassword: jest.fn().mockResolvedValue({ success: true }),
-      updateProfile: jest.fn().mockResolvedValue({ success: true }),
-      getCurrentUser: jest.fn().mockResolvedValue(null),
-      getUser: jest.fn().mockReturnValue(null),
-      getSession: jest.fn().mockReturnValue(null),
-      isAuthenticated: jest.fn().mockReturnValue(false),
-      getSessionToken: jest.fn().mockResolvedValue(null),
-      refreshSession: jest.fn().mockResolvedValue(false),
-      onAuthStateChange: jest.fn().mockImplementation((callback) => {
-        return jest.fn(); // Return unsubscribe function
-      }),
-      subscribe: jest.fn().mockImplementation((callback) => {
-        return jest.fn(); // Return unsubscribe function
-      }),
-      getState: jest.fn().mockReturnValue({
-        user: null,
-        isLoading: false,
-        error: null,
-        session: null,
-        isAuthenticated: false
-      })
-    };
-    
-    // Mock the AuthService module
-    jest.doMock('../../services/AuthService', () => ({
-      AuthService: jest.fn(() => mockAuthService),
-      authService: mockAuthService,
-      __esModule: true,
-      default: mockAuthService
-    }));
+    // Get the mocked AuthService
+    const { authService } = require('../../services/AuthService');
+    mockAuthService = authService;
   });
 
   describe('Initial State', () => {
@@ -109,13 +114,19 @@ describe('useAuth Hook', () => {
         await result.current.signInWithGoogle();
       });
 
-      // Google sign in is not yet implemented in AuthService
+      // Google sign in is implemented and returns success
       expect(result.current.user).toBe(null);
       expect(result.current.loading).toBe(false);
-      expect(result.current.error).toBe('Google sign-in not yet implemented. Please use email sign-in.');
+      expect(result.current.error).toBe(null);
     });
 
-    it('handles popup closed by user error', async () => {
+    it('handles Google sign in error', async () => {
+      // Mock signInWithGoogle to return an error
+      mockAuthService.signInWithGoogle.mockResolvedValueOnce({
+        success: false,
+        error: 'OAuth sign in failed'
+      });
+
       const { result } = renderHook(() => useAuth(), { wrapper });
 
       await act(async () => {
@@ -124,27 +135,7 @@ describe('useAuth Hook', () => {
 
       expect(result.current.user).toBe(null);
       expect(result.current.loading).toBe(false);
-      expect(result.current.error).toBe('Google sign-in not yet implemented. Please use email sign-in.');
-    });
-
-    it('handles popup blocked error', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper });
-
-      await act(async () => {
-        await result.current.signInWithGoogle();
-      });
-
-      expect(result.current.error).toBe('Google sign-in not yet implemented. Please use email sign-in.');
-    });
-
-    it('handles generic sign in error', async () => {
-      const { result } = renderHook(() => useAuth(), { wrapper });
-
-      await act(async () => {
-        await result.current.signInWithGoogle();
-      });
-
-      expect(result.current.error).toBe('Google sign-in not yet implemented. Please use email sign-in.');
+      expect(result.current.error).toBe('OAuth sign in failed');
     });
   });
 
@@ -316,12 +307,18 @@ describe('useAuth Hook', () => {
     it('clears error state', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
-      // Set an error (Google sign in returns error message)
+      // Set an error by mocking Google sign in to return an error
+      const { authService } = require('../../services/AuthService');
+      authService.signInWithGoogle.mockResolvedValueOnce({
+        success: false,
+        error: 'Test error message'
+      });
+
       await act(async () => {
         await result.current.signInWithGoogle();
       });
 
-      expect(result.current.error).toBeTruthy();
+      expect(result.current.error).toBe('Test error message');
 
       // Clear error
       act(() => {

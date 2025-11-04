@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
+import { AlertTriangle, Info, CheckCircle, XCircle } from "lucide-react"
 
 import { cn } from "../../lib/utils"
 
@@ -11,6 +12,12 @@ const alertVariants = cva(
         default: "bg-background text-foreground",
         destructive:
           "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+        warning:
+          "border-yellow-500/50 text-yellow-800 dark:border-yellow-600 dark:text-yellow-200 [&>svg]:text-yellow-600",
+        success:
+          "border-green-500/50 text-green-800 dark:border-green-600 dark:text-green-200 [&>svg]:text-green-600",
+        info:
+          "border-blue-500/50 text-blue-800 dark:border-blue-600 dark:text-blue-200 [&>svg]:text-blue-600",
       },
     },
     defaultVariants: {
@@ -22,27 +29,27 @@ const alertVariants = cva(
 const Alert = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...props }, ref) => (
+>(({ className, variant, children, ...props }, ref) => (
   <div
     ref={ref}
     role="alert"
     className={cn(alertVariants({ variant }), className)}
     {...props}
-  />
+  >
+    {children}
+  </div>
 ))
 Alert.displayName = "Alert"
 
 const AlertTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
->(({ className, children, ...props }, ref) => (
+>(({ className, ...props }, ref) => (
   <h5
     ref={ref}
     className={cn("mb-1 font-medium leading-none tracking-tight", className)}
     {...props}
-  >
-    {children}
-  </h5>
+  />
 ))
 AlertTitle.displayName = "AlertTitle"
 
@@ -58,4 +65,18 @@ const AlertDescription = React.forwardRef<
 ))
 AlertDescription.displayName = "AlertDescription"
 
-export { Alert, AlertTitle, AlertDescription }
+const AlertIcon = ({ variant }: { variant?: VariantProps<typeof alertVariants>["variant"] }) => {
+  switch (variant) {
+    case "destructive":
+      return <XCircle className="h-4 w-4" />
+    case "warning":
+      return <AlertTriangle className="h-4 w-4" />
+    case "success":
+      return <CheckCircle className="h-4 w-4" />
+    case "info":
+    default:
+      return <Info className="h-4 w-4" />
+  }
+}
+
+export { Alert, AlertTitle, AlertDescription, AlertIcon }

@@ -1,60 +1,246 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { corsHeaders } from "../_shared/cors.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+import { corsHeaders } from "../_shared/cors.ts";
+
+// Rate limiting storage (in production, use Redis)
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+// Security and validation utilities
+function validateInput(payload: any, requiredFields: string[]): { isValid: boolean; error?: string } {
+  if (!payload || typeof payload !== 'object') {
+    return { isValid: false, error: 'Invalid payload format' };
+  }
+  
+  for (const field of requiredFields) {
+    if (!(field in payload) || payload[field] === null || payload[field] === undefined) {
+      return { isValid: false, error: `Missing required field: ${field}` };
+    }
+  }
+  
+  return { isValid: true };
+}
+
+function checkRateLimit(clientId: string, maxRequests: number = 30, windowMs: number = 60000): boolean {
+  const now = Date.now();
+  const clientData = rateLimitStore.get(clientId);
+  
+  if (!clientData || now > clientData.resetTime) {
+    rateLimitStore.set(clientId, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  
+  if (clientData.count >= maxRequests) {
+    return false;
+  }
+  
+  clientData.count++;
+  return true;
+}
+
+function getClientId(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  const realIp = req.headers.get('x-real-ip');
+  const ip = forwarded?.split(',')[0] || realIp || 'unknown';
+  return `end-session-${ip}`;
+}
+
+function logStructured(level: 'info' | 'warn' | 'error', message: string, data?: any) {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    service: 'end-session',
+    level,
+    message,
+    ...data
+  };
+  console.log(JSON.stringify(logEntry));
+}
+
+async function verifyAuthentication(req: Request): Promise<{ isValid: boolean; userId?: string; error?: string }> {
+  const authHeader = req.headers.get('authorization');
+  
+  if (!authHeader) {
+    return { isValid: false, error: 'Missing authorization header' };
+  }
+  
+  try {
+    // Extract JWT token
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Initialize Supabase client
+    const supabaseClient = createClient(
+      (globalThis as any).Deno?.env?.get('SUPABASE_URL') ?? '',
+      (globalThis as any).Deno?.env?.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    // Verify JWT token
+    const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+    
+    if (error || !user) {
+      return { isValid: false, error: 'Invalid authentication token' };
+    }
+    
+    return { isValid: true, userId: user.id };
+  } catch (error: any) {
+    return { isValid: false, error: `Authentication error: ${error.message}` };
+  }
+}
 
 interface EndSessionRequest {
   sessionId: string
   finalNotes?: string
+  generateReport?: boolean
 }
 
-serve(async (req) => {
-  // Handle CORS
+serve(async (req: Request) => {
+  const startTime = Date.now();
+  const clientId = getClientId(req);
+  
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  // Rate limiting
+  if (!checkRateLimit(clientId, 30, 60000)) { // 30 session ends per minute
+    logStructured('warn', 'Rate limit exceeded', { clientId });
+    return new Response(
+      JSON.stringify({ error: 'Rate limit exceeded' }),
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   try {
-    const { sessionId, finalNotes }: EndSessionRequest = await req.json()
-    
-    if (!sessionId) {
-      throw new Error('Missing required parameter: sessionId')
+    // Validate content type
+    const contentType = req.headers.get('content-type');
+    if (!contentType?.includes('application/json')) {
+      throw new Error('Invalid content type, expected application/json');
     }
+
+    // Verify authentication
+    const auth = await verifyAuthentication(req);
+    if (!auth.isValid) {
+      logStructured('warn', 'Authentication failed', { error: auth.error, clientId });
+      return new Response(
+        JSON.stringify({ error: auth.error }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const requestBody = await req.json();
+    
+    // Validate required fields
+    const validation = validateInput(requestBody, ['sessionId']);
+    if (!validation.isValid) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { sessionId, finalNotes, generateReport = true }: EndSessionRequest = requestBody;
+    
+    logStructured('info', 'Ending session', {
+      sessionId,
+      finalNotes,
+      generateReport,
+      requestingUserId: auth.userId,
+      clientId
+    });
 
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabaseUrl = (globalThis as any).Deno?.env?.get('SUPABASE_URL') ?? '';
+    const supabaseServiceKey = (globalThis as any).Deno?.env?.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get session details
+    // Get session details with user info
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
-      .select('*')
+      .select(`
+        *,
+        users!inner (
+          id,
+          email,
+          is_active
+        )
+      `)
       .eq('id', sessionId)
-      .single()
+      .single();
 
     if (sessionError || !session) {
-      throw new Error('Session not found')
+      logStructured('warn', 'Session not found', { sessionId, error: sessionError?.message });
+      return new Response(
+        JSON.stringify({ error: 'Session not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Get all detections for this session
+    // Check if session is already completed
+    if (session.status === 'completed') {
+      logStructured('warn', 'Session already completed', { sessionId });
+      return new Response(
+        JSON.stringify({ error: 'Session already completed' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify user is authorized to end this session
+    if (session.user_id !== auth.userId && !session.users.is_active) {
+      logStructured('warn', 'Unauthorized to end session', {
+        sessionId,
+        sessionUserId: session.user_id,
+        requestingUserId: auth.userId
+      });
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized to end this session' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get all detections for this session with comprehensive data
     const { data: detections, error: detectionsError } = await supabase
       .from('detections')
       .select('*')
       .eq('session_id', sessionId)
+      .order('created_at', { ascending: true });
 
     if (detectionsError) {
-      throw new Error('Failed to retrieve detections')
+      logStructured('error', 'Failed to retrieve detections', {
+        sessionId,
+        error: detectionsError.message
+      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to retrieve session data' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Calculate final statistics
-    const totalFrames = detections?.length || 0
-    const totalTargets = detections?.reduce((sum: number, d: any) => sum + (d.target_count || 0), 0) || 0
-    const avgAccuracy = totalFrames > 0 
-      ? detections?.reduce((sum: number, d: any) => sum + (d.accuracy_score || 0), 0) / totalFrames 
-      : 0
-    const avgConfidence = totalFrames > 0 
-      ? detections?.reduce((sum: number, d: any) => sum + (d.confidence_score || 0), 0) / totalFrames 
-      : 0
+    // Calculate comprehensive final statistics
+    const totalFrames = detections?.length || 0;
+    const totalTargets = detections?.reduce((sum: number, d: any) => sum + (d.target_count || 0), 0) || 0;
+    const avgAccuracy = totalFrames > 0
+      ? detections?.reduce((sum: number, d: any) => sum + (d.accuracy_score || 0), 0) / totalFrames
+      : 0;
+    const avgConfidence = totalFrames > 0
+      ? detections?.reduce((sum: number, d: any) => sum + (d.confidence_score || 0), 0) / totalFrames
+      : 0;
+    
+    // Calculate additional metrics
+    const maxTargets = Math.max(...detections?.map((d: any) => d.target_count || 0) || [0]);
+    const minTargets = Math.min(...detections?.map((d: any) => d.target_count || 0) || [0]);
+    const sessionDuration = calculateSessionDuration(session.created_at, session.completed_at);
+    
+    logStructured('info', 'Session statistics calculated', {
+      sessionId,
+      totalFrames,
+      totalTargets,
+      avgAccuracy,
+      avgConfidence,
+      maxTargets,
+      minTargets,
+      sessionDuration
+    });
 
     // Generate coaching advice based on performance
     const coachingAdvice = generateCoachingAdvice(avgAccuracy, totalTargets, session.session_type)
@@ -87,32 +273,63 @@ serve(async (req) => {
       throw new Error('Failed to save analysis results')
     }
 
-    // Update session status
+    // Update session status with comprehensive data
     const updateData: any = {
       status: 'completed',
       progress: 100,
       completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
+      updated_at: new Date().toISOString(),
+      total_frames: totalFrames,
+      total_targets: totalTargets,
+      average_accuracy: avgAccuracy,
+      average_confidence: avgConfidence,
+      session_duration_seconds: sessionDuration
+    };
 
     if (finalNotes) {
-      updateData.notes = finalNotes
+      updateData.notes = finalNotes;
     }
 
     const { error: updateError } = await supabase
       .from('sessions')
       .update(updateData)
-      .eq('id', sessionId)
+      .eq('id', sessionId);
 
     if (updateError) {
-      throw new Error('Failed to update session')
+      logStructured('error', 'Failed to update session', {
+        sessionId,
+        error: updateError.message,
+        updateData
+      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to update session' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Generate report if requested
-    let report = null
-    if (session.session_type === 'video' || totalTargets > 0) {
-      report = await generateReport(supabase, sessionId, analysisResult)
+    // Generate report if requested and there's meaningful data
+    let report = null;
+    if (generateReport && (session.session_type === 'video' || totalTargets > 0 || totalFrames > 0)) {
+      try {
+        report = await generateReportFunction(supabase, sessionId, analysisResult);
+        logStructured('info', 'Report generated successfully', { sessionId, reportId: report?.id });
+      } catch (reportError: any) {
+        logStructured('warn', 'Failed to generate report', {
+          sessionId,
+          error: reportError.message
+        });
+        // Don't fail the entire operation if report generation fails
+      }
     }
+
+    const processingTime = Date.now() - startTime;
+    
+    logStructured('info', 'Session completed successfully', {
+      sessionId,
+      processingTime,
+      totalFrames,
+      totalTargets
+    });
 
     return new Response(
       JSON.stringify({
@@ -120,28 +337,53 @@ serve(async (req) => {
         sessionId,
         analysisResult,
         report,
+        statistics: {
+          totalFrames,
+          totalTargets,
+          avgAccuracy,
+          avgConfidence,
+          maxTargets,
+          minTargets,
+          sessionDuration
+        },
+        processingTime,
         message: 'Session completed successfully'
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
         status: 200
       }
-    )
+    );
 
   } catch (error: any) {
-    console.error('Error ending session:', error)
+    const processingTime = Date.now() - startTime;
+    logStructured('error', 'Session end error', {
+      error: error.message,
+      stack: error.stack,
+      processingTime,
+      clientId
+    });
     
     return new Response(
       JSON.stringify({
-        error: error.message || 'Failed to end session'
+        error: error.message || 'Failed to end session',
+        timestamp: new Date().toISOString(),
+        processingTime
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
         status: 500
       }
-    )
+    );
   }
-})
+});
 
 function generateCoachingAdvice(accuracy: number, totalTargets: number, sessionType: string): string[] {
   const advice = []
@@ -207,7 +449,7 @@ function calculateSessionDuration(startTime: string, endTime: string | null): nu
   return Math.round((end.getTime() - start.getTime()) / 1000) // Duration in seconds
 }
 
-async function generateReport(supabase: any, sessionId: string, analysisResult: any): Promise<any> {
+async function generateReportFunction(supabase: any, sessionId: string, analysisResult: any): Promise<any> {
   try {
     const report = {
       id: crypto.randomUUID(),

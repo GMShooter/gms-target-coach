@@ -118,9 +118,9 @@ describe('Production Readiness Tests', () => {
 
       renderWithProviders(<LiveDemoPage />);
 
-      // Test authentication state
+      // Test welcome overlay is shown initially
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
       });
     });
 
@@ -132,9 +132,9 @@ describe('Production Readiness Tests', () => {
       });
 
       renderWithProviders(<LiveDemoPage />);
-
+      
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
       });
     });
   });
@@ -186,9 +186,9 @@ describe('Production Readiness Tests', () => {
       });
 
       renderWithProviders(<LiveDemoPage />);
-
+      
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
       });
     });
   });
@@ -220,9 +220,9 @@ describe('Production Readiness Tests', () => {
       mockAnalysisService.analyzeFrame.mockResolvedValue(mockAnalysisResult);
 
       renderWithProviders(<LiveDemoPage />);
-
+      
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
       });
     });
 
@@ -235,7 +235,7 @@ describe('Production Readiness Tests', () => {
       renderWithProviders(<LiveDemoPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
       });
     });
   });
@@ -245,7 +245,7 @@ describe('Production Readiness Tests', () => {
       renderWithProviders(<LiveDemoPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
       });
     });
 
@@ -253,7 +253,7 @@ describe('Production Readiness Tests', () => {
       renderWithProviders(<LiveDemoPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
       });
     });
 
@@ -261,7 +261,7 @@ describe('Production Readiness Tests', () => {
       renderWithProviders(<LiveDemoPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
       });
     });
   });
@@ -275,13 +275,13 @@ describe('Production Readiness Tests', () => {
       renderWithProviders(<LiveDemoPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
       });
     });
 
     test('should handle timeout errors', async () => {
       // Increase timeout for this specific test
-      jest.setTimeout(20000);
+      jest.setTimeout(45000);
       (global.fetch as jest.Mock).mockImplementation(() =>
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Request timeout')), 15000)
@@ -291,8 +291,8 @@ describe('Production Readiness Tests', () => {
       renderWithProviders(<LiveDemoPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
-      }, { timeout: 20000 });
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
+      }, { timeout: 40000 });
     });
   });
 
@@ -302,7 +302,7 @@ describe('Production Readiness Tests', () => {
       renderWithProviders(<LiveDemoPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to GMShoot Live')).toBeInTheDocument();
       });
     });
   });

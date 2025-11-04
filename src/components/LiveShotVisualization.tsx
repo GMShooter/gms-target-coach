@@ -279,6 +279,8 @@ export const LiveShotVisualization: React.FC<LiveShotVisualizationProps> = ({
         height={height}
         className="absolute inset-0 w-full h-full pointer-events-none"
         style={{ mixBlendMode: 'screen' }}
+        role="img"
+        aria-label="Shot visualization overlay showing target hits and scoring"
       />
 
       {/* Analysis Status Overlay */}

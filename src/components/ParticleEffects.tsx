@@ -136,6 +136,8 @@ export const ParticleEffects: React.FC<ParticleEffectsProps> = ({
       height={600}
       className="absolute inset-0 pointer-events-none z-50"
       style={{ mixBlendMode: 'screen' }}
+      role="img"
+      aria-label="Particle effects visualization"
     />
   );
 };

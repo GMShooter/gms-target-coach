@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 import { type ShotData } from '../services/HardwareAPI';
+import { env } from '../utils/env';
 
 // Define types locally since they were removed
 interface Device {
@@ -60,44 +61,29 @@ export const useHardware = (): UseHardwareReturn => {
   const isConnected = !!connectedDevice;
   const isSessionActive = !!activeSession && activeSession.status === 'active';
 
-  // Mock demo data for development
-  useEffect(() => {
-    // Simulate a demo frame after connection
-    if (isConnected) {
-      const timer = setTimeout(() => {
-        setLatestFrame({
-          imageUrl: 'https://picsum.photos/seed/gmshoot-demo/640/480.jpg',
-          timestamp: Date.now()
-        });
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isConnected]);
-
   const connectToDevice = useCallback(async (deviceId: string) => {
     setIsConnecting(true);
     setConnectionError(null);
     
     try {
-      // Simulate connection delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock device connection
-      const mockDevice: Device = {
-        id: deviceId,
-        name: 'Demo Target System',
-        type: 'raspberry-pi',
-        ipAddress: '192.168.1.100',
-        port: 8080,
-        status: 'online',
-        lastSeen: new Date().toISOString(),
-        capabilities: ['video-stream', 'shot-detection', 'analysis'],
-        version: '1.0.0'
-      };
-      
-      setConnectedDevice(mockDevice);
+      // Production-ready: Connect to real hardware via Supabase edge function
+      const response = await fetch(`${env.VITE_SUPABASE_URL}/functions/v1/hardware-connect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ deviceId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to connect to device: ${response.statusText}`);
+      }
+
+      const device = await response.json();
+      setConnectedDevice(device);
     } catch (error) {
-      setConnectionError('Failed to connect to device');
+      setConnectionError(error instanceof Error ? error.message : 'Failed to connect to device');
     } finally {
       setIsConnecting(false);
     }
@@ -105,48 +91,69 @@ export const useHardware = (): UseHardwareReturn => {
 
   const disconnectDevice = useCallback(async (deviceId: string) => {
     try {
-      // Simulate disconnection
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Production-ready: Disconnect from real hardware via Supabase edge function
+      const response = await fetch(`${env.VITE_SUPABASE_URL}/functions/v1/hardware-disconnect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ deviceId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to disconnect from device: ${response.statusText}`);
+      }
+
       setConnectedDevice(null);
       setActiveSession(null);
       setLatestFrame(null);
       setRecentShots([]);
       setAnalysisResult(null);
     } catch (error) {
-      setConnectionError('Failed to disconnect from device');
+      setConnectionError(error instanceof Error ? error.message : 'Failed to disconnect from device');
     }
   }, []);
 
   const startSession = useCallback(async (deviceId: string, userId: string) => {
     try {
-      // Simulate session start
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockSession: Session = {
-        sessionId: `session-${Date.now()}`,
-        deviceId,
-        userId,
-        startTime: new Date().toISOString(),
-        status: 'active',
-        settings: {
-          targetDistance: 10,
-          targetSize: 0.5,
-          analysisMode: 'geometric'
+      // Production-ready: Start session via Supabase edge function
+      const response = await fetch(`${env.VITE_SUPABASE_URL}/functions/v1/session-start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.VITE_SUPABASE_ANON_KEY}`,
         },
-        shotCount: 0
-      };
-      
-      setActiveSession(mockSession);
+        body: JSON.stringify({ deviceId, userId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to start session: ${response.statusText}`);
+      }
+
+      const session = await response.json();
+      setActiveSession(session);
     } catch (error) {
-      setConnectionError('Failed to start session');
+      setConnectionError(error instanceof Error ? error.message : 'Failed to start session');
     }
   }, []);
 
   const stopSession = useCallback(async (sessionId: string) => {
     try {
-      // Simulate session stop
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      // Production-ready: Stop session via Supabase edge function
+      const response = await fetch(`${env.VITE_SUPABASE_URL}/functions/v1/session-stop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ sessionId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to stop session: ${response.statusText}`);
+      }
+
       if (activeSession) {
         setActiveSession({
           ...activeSession,
@@ -155,7 +162,7 @@ export const useHardware = (): UseHardwareReturn => {
         });
       }
     } catch (error) {
-      setConnectionError('Failed to stop session');
+      setConnectionError(error instanceof Error ? error.message : 'Failed to stop session');
     }
   }, [activeSession]);
 

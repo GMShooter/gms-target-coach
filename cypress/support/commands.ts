@@ -153,14 +153,30 @@ Cypress.Commands.add('customScreenshot', (name: string) => {
   cy.screenshot(`${name}-${new Date().toISOString()}`);
 });
 
-// Helper command to mock API responses
+// Helper command to mock API responses with Deno compatibility
 Cypress.Commands.add('mockApiResponse', (method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, response: any) => {
-  cy.intercept(method as any, url, response).as('mockedResponse');
+  // Handle Deno compatibility by using proper intercept format
+  const mockResponse = {
+    statusCode: 200,
+    body: response.data || response,
+    headers: {
+      'content-type': 'application/json',
+      'access-control-allow-origin': '*'
+    }
+  };
+  
+  // Handle error responses
+  if (response.error) {
+    mockResponse.statusCode = 400;
+    mockResponse.body = { error: response.error };
+  }
+  
+  cy.intercept(method as any, url, mockResponse).as(`mocked-${method}-${url.replace(/[^a-zA-Z0-9]/g, '')}`);
 });
 
-// Helper command to wait for API call
-Cypress.Commands.add('waitForApiCall', (alias: string) => {
-  cy.wait(`@${alias}`);
+// Helper command to wait for API call with timeout
+Cypress.Commands.add('waitForApiCall', (alias: string, timeout = 10000) => {
+  cy.wait(`@${alias}`, { timeout });
 });
 
 // Helper command to check if element exists without failing

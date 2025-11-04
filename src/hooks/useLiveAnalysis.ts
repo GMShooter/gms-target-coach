@@ -6,44 +6,6 @@ import { env } from '../utils/env';
 import { geometricScoring } from '../services/GeometricScoring';
 import { sequentialShotDetection, FrameData as SequentialFrameData, ShotDetection as SequentialShotDetectionType } from '../services/SequentialShotDetection';
 
-// Mock frame data for testing when Supabase functions aren't available
-const MOCK_FRAMES = [
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzFlMjkyYiIvPjxjaXJjbGUgY3g9IjMyMCIgY3k9IjI0MCIgcj0iNTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzNiODJmNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0iY2FwLXJvdW5kIiBzdHJva2UtbGluZWpvaW49ImRhc2giLz48L3N2Zz4=',
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzFlMjkyYiIvPjxjaXJjbGUgY3g9IjMyMCIgY3k9IjI0MCIgcj0iNTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzM2ODJmNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0iY2FwLXJvdW5kIiBzdHJva2UtbGluZWpvaW49ImRhc2giLz48L3N2Zz4=',
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzFlMjkyYiIvPjxjaXJjbGUgY3g9IjMyMCIgY3k9IjI0MCIgcj0iNTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMyODJmNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0iY2FwLXJvdW5kIiBzdHJva2UtbGluZWpvaW49ImRhc2giLz48L3N2Zz4='
-];
-
-// Dynamic mock analysis function for testing without Supabase
-function generateDynamicMockAnalysis(frameData: string, frameNumber: number): { shots: Shot[]; processingTime: number } {
-  console.log(`🎯 Generating dynamic mock analysis for frame ${frameNumber}`);
-  
-  // Generate varying shot counts based on frame hash
-  const frameHash = Math.abs(frameData.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0));
-  const shotCount = (frameHash % 4) + 1; // 1-4 shots per frame
-  const baseConfidence = 0.6 + (frameHash % 3) * 0.1; // 0.6-0.8 confidence
-  
-  console.log(`🎯 Generating ${shotCount} mock shots with confidence ${baseConfidence}`);
-  
-  // Generate dynamic mock shots
-  const shots: Shot[] = [];
-  for (let i = 0; i < shotCount; i++) {
-    const shotHash = frameHash + i * 1000;
-    shots.push({
-      id: `shot-${frameNumber}-${i}`,
-      x: 20 + (shotHash % 60), // 20-80% x position
-      y: 20 + ((shotHash * 2) % 60), // 20-80% y position
-      score: 5 + ((shotHash % 6)), // 5-10 score
-      confidence: Math.min(0.95, baseConfidence + (i * 0.05)), // Increasing confidence
-      timestamp: new Date()
-    });
-  }
-  
-  const processingTime = 150 + Math.random() * 100; // 150-250ms processing time
-  
-  console.log(`🎯 Generated ${shots.length} dynamic mock shots:`, shots);
-  
-  return { shots, processingTime };
-}
 
 export interface Shot {
   id: string;
@@ -75,6 +37,7 @@ export interface FrameAnalysis {
   predictions: any[];
   confidence: number;
   timestamp: number;
+  latency?: number; // Optional latency measurement in milliseconds
 }
 
 const initialState: LiveAnalysisState = {
@@ -248,6 +211,8 @@ export function useLiveAnalysis(sessionId?: string) {
 
   // Fetch and analyze next frame with change detection - NO MOCKS
   const fetchAndAnalyzeNextFrame = useCallback(async (): Promise<FrameAnalysis | null> => {
+    const startTime = performance.now(); // Start timing for latency measurement
+    
     try {
       setState(prev => ({ ...prev, error: null }));
       
@@ -460,11 +425,21 @@ export function useLiveAnalysis(sessionId?: string) {
           await storeFrameAnalysis(sessionId, frameNumber, frameUrl, analysisResult);
         }
 
+        const endTime = performance.now();
+        const latency = endTime - startTime;
+        
+        // Log latency and warn if exceeding 500ms requirement
+        console.log(`🔍 REAL: Frame ${frameNumber} processed in ${latency.toFixed(2)}ms`);
+        if (latency > 500) {
+          console.warn(`⚠️ PRODUCTION: Latency warning - ${latency.toFixed(2)}ms exceeds 500ms requirement`);
+        }
+        
         return {
           frameUrl: frameUrl,
           predictions: analysisResult.predictions || [],
           confidence: analysisResult.confidence || 0.8,
           timestamp: Date.now(),
+          latency: latency, // Include latency in response for monitoring
         };
       } catch (error) {
         clearTimeout(timeoutId);
@@ -496,7 +471,10 @@ export function useLiveAnalysis(sessionId?: string) {
         return null;
       }
     } catch (error) {
-      console.error('🔍 REAL: Error in fetchAndAnalyzeNextFrame:', error);
+      const endTime = performance.now();
+      const latency = endTime - startTime;
+      console.error(`🔍 REAL: Error in fetchAndAnalyzeNextFrame after ${latency.toFixed(2)}ms:`, error);
+      
       setState(prev => ({
         ...prev,
         isAnalyzing: false,
@@ -576,6 +554,11 @@ export function useLiveAnalysis(sessionId?: string) {
         }
         
         console.log('🚀 DEBUG: Frame processed, predictions:', result.predictions.length);
+        
+        // Log latency if available
+        if (result && 'latency' in result) {
+          console.log(`🚀 PRODUCTION: Frame latency: ${(result as any).latency?.toFixed(2)}ms`);
+        }
         
         // If frame was unchanged, add longer delay
         if (result.predictions.length === 0) {
