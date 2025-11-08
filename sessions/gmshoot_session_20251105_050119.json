@@ -1,0 +1,50 @@
+{
+  "session_id": "8de77b7e",
+  "created_at": "2025-11-05T05:01:19.748066",
+  "saved_at": "2025-11-05T05:01:19.755875",
+  "state": {
+    "shots": [
+      {
+        "x": 512,
+        "y": 512,
+        "confidence": 0.95,
+        "frame_index": null,
+        "timestamp": null
+      },
+      {
+        "x": 518,
+        "y": 508,
+        "confidence": 0.92,
+        "frame_index": null,
+        "timestamp": null
+      },
+      {
+        "x": 508,
+        "y": 518,
+        "confidence": 0.88,
+        "frame_index": null,
+        "timestamp": null
+      },
+      {
+        "x": 520,
+        "y": 520,
+        "confidence": 0.94,
+        "frame_index": null,
+        "timestamp": null
+      },
+      {
+        "x": 515,
+        "y": 525,
+        "confidence": 0.91,
+        "frame_index": null,
+        "timestamp": null
+      }
+    ],
+    "filtered_shots": [],
+    "analysis_mode": "Local Files",
+    "duplicate_threshold": 20.0,
+    "min_confidence": 0.8,
+    "outlier_method": "None",
+    "outlier_threshold": 2.0
+  }
+}

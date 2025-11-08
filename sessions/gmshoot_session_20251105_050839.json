@@ -1,0 +1,14 @@
+{
+  "session_id": "8629e1ab",
+  "created_at": "2025-11-05T05:08:38.541436",
+  "saved_at": "2025-11-05T05:08:39.284222",
+  "state": {
+    "shots": [],
+    "filtered_shots": [],
+    "analysis_mode": "Local Files",
+    "duplicate_threshold": 15.0,
+    "min_confidence": 0.5,
+    "outlier_method": "None",
+    "outlier_threshold": 2.0
+  }
+}
