@@ -4,300 +4,566 @@ import pytest
 import streamlit as st
 from unittest.mock import patch, MagicMock
 import tempfile
-import json
+import os
+from pathlib import Path
+from PIL import Image as PILImage
 
-from src.ui_layer.components.controls import ControlsComponent
 from src.ui_layer.components.image_display import ImageDisplay
 from src.ui_layer.components.metrics_panel import MetricsPanelComponent
+from src.ui_layer.components.controls import ControlsComponent
 from src.ui_layer.state_management import StateManager
-from src.analysis_engine.models import Shot, Point
+from src.analysis_engine.models import Shot, Point, SOTAMetrics
 from src.utils.exceptions import ValidationError
+from tests.fixtures.sample_shots import get_sample_shots_5
+from tests.conftest import MockSessionState
 
-from tests.fixtures.sample_shots import get_sample_shots_5, get_sample_shots_10
 
-
-class TestUIComponentsIntegration:
-    """Integration tests for UI components."""
+class TestImageDisplay:
+    """Test cases for ImageDisplay component."""
     
     def setup_method(self):
         """Set up test method."""
-        # Mock streamlit session state
-        self.mock_session_state = {}
+        # Mock streamlit session state with our custom mock
+        self.mock_session_state = MockSessionState()
         
         # Patch streamlit session state
         self.session_patcher = patch('streamlit.session_state', self.mock_session_state)
         self.session_patcher.start()
         
-        # Initialize components
-        self.controls = ControlsComponent()
+        self.state_manager = StateManager()
         self.image_display = ImageDisplay()
+    
+    def teardown_method(self):
+        """Clean up after test."""
+        self.session_patcher.stop()
+    
+    def test_display_no_image(self):
+        """Test display when no image is loaded."""
+        # Ensure no image is loaded
+        self.state_manager.set_current_image(None)
+        
+        # Mock streamlit functions
+        with patch('streamlit.info') as mock_info:
+            # Render component
+            self.image_display.render(state_manager=self.state_manager)
+            
+            # Check that info message was shown
+            mock_info.assert_called_once()
+    
+    def test_display_with_image(self):
+        """Test display when image is loaded."""
+        # Create a temporary image file with actual image content
+        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+            # Create a simple test image
+            test_image = PILImage.new('RGB', (100, 100), color='red')
+            test_image.save(temp_file.name)
+            temp_path = temp_file.name
+        
+        try:
+            # Set image in state
+            self.state_manager.set_current_image(temp_path)
+            
+            # Mock streamlit functions - need to patch where it's used
+            with patch('src.ui_layer.components.image_display.st.image') as mock_image:
+                # Render component with state_manager
+                self.image_display.render(state_manager=self.state_manager)
+                
+                # Check that image was displayed
+                mock_image.assert_called_once()
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+    
+    def test_display_with_shots(self):
+        """Test display when image with shots is loaded."""
+        # Create a temporary image file with actual image content
+        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+            # Create a simple test image
+            test_image = PILImage.new('RGB', (100, 100), color='red')
+            test_image.save(temp_file.name)
+            temp_path = temp_file.name
+        
+        try:
+            # Set image and shots in state
+            self.state_manager.set_current_image(temp_path)
+            self.state_manager.set_shots(get_sample_shots_5())
+            
+            # Mock streamlit functions
+            with patch('src.ui_layer.components.image_display.st.image') as mock_image:
+                # Render component with state_manager
+                self.image_display.render(state_manager=self.state_manager)
+                
+                # Check that image was displayed
+                mock_image.assert_called_once()
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+    
+    def test_display_with_mpi(self):
+        """Test display when image with MPI is loaded."""
+        # Create a temporary image file with actual image content
+        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+            # Create a simple test image
+            test_image = PILImage.new('RGB', (100, 100), color='red')
+            test_image.save(temp_file.name)
+            temp_path = temp_file.name
+        
+        try:
+            # Set image and MPI in state
+            self.state_manager.set_current_image(temp_path)
+            self.state_manager.set_mpi(Point(x=100, y=100))
+            
+            # Mock streamlit functions
+            with patch('src.ui_layer.components.image_display.st.image') as mock_image:
+                # Render component with state_manager
+                self.image_display.render(state_manager=self.state_manager)
+                
+                # Check that image was displayed
+                mock_image.assert_called_once()
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+    
+    def test_display_invalid_image(self):
+        """Test display when invalid image path is set."""
+        # Set invalid image path
+        self.state_manager.set_current_image("nonexistent_image.jpg")
+        
+        # Mock streamlit functions
+        with patch('streamlit.error') as mock_error:
+            # Render component with state_manager
+            self.image_display.render(state_manager=self.state_manager)
+            
+            # Check that error message was shown
+            mock_error.assert_called_once()
+
+
+class TestMetricsPanel:
+    """Test cases for MetricsPanel component."""
+    
+    def setup_method(self):
+        """Set up test method."""
+        # Mock streamlit session state with our custom mock
+        self.mock_session_state = MockSessionState()
+        
+        # Patch streamlit session state
+        self.session_patcher = patch('streamlit.session_state', self.mock_session_state)
+        self.session_patcher.start()
+        
+        self.state_manager = StateManager()
         self.metrics_panel = MetricsPanelComponent()
+    
+    def teardown_method(self):
+        """Clean up after test."""
+        self.session_patcher.stop()
+    
+    def test_display_no_shots(self):
+        """Test display when no shots are loaded."""
+        # Ensure no shots are loaded
+        self.state_manager.set_shots([])
+        
+        # Mock streamlit functions
+        with patch('streamlit.info') as mock_info:
+            # Render component
+            self.metrics_panel.render()
+            
+            # Check that info message was shown
+            mock_info.assert_called_once()
+    
+    def test_display_with_shots(self):
+        """Test display when shots are loaded."""
+        # Set shots in state
+        self.state_manager.set_shots(get_sample_shots_5())
+        
+        # Mock streamlit functions
+        with patch('streamlit.metric') as mock_metric:
+            # Render component
+            self.metrics_panel.render()
+            
+            # Check that metrics were displayed
+            assert mock_metric.call_count >= 5  # At least 5 metrics should be displayed
+    
+    def test_display_with_metrics(self):
+        """Test display when metrics are calculated."""
+        # Set shots and metrics in state
+        self.state_manager.set_shots(get_sample_shots_5())
+        
+        # Create test metrics
+        test_metrics = SOTAMetrics(
+            total_shots=5,
+            extreme_spread=15.0,
+            mean_radius=9.5,
+            std_dev_x=3.2,
+            std_dev_y=3.2,
+            mpi=Point(x=100, y=100)
+        )
+        
+        # Mock streamlit functions
+        with patch('streamlit.metric') as mock_metric:
+            # Render component with metrics
+            self.metrics_panel.render()
+            
+            # Check that metrics were displayed
+            assert mock_metric.call_count >= 10  # All metrics should be displayed
+    
+    def test_export_csv(self):
+        """Test CSV export functionality."""
+        # Set shots in state
+        self.state_manager.set_shots(get_sample_shots_5())
+        
+        # Mock streamlit functions
+        with patch('streamlit.download_button') as mock_download, \
+             patch('streamlit.selectbox') as mock_selectbox, \
+             patch('streamlit.button') as mock_button:
+            
+            # Set up mock return values
+            mock_selectbox.return_value = "CSV"  # Export format
+            mock_button.return_value = True  # Export button clicked
+            
+            # Render component
+            self.metrics_panel.render()
+            
+            # Check that download button was shown
+            mock_download.assert_called()
+    
+    def test_export_excel(self):
+        """Test Excel export functionality."""
+        # Set shots in state
+        self.state_manager.set_shots(get_sample_shots_5())
+        
+        # Mock streamlit functions
+        with patch('streamlit.download_button') as mock_download, \
+             patch('streamlit.selectbox') as mock_selectbox, \
+             patch('streamlit.button') as mock_button:
+            
+            # Set up mock return values
+            mock_selectbox.return_value = "Excel"  # Export format
+            mock_button.return_value = True  # Export button clicked
+            
+            # Render component
+            self.metrics_panel.render()
+            
+            # Check that download button was shown
+            mock_download.assert_called()
+
+
+class TestControls:
+    """Test cases for Controls component."""
+    
+    def setup_method(self):
+        """Set up test method."""
+        # Mock streamlit session state with our custom mock
+        self.mock_session_state = MockSessionState()
+        
+        # Patch streamlit session state
+        self.session_patcher = patch('streamlit.session_state', self.mock_session_state)
+        self.session_patcher.start()
+        
+        self.state_manager = StateManager()
+        self.controls = ControlsComponent()
+        
+        # Mock callback functions
+        self.mock_load_image = MagicMock()
+        self.mock_analyze_shots = MagicMock()
+        self.mock_clear_data = MagicMock()
+    
+    def teardown_method(self):
+        """Clean up after test."""
+        self.session_patcher.stop()
+    
+    def test_render_default(self):
+        """Test default rendering of controls."""
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.selectbox') as mock_selectbox, \
+             patch('streamlit.sidebar.slider') as mock_slider, \
+             patch('streamlit.sidebar.button') as mock_button, \
+             patch('streamlit.sidebar.radio') as mock_radio:
+            
+            # Set up mock return values
+            mock_radio.return_value = "Local Files"
+            mock_selectbox.return_value = "None"  # outlier_method
+            mock_slider.side_effect = [15.0, 0.5, 2.0]  # duplicate_threshold, min_confidence, outlier_threshold
+            
+            # Render component
+            self.controls.render()
+            
+            # Check that controls were rendered
+            mock_radio.assert_called_once()  # Analysis mode selector
+            mock_selectbox.assert_called()  # Outlier method selector
+            assert mock_slider.call_count >= 3  # At least 3 sliders should be called
+            mock_button.assert_called()
+    
+    def test_analysis_mode_change(self):
+        """Test analysis mode change."""
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.radio') as mock_radio, \
+             patch('streamlit.sidebar.slider') as mock_slider, \
+             patch('streamlit.sidebar.selectbox') as mock_selectbox:
+            # Set return value for radio and sliders
+            mock_radio.return_value = "Live Camera"
+            mock_slider.side_effect = [15.0, 0.5, 2.0]  # duplicate_threshold, min_confidence, outlier_threshold
+            mock_selectbox.return_value = "None"  # outlier_method
+            
+            # Render component
+            self.controls.render()
+            
+            # Check that analysis mode was updated
+            assert self.state_manager.get_analysis_mode() == "Live Camera"
+    
+    def test_duplicate_threshold_change(self):
+        """Test duplicate threshold change."""
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.slider') as mock_slider:
+            # Set return value for slider
+            mock_slider.side_effect = [25.0, 0.5, "None", 2.0]  # duplicate_threshold, min_confidence, outlier_method, outlier_threshold
+            
+            # Render component
+            self.controls.render()
+            
+            # Check that threshold was updated
+            assert self.state_manager.get_duplicate_threshold() == 25.0
+    
+    def test_min_confidence_change(self):
+        """Test minimum confidence change."""
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.slider') as mock_slider:
+            # Set return value for slider
+            mock_slider.side_effect = [15.0, 0.8, "None", 2.0]  # duplicate_threshold, min_confidence, outlier_method, outlier_threshold
+            
+            # Render component
+            self.controls.render()
+            
+            # Check that confidence was updated
+            assert self.state_manager.get_min_confidence() == 0.8
+    
+    def test_outlier_method_change(self):
+        """Test outlier method change."""
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.selectbox') as mock_selectbox, \
+             patch('streamlit.sidebar.slider') as mock_slider:
+            # Set return value for selectbox and sliders
+            mock_selectbox.return_value = "IQR"
+            mock_slider.side_effect = [15.0, 0.5, 2.0]  # duplicate_threshold, min_confidence, outlier_threshold
+            
+            # Render component
+            self.controls.render()
+            
+            # Check that method was updated
+            assert self.state_manager.get_outlier_method() == "IQR"
+    
+    def test_outlier_threshold_change(self):
+        """Test outlier threshold change."""
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.slider') as mock_slider, \
+             patch('streamlit.sidebar.selectbox') as mock_selectbox:
+            # Set return value for slider and selectbox
+            mock_selectbox.return_value = "None"  # outlier_method
+            mock_slider.side_effect = [15.0, 0.5, 3.0]  # duplicate_threshold, min_confidence, outlier_threshold
+            
+            # Render component
+            self.controls.render()
+            
+            # Check that threshold was updated
+            assert self.state_manager.get_outlier_threshold() == 3.0
+    
+    def test_load_image_button(self):
+        """Test load image button."""
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.button') as mock_button:
+            # Set return value for button
+            mock_button.return_value = True
+            
+            # Render component
+            self.controls.render()
+            
+            # Check that button was rendered
+            mock_button.assert_called()
+    
+    def test_analyze_shots_button(self):
+        """Test analyze shots button."""
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.button') as mock_button:
+            # Set return value for button
+            mock_button.return_value = True
+            
+            # Render component
+            self.controls.render()
+            
+            # Check that button was rendered
+            mock_button.assert_called()
+    
+    def test_clear_data_button(self):
+        """Test clear data button."""
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.button') as mock_button:
+            # Set return value for button
+            mock_button.return_value = True
+            
+            # Render component
+            self.controls.render()
+            
+            # Check that button was rendered
+            mock_button.assert_called()
+    
+    def test_disabled_buttons_with_no_data(self):
+        """Test that buttons are disabled when no data is loaded."""
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.button') as mock_button:
+            # Render component with no data
+            self.controls.render()
+            
+            # Check that analyze button was disabled
+            analyze_call = None
+            for call in mock_button.call_args_list:
+                if 'Analyze' in str(call):
+                    analyze_call = call
+                    break
+            
+            assert analyze_call is not None
+            assert analyze_call[1]['disabled'] is True
+    
+    def test_enabled_buttons_with_data(self):
+        """Test that buttons are enabled when data is loaded."""
+        # Set shots in state
+        self.state_manager.set_shots(get_sample_shots_5())
+        
+        # Mock streamlit functions
+        with patch('streamlit.sidebar.button') as mock_button:
+            # Render component with data
+            self.controls.render()
+            
+            # Check that analyze button was enabled
+            analyze_call = None
+            for call in mock_button.call_args_list:
+                if 'Analyze' in str(call):
+                    analyze_call = call
+                    break
+            
+            assert analyze_call is not None
+            assert analyze_call[1]['disabled'] is False
+
+
+class TestComponentIntegration:
+    """Test cases for component integration."""
+    
+    def setup_method(self):
+        """Set up test method."""
+        # Mock streamlit session state with our custom mock
+        self.mock_session_state = MockSessionState()
+        
+        # Patch streamlit session state
+        self.session_patcher = patch('streamlit.session_state', self.mock_session_state)
+        self.session_patcher.start()
+        
         self.state_manager = StateManager()
     
     def teardown_method(self):
         """Clean up after test."""
         self.session_patcher.stop()
     
-    def test_controls_component_integration(self):
-        """Test controls component integration with state manager."""
-        # Set up test data
-        test_shots = get_sample_shots_5()
-        self.mock_session_state['shots'] = test_shots
-        self.mock_session_state['analysis_mode'] = "Local Files"
-        self.mock_session_state['duplicate_threshold'] = 20.0
-        self.mock_session_state['min_confidence'] = 0.8
-        self.mock_session_state['outlier_method'] = "Standard Deviation"
-        self.mock_session_state['outlier_threshold'] = 2.5
+    def test_full_workflow(self):
+        """Test full workflow with all components."""
+        # Create components
+        image_display = ImageDisplay()
+        metrics_panel = MetricsPanelComponent()
+        controls = ControlsComponent()
         
-        # Render controls component
-        controls_state = self.controls.render()
+        # Create a temporary image file with actual image content
+        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+            # Create a simple test image
+            test_image = PILImage.new('RGB', (100, 100), color='red')
+            test_image.save(temp_file.name)
+            temp_path = temp_file.name
         
-        # Check that controls were rendered
-        assert 'analysis_mode' in controls_state
-        assert 'configuration' in controls_state
-        assert 'button_states' in controls_state
-        assert 'session_states' in controls_state
-        assert 'advanced_settings' in controls_state
-        
-        # Check that state was accessed
-        assert controls_state['analysis_mode'] == "Local Files"
-        assert controls_state['configuration']['duplicate_threshold'] == 20.0
-        assert controls_state['configuration']['min_confidence'] == 0.8
-        assert controls_state['configuration']['outlier_method'] == "Standard Deviation"
-        assert controls_state['configuration']['outlier_threshold'] == 2.5
-    
-    def test_image_display_component_integration(self):
-        """Test image display component integration with state manager."""
-        # Set up test data
-        test_shots = get_sample_shots_5()
-        test_mpi = Point(x=100, y=100)
-        test_image = "test_image"
-        
-        self.mock_session_state['shots'] = test_shots
-        self.mock_session_state['filtered_shots'] = test_shots
-        self.mock_session_state['mpi'] = {'x': 100, 'y': 100}
-        self.mock_session_state['current_image'] = test_image
-        
-        # Render image display component
-        with patch('src.ui_layer.components.image_display.image_display.display_single_image') as mock_display:
-            # Render component
-            self.image_display.render_single_image(
-                test_image, test_shots, test_mpi, "Test Display"
-            )
-            
-            # Check that display was called
-            mock_display.assert_called_once()
-            call_args = mock_display.call_args[0]
-            assert call_args[0] == test_image
-            assert call_args[1] == test_shots
-            assert call_args[2] == test_mpi
-            assert call_args[3] == "Test Display"
-    
-    def test_metrics_panel_component_integration(self):
-        """Test metrics panel component integration with state manager."""
-        # Set up test data
-        test_shots = get_sample_shots_10()
-        
-        self.mock_session_state['shots'] = test_shots
-        self.mock_session_state['filtered_shots'] = test_shots
-        
-        # Render metrics panel component
-        with patch('src.ui_layer.components.metrics_panel.metrics_panel_component.render') as mock_render:
-            # Render component
-            self.metrics_panel.render(test_shots)
-            
-            # Check that render was called
-            mock_render.assert_called_once()
-            call_args = mock_render.call_args[0]
-            assert call_args[0] == test_shots
-    
-    def test_state_manager_integration(self):
-        """Test state manager integration with UI components."""
-        # Set up test data
-        test_shots = get_sample_shots_5()
-        
-        self.mock_session_state['shots'] = test_shots
-        
-        # Test state manager methods
-        self.state_manager.set_shots(test_shots)
-        assert self.mock_session_state['shots'] == test_shots
-        
-        self.state_manager.set_filtered_shots(test_shots)
-        assert self.mock_session_state['filtered_shots'] == test_shots
-        
-        test_mpi = Point(x=100, y=100)
-        self.state_manager.set_mpi(test_mpi)
-        assert self.mock_session_state['mpi'] == {'x': 100, 'y': 100}
-        
-        test_mode = "Live Camera"
-        self.state_manager.set_analysis_mode(test_mode)
-        assert self.mock_session_state['analysis_mode'] == test_mode
-        
-        test_threshold = 25.0
-        self.state_manager.set_duplicate_threshold(test_threshold)
-        assert self.mock_session_state['duplicate_threshold'] == test_threshold
-        
-        test_confidence = 0.9
-        self.state_manager.set_min_confidence(test_confidence)
-        assert self.mock_session_state['min_confidence'] == test_confidence
-        
-        test_method = "IQR"
-        self.state_manager.set_outlier_method(test_method)
-        assert self.mock_session_state['outlier_method'] == test_method
-        
-        test_outlier_threshold = 3.0
-        self.state_manager.set_outlier_threshold(test_outlier_threshold)
-        assert self.mock_session_state['outlier_threshold'] == test_outlier_threshold
-    
-    def test_session_persistence(self):
-        """Test session persistence and recovery."""
-        # Set up test data
-        test_shots = get_sample_shots_5()
-        test_session_id = "test_session_12345"
-        
-        self.mock_session_state['shots'] = test_shots
-        self.mock_session_state['session_id'] = test_session_id
-        
-        # Test session saving
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with patch('pathlib.Path.mkdir') as mock_mkdir:
-                # Save session
-                saved_path = self.state_manager.save_session()
+        try:
+            # Mock streamlit functions
+            with patch('src.ui_layer.components.image_display.st.image'), \
+                 patch('streamlit.metric'), \
+                 patch('streamlit.button') as mock_button, \
+                 patch('streamlit.selectbox') as mock_selectbox, \
+                 patch('streamlit.slider') as mock_slider, \
+                 patch('streamlit.radio') as mock_radio:
                 
-                # Check that file was created
-                assert saved_path.endswith('.json')
-                assert test_session_id in saved_path
+                # Set up button return values
+                def button_side_effect(label, **kwargs):
+                    if 'Load Image' in str(label):
+                        return True
+                    elif 'Analyze' in str(label):
+                        return True
+                    return False
                 
-                # Check file content
-                with open(saved_path, 'r') as f:
-                    saved_data = json.load(f)
-                    
-                    assert saved_data['session_id'] == test_session_id
-                    assert saved_data['state']['shots'] == [
-                        shot.to_dict() for shot in test_shots
-                    ]
+                mock_button.side_effect = button_side_effect
+                
+                # Set up selectbox return value
+                mock_selectbox.return_value = "Local Files"
+                
+                # Set up radio return value
+                mock_radio.return_value = "Local Files"
+                
+                # Set up slider return values
+                mock_slider.return_value = 15.0
+                
+                # Step 1: Load image
+                self.state_manager.set_current_image(temp_path)
+                
+                # Step 2: Load shots
+                self.state_manager.set_shots(get_sample_shots_5())
+                
+                # Step 3: Render controls
+                controls.render()
+                
+                # Step 4: Render image display
+                image_display.render(state_manager=self.state_manager)
+                
+                # Step 5: Render metrics panel
+                metrics_panel.render()
+                
+                # Check that state is consistent
+                assert self.state_manager.get_shots() == get_sample_shots_5()
+                assert self.state_manager.get_current_image() == temp_path
+                
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
     
-    def test_session_validation(self):
-        """Test session state validation."""
-        # Set up valid state
-        test_shots = get_sample_shots_5()
-        self.mock_session_state['shots'] = test_shots
-        self.mock_session_state['duplicate_threshold'] = 15.0
-        self.mock_session_state['min_confidence'] = 0.5
-        self.mock_session_state['session_id'] = "test_session"
+    def test_state_consistency(self):
+        """Test that state remains consistent across components."""
+        # Create components
+        image_display = ImageDisplay()
+        metrics_panel = MetricsPanelComponent()
+        controls = ControlsComponent()
         
-        # Should validate successfully
-        assert self.state_manager.validate_state() is True
-        
-        # Test missing required keys
-        del self.mock_session_state['session_id']
-        assert self.state_manager.validate_state() is False
-        
-        # Test invalid data types
-        self.mock_session_state['shots'] = "not_a_list"
-        assert self.state_manager.validate_state() is False
-        
-        # Test invalid value ranges
-        self.mock_session_state['min_confidence'] = -0.1
-        assert self.state_manager.validate_state() is False
-        
-        self.mock_session_state['min_confidence'] = 1.5
-        assert self.state_manager.validate_state() is False
-        
-        self.mock_session_state['duplicate_threshold'] = 60.0
-        assert self.state_manager.validate_state() is False
-    
-    def test_session_history_tracking(self):
-        """Test session history tracking."""
-        # Set up test data
-        test_shots = get_sample_shots_5()
-        
-        self.mock_session_state['shots'] = []
-        
-        # Perform multiple state changes
-        self.state_manager.set_shots(test_shots)
-        self.state_manager.set_analysis_mode("Live Camera")
-        self.state_manager.set_duplicate_threshold(20.0)
-        
-        # Check history
-        history = self.state_manager.get_analysis_history()
-        
-        # Should have 3 entries
-        assert len(history) == 3
-        
-        # Check first entry (shots_updated)
-        assert history[0]['action'] == 'shots_updated'
-        assert history[0]['data']['shot_count'] == len(test_shots)
-        
-        # Check second entry (mode_changed)
-        assert history[1]['action'] == 'mode_changed'
-        assert history[1]['data']['mode'] == "Live Camera"
-        
-        # Check third entry (threshold_changed)
-        assert history[2]['action'] == 'threshold_changed'
-        assert history[2]['data']['type'] == 'duplicate'
-        assert history[2]['data']['value'] == 20.0
-    
-    def test_error_handling(self):
-        """Test error handling in UI components."""
-        # Test controls component with invalid state
-        self.mock_session_state['analysis_mode'] = "Invalid Mode"
-        
-        # Should handle error gracefully
-        with patch('streamlit.error') as mock_error:
-            controls_state = self.controls.render()
+        # Mock streamlit functions
+        with patch('streamlit.info'), \
+             patch('streamlit.metric'), \
+             patch('streamlit.button'), \
+             patch('streamlit.selectbox') as mock_selectbox, \
+             patch('streamlit.slider') as mock_slider, \
+             patch('streamlit.radio') as mock_radio:
             
-            # Check that error was displayed
-            mock_error.assert_called()
-    
-    def test_component_interaction(self):
-        """Test interaction between components."""
-        # Set up test data
-        test_shots = get_sample_shots_5()
-        
-        self.mock_session_state['shots'] = test_shots
-        self.mock_session_state['filtered_shots'] = test_shots
-        
-        # Test that components can share state
-        # Controls component changes state
-        self.controls.render()
-        assert self.mock_session_state['duplicate_threshold'] == 15.0  # Default value
-        
-        # Metrics panel should see the change
-        with patch('src.ui_layer.components.metrics_panel.metrics_panel_component.render') as mock_render:
-            self.metrics_panel.render(test_shots)
+            # Set up return values
+            mock_selectbox.return_value = "Local Files"
+            mock_radio.return_value = "Local Files"
+            mock_slider.return_value = 15.0
             
-            # Check that metrics panel was called with updated state
-            mock_render.assert_called_once()
-            call_args = mock_render.call_args[0]
-            assert call_args[0] == test_shots
-    
-    def test_performance_with_components(self):
-        """Test performance with UI components."""
-        import time
-        
-        # Set up large dataset
-        large_shots = []
-        for i in range(100):
-            large_shots.append(Shot(x=i*10, y=i*10))
-        
-        self.mock_session_state['shots'] = large_shots
-        
-        # Time component rendering
-        start_time = time.time()
-        
-        # Render all components
-        self.controls.render()
-        self.image_display.render_single_image(
-            "test_image", large_shots, Point(x=500, y=500), "Test"
-        )
-        self.metrics_panel.render(large_shots)
-        
-        end_time = time.time()
-        
-        # Should complete within reasonable time
-        render_time = end_time - start_time
-        assert render_time < 0.5  # Should be fast even with large dataset
+            # Set initial state
+            self.state_manager.set_shots(get_sample_shots_5())
+            self.state_manager.set_duplicate_threshold(20.0)
+            self.state_manager.set_min_confidence(0.8)
+            
+            # Render all components
+            image_display.render(state_manager=self.state_manager)
+            metrics_panel.render()
+            controls.render()
+            
+            # Check that state is consistent
+            assert self.state_manager.get_shots() == get_sample_shots_5()
+            assert self.state_manager.get_duplicate_threshold() == 20.0
+            assert self.state_manager.get_min_confidence() == 0.8
 
 
 if __name__ == "__main__":

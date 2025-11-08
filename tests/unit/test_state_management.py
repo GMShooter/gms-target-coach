@@ -5,11 +5,13 @@ import streamlit as st
 from unittest.mock import patch, MagicMock
 import tempfile
 import json
+from pathlib import Path
 
 from src.ui_layer.state_management import StateManager
 from src.analysis_engine.models import Shot, Point
 from src.utils.exceptions import ValidationError
 from tests.fixtures.sample_shots import get_sample_shots_5
+from tests.conftest import MockSessionState
 
 
 class TestStateManager:
@@ -17,8 +19,8 @@ class TestStateManager:
     
     def setup_method(self):
         """Set up test method."""
-        # Mock streamlit session state
-        self.mock_session_state = {}
+        # Mock streamlit session state with our custom mock
+        self.mock_session_state = MockSessionState()
         
         # Patch streamlit session state
         self.session_patcher = patch('streamlit.session_state', self.mock_session_state)
@@ -422,10 +424,17 @@ class TestStateManager:
         
         # Create temporary directory for testing
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Patch the sessions directory
-            with patch('pathlib.Path.mkdir') as mock_mkdir:
-                # Save session
-                saved_path = self.manager.save_session()
+            # Create sessions directory in temp folder
+            sessions_dir = Path(temp_dir) / "sessions"
+            sessions_dir.mkdir(exist_ok=True)
+            
+            # Patch sessions directory creation
+            with patch('src.ui_layer.state_management.Path') as mock_path:
+                # Return our temp sessions directory
+                mock_path.return_value = sessions_dir
+                
+                # Save session with specific filename
+                saved_path = self.manager.save_session("test_session.json")
                 
                 # Check that file was created
                 assert saved_path.endswith('.json')
@@ -500,7 +509,6 @@ class TestStateManager:
         assert self.mock_session_state['outlier_threshold'] == 2.0
         assert self.mock_session_state['analysis_history'] == []
 
-        
         # Check that session ID was regenerated
         assert len(self.mock_session_state['session_id']) == 8  # UUID length
     

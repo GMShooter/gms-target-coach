@@ -70,8 +70,9 @@ class TestShotAnalyzer:
         shots = [Shot(x=100, y=100), Shot(x=200, y=200)]
         
         # Should return original shots when insufficient data
-        filtered = self.analyzer.remove_outliers(shots, "std_dev", 2.0)
+        filtered, flyers = self.analyzer.remove_outliers(shots, "std_dev", 2.0)
         assert len(filtered) == 2
+        assert len(flyers) == 0
     
     def test_remove_outliers_std_dev(self):
         """Test outlier removal using standard deviation method."""
@@ -83,10 +84,12 @@ class TestShotAnalyzer:
             Shot(x=120, y=120)
         ]
         
-        filtered = self.analyzer.remove_outliers(shots, "std_dev", 2.0)
+        filtered, flyers = self.analyzer.remove_outliers(shots, "std_dev", 2.0)
         
         # Should remove the outlier
         assert len(filtered) < len(shots)
+        assert len(flyers) == 1
+        assert flyers[0].x == 500 and flyers[0].y == 500
         assert not any(shot.x == 500 and shot.y == 500 for shot in filtered)
     
     def test_merge_shot_groups(self):
