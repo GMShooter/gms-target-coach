@@ -23,7 +23,7 @@ def test_api_connection():
     """Test Roboflow API connection with updated credentials."""
     print("Testing Roboflow API connection...")
     print(f"API URL: {config.roboflow.url}")
-    print(f"API Key (first 5 chars): {config.roboflow.api_key[:5]}...")
+    print("API Key loaded: Yes" if getattr(config.roboflow, "api_key", None) else "API Key loaded: No")
     print(f"Model ID: {config.roboflow.model_id}")
     
     try:
