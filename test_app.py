@@ -15,7 +15,10 @@ def test_basic_functionality():
     print("Testing GMShoot basic functionality...")
     
     # Test configuration
-    print(f"Roboflow API Key: {config.roboflow.api_key}")
+    if config.roboflow.api_key:
+        print("Roboflow API Key is set.")
+    else:
+        print("Roboflow API Key is NOT set.")
     print(f"Roboflow Model ID: {config.roboflow.model_id}")
     print(f"Roboflow URL: {config.roboflow.url}")
     
