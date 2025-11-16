@@ -9,7 +9,7 @@ from src.utils.config import config
 
 def main():
     print("--- Testing API Connection ---")
-    print(f"Roboflow API Key: {config.roboflow.api_key[:10]}...") # Print first 10 chars for verification
+    print(f"Roboflow API Key is loaded (length: {len(config.roboflow.api_key)})")
     print(f"Roboflow URL: {config.roboflow.url}")
     print(f"Roboflow Model ID: {config.roboflow.model_id}")
 
