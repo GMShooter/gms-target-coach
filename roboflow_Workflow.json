@@ -1,0 +1,85 @@
+{
+  "version": "1.0",
+  "inputs": [
+    {
+      "type": "InferenceImage",
+      "name": "image"
+    }
+  ],
+  "steps": [
+    {
+      "type": "roboflow_core/circle_visualization@v1",
+      "name": "circle_visualization",
+      "image": "$inputs.image",
+      "predictions": "$steps.model.predictions",
+      "color_palette": "DEFAULT",
+      "thickness": 2
+    },
+    {
+      "type": "roboflow_core/label_visualization@v1",
+      "name": "label_visualization_1",
+      "image": "$steps.label_visualization.image",
+      "predictions": "$steps.model.predictions",
+      "text": "Class and Confidence",
+      "text_position": "BOTTOM_CENTER",
+      "text_scale": 0.5,
+      "text_padding": 1,
+      "color_palette": "DEFAULT",
+      "custom_colors": [
+        "#00FF00"
+      ],
+      "color_axis": "CLASS",
+      "palette_size": 1
+    },
+    {
+      "type": "roboflow_core/label_visualization@v1",
+      "name": "label_visualization",
+      "image": "$steps.circle_visualization.image",
+      "predictions": "$steps.model.predictions",
+      "text": "Index",
+      "text_position": "TOP_CENTER",
+      "text_padding": 1,
+      "text_thickness": 1,
+      "text_scale": 0.4,
+      "text_color": "WHITE",
+      "color_palette": "DEFAULT",
+      "custom_colors": [
+        "#00FF00"
+      ],
+      "color_axis": "CLASS",
+      "palette_size": 1
+    },
+    {
+      "type": "roboflow_core/roboflow_object_detection_model@v2",
+      "name": "model",
+      "images": "$inputs.image",
+      "model_id": "my-first-project-cybkn/3",
+      "confidence": 0.5,
+      "iou_threshold": 0.3
+    },
+    {
+      "type": "roboflow_core/roboflow_dataset_upload@v2",
+      "name": "roboflow_dataset_upload",
+      "images": "$steps.circle_visualization.image",
+      "target_project": "my-first-project-cybkn",
+      "usage_quota_name": "upload_quota_NryJJ",
+      "predictions": "$steps.model.predictions",
+      "disable_sink": false,
+      "fire_and_forget": true
+    }
+  ],
+  "outputs": [
+    {
+      "type": "JsonField",
+      "name": "output",
+      "coordinates_system": "own",
+      "selector": "$steps.model.*"
+    },
+    {
+      "type": "JsonField",
+      "name": "image_output",
+      "coordinates_system": "own",
+      "selector": "$steps.label_visualization_1.image"
+    }
+  ]
+}

@@ -1,6 +1,0 @@
-<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100%" height="100%" fill="#f8f8f8"/>
-  <circle cx="315" cy="255" r="50" fill="#ff0000" stroke="#000" stroke-width="2"/>
-  <circle cx="330" cy="240" r="5" fill="#00ff00"/>
-  <text x="320" y="50" text-anchor="middle" font-family="Arial" font-size="24" fill="#000">Test Frame 4</text>
-</svg>
