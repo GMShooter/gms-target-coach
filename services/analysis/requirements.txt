@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+aiohttp
+pydantic
+tenacity
+numpy
+scipy

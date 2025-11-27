@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  camera:
+    build: ./services/camera
+    ports:
+      - "8000:8000"
+    environment:
+      - BASE=${BASE:-https://f92126526c77.ngrok-free.app}
+      - NGROK_USER=${NGROK_USER}
+      - NGROK_PASS=${NGROK_PASS}
+    networks:
+      - gmshoot-network
+
+  analysis:
+    build: ./services/analysis
+    ports:
+      - "8001:8001"
+    environment:
+      - CAMERA_SERVICE_URL=http://camera:8000
+      - ROBOFLOW_API_KEY=${ROBOFLOW_API_KEY}
+      - ROBOFLOW_PROJECT=${ROBOFLOW_PROJECT}
+      - ROBOFLOW_VERSION=${ROBOFLOW_VERSION}
+    depends_on:
+      - camera
+    networks:
+      - gmshoot-network
+
+    volumes:
+      - ./services/ui:/app
+      - ./public:/app/public
+    networks:
+      - gmshoot-network
+
+networks:
+  gmshoot-network:
+    driver: bridge
